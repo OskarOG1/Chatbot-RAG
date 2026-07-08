@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 chunks.json
 RAG/chunks.json
+embeddings.npy
+RAG/embeddings.npy
