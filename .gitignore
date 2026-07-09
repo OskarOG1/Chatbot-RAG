@@ -2,7 +2,7 @@ venv/
 docs/
 __pycache__/
 *.pyc
-chunks.json
-RAG/chunks.json
 embeddings.npy
 RAG/embeddings.npy
+RAG/*.faiss
+RAG/chunks.json
