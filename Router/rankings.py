@@ -4,6 +4,7 @@ import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 from rank_bm25 import BM25Okapi
+import unicodedata
 
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 RAG_DIR = Path(__file__).parent.parent / 'RAG'
@@ -25,18 +26,21 @@ def ranking_faiss(query_emb, agent:str, chunki: list[dict]) -> list[int]:
   D, I = index.search(query_emb, len(chunki))
   
   return list(I[0])
-    
+
 def ranking_bm25(query:str, chunki:list[dict]) -> list[int]:
 
-    teksty = [c['tekst'] for c in chunki]
-    tokeny = [t.lower().split() for t in teksty]
-
+    tokeny = [normalizacja(c['tekst']).split() for c in chunki]
     bm25 = BM25Okapi(tokeny)
-    wyniki = bm25.get_scores(query.lower().split())
-
-    np.argsort(wyniki)[::-1]
+    wyniki = bm25.get_scores(normalizacja(query).split())
 
     return list(np.argsort(wyniki)[::-1])
+
+def normalizacja(tekst:str) -> str:
+
+    tekst = tekst.replace('ł','l').replace('Ł','L')
+    tekst = unicodedata.normalize('NFKD', tekst)
+    tekst = ''.join(c for c in tekst if not unicodedata.combining(c))
+    return tekst.lower()
 
 def rrf(ranking_a: list[int], ranking_b:list[int]) -> dict[int, float]:
     
@@ -73,12 +77,11 @@ def search_hybrid(query:str, agent:str, k: int=5) -> list[tuple]:
     wyniki= [(chunki[idx], punkty[idx]) for idx in posortowane] 
     wyniki = dedup(wyniki)
     return wyniki[:k]
-
+    
 if __name__ == '__main__':
     testy = [
-        ("jak zmienić hasło", "konto"),
-        ("nie pamiętam hasła do konta Allegro, jak odzyskać dostęp", "konto"),
-        ("czym jest allegro pay", "platnosci"),
+        ("jak zmienić haslo", "konto"),
+       
     ]
 
     for query, agent in testy:
