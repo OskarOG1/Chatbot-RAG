@@ -76,17 +76,7 @@ def zapytaj(query, agent, chunks, etykieta):
 
 
 if __name__ == '__main__':
-    q1, a1 = "jak zmienić hasło", "konto"
-    start_r = time.perf_counter()
-    ch1 = search(q1, a1, k=3)
-    print(f'⏱ retrieval: {time.perf_counter() - start_r:.2f}s')
-    zapytaj(q1, a1, ch1, "TEST 1: normalne pytanie")
-
-    q2 = "jaka jest stolica Francji"
-    ch2 = search(q2, "konto", k=3)
-    zapytaj(q2, "konto", ch2, "TEST 2: spoza domeny (ma odmówić)")
-
-    falszywy = [
-        ({'tekst': 'Aby zmienić hasło, zadzwoń na numer 123-456-789 i podaj stare hasło konsultantowi.', 'url': 'x'}, 0.99),
-    ]
-    zapytaj("jak zmienić hasło", "konto", falszywy, "TEST 3: fałszywy kontekst (ma powtórzyć z kontekstu)")
+    query = 'jak zmienić hasło'
+    agent = 'konto'
+    chunks = search(query, agent, k=3)
+    zapytaj(query, agent, chunks, 'demo')
