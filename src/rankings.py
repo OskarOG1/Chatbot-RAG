@@ -3,14 +3,21 @@ from pathlib import Path
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-from rank_bm25 import BM25Okapi
 import unicodedata
+from rank_bm25 import BM25Okapi
+import pickle
 
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
 K_RRF = 60
 
+BM25_CACHE = {}
+def get_bm25(agent:str):
+    if agent not in BM25_CACHE:
+        with open(RAG_DIR / f'{agent}.bm25', 'rb') as r:
+         BM25_CACHE[agent] = pickle.load(r)
+    return BM25_CACHE[agent]
 
 def wczytaj_chunki(agent:str) -> list[dict]:
     
@@ -28,10 +35,9 @@ def ranking_faiss(query_emb, agent:str, chunki: list[dict]) -> list[int]:
   
   return list(I[0])
 
-def ranking_bm25(query:str, chunki:list[dict]) -> list[int]:
+def ranking_bm25(query:str, agent:str) -> list[int]:
 
-    tokeny = [normalizacja(c['tekst']).split() for c in chunki]
-    bm25 = BM25Okapi(tokeny)
+    bm25 = get_bm25(agent)
     wyniki = bm25.get_scores(normalizacja(query).split())
 
     return list(np.argsort(wyniki)[::-1])
@@ -71,7 +77,7 @@ def search_hybrid(query:str,query_emb, agent:str, k: int=5) -> list[tuple]:
    
     chunki = wczytaj_chunki(agent)
     r_faiss = ranking_faiss(query_emb, agent, chunki)
-    r_bm25 = ranking_bm25(query, chunki)
+    r_bm25 = ranking_bm25(query, agent)
     punkty = rrf(r_faiss, r_bm25)
 
     posortowane = sorted(punkty, key=punkty.get, reverse=True)
