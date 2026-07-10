@@ -3,8 +3,10 @@ import faiss
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-from RAG.retriver import search
+
+from retriver import search
 from rankings import search_hybrid 
+
 
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)

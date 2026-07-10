@@ -1,8 +1,8 @@
 import ollama
 from pathlib import Path
 import sys
-sys.path.append(str(Path(__file__).parent.parent))
 from rankings import search_hybrid
+
 import time
 
 MODEL_NAME = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
@@ -40,6 +40,7 @@ def context(chunks: list[dict]) -> str:
 
 
 def answer(query: str, agent: str, chunks: list[dict]) -> str:
+
     system_prompt = SYSTEM_PROMPTY[agent]
     teksty = [c for c, score in chunks]
     kontekst = context(teksty)
@@ -48,35 +49,45 @@ def answer(query: str, agent: str, chunks: list[dict]) -> str:
     strumien = ollama.chat(
         model=MODEL_NAME,
         messages=[
+
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': tresc},
         ],
         stream=True,
     )
     pelna = ''
+
     for kawalek in strumien:
+
         tekst = kawalek['message']['content']
         print(tekst, end='', flush=True)
+
         pelna += tekst
+
     print()
     return pelna
 
 
 def zapytaj(query, agent, chunks, etykieta):
+
     print(f'\n===== {etykieta} =====')
     print(f'PYTANIE: {query}  |  AGENT: {agent}')
     print('--- KONTEKST ---')
+
     for c, score in chunks:
         print(f'{score:.3f} | {c["tekst"][:200]}')
+
     print('--- ODPOWIEDŹ ---')
 
     start = time.perf_counter()
     answer(query, agent, chunks)
     czas = time.perf_counter() - start
+
     print(f'⏱ generacja: {czas:.1f}s')
 
 
 if __name__ == '__main__':
+
     query = 'jak zmienić hasło'
     agent = 'konto'
     chunks = search_hybrid(query, agent, k=3)

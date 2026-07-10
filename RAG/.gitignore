@@ -1,0 +1,8 @@
+venv/
+docs/
+__pycache__/
+*.json
+*.pyc
+*.npy
+*.faiss
+chunks*.json

@@ -6,6 +6,8 @@ from collections import Counter
 
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
+ROOT = Path(__file__).resolve().parent.parent
+RAG_DIR = ROOT / 'RAG'
 
 encoder = tiktoken.get_encoding('cl100k_base')
 
@@ -40,9 +42,10 @@ def chunk_document(sciezka:Path) -> list[dict]:
     return [
         {'tekst': k, **metadane}
         for k in kawalki]
+
 if __name__ == '__main__':
 
-    docs_dir = Path(__file__).parent.parent / 'Fundaments' / 'docs' 
+    docs_dir = RAG_DIR / 'Fundaments' / 'docs' 
     wszystkie_chunki = []
 
     for plik_md in docs_dir.rglob('*.md'):
@@ -52,7 +55,7 @@ if __name__ == '__main__':
     print(f'plików:~141, chunków łącznie: {len(wszystkie_chunki)}' )
     
     licznik = Counter(c['agent'] for c in wszystkie_chunki)
-    sciezka_json = Path(__file__).parent /'chunks.json'
+    sciezka_json = RAG_DIR /'chunks.json'
 
     with open(sciezka_json, 'w', encoding='utf-8') as w:
         json.dump(wszystkie_chunki, w, ensure_ascii=False, indent=2)

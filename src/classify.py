@@ -5,15 +5,19 @@ import faiss
 from sentence_transformers import SentenceTransformer
 
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
-RAG_DIR = Path(__file__).parent.parent / 'RAG'
+ROOT = Path(__file__).resolve().parent.parent
+RAG_DIR = ROOT / 'RAG'
 
 
 def classify_top1(query_emb) -> str:
+
     wyniki = []
     for agent in ['konto', 'zakupy', 'platnosci']:
+        
         index = faiss.read_index(str(RAG_DIR / f'{agent}.faiss'))
         D, I = index.search(query_emb, k=3)
         score = D[0].mean()
+
         wyniki.append((agent, score))
 
     return max(wyniki, key=lambda x: x[1])[0]
@@ -49,13 +53,14 @@ if __name__ == '__main__':
 
     trafienia_t = 0
     for pytanie, oczekiwany in testy:
+
         query_emb = model.encode([pytanie]).astype('float32')
         faiss.normalize_L2(query_emb)
 
         t = classify_top1(query_emb)
         trafienia_t += (t == oczekiwany)
-
         zt = 'Trafione' if t == oczekiwany else 'nietrafione'
+        
         print(f'{pytanie:42} | ocz {oczekiwany:9} | top1 {t:9} {zt}')
 
     print(f'\nTop-1: {trafienia_t}/20')

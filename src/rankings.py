@@ -7,7 +7,8 @@ from rank_bm25 import BM25Okapi
 import unicodedata
 
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
-RAG_DIR = Path(__file__).parent.parent / 'RAG'
+ROOT = Path(__file__).resolve().parent.parent
+RAG_DIR = ROOT / 'RAG'
 K_RRF = 60
 
 
@@ -55,11 +56,15 @@ def rrf(ranking_a: list[int], ranking_b:list[int]) -> dict[int, float]:
 
 def dedup(wyniki):
     widziane = set()
+
     unikalne = []
     for chunk, score in wyniki:
+        
         if chunk['url'] not in widziane:
+
             widziane.add(chunk['url'])
             unikalne.append((chunk,score))
+
     return unikalne
 
 def search_hybrid(query:str,query_emb, agent:str, k: int=5) -> list[tuple]:
@@ -73,9 +78,11 @@ def search_hybrid(query:str,query_emb, agent:str, k: int=5) -> list[tuple]:
 
     wyniki= [(chunki[idx], punkty[idx]) for idx in posortowane] 
     wyniki = dedup(wyniki)
+
     return wyniki[:k]
     
 if __name__ == '__main__':
+    
     from sentence_transformers import SentenceTransformer
     model = SentenceTransformer(MODEL_NAME)
 
@@ -85,10 +92,13 @@ if __name__ == '__main__':
 
     for query, agent in testy:
         print(f'\n=== "{query}" [{agent}] ===')
+       
         q_emb = model.encode([query]).astype('float32')
         faiss.normalize_L2(q_emb)
+       
         wyniki = search_hybrid(query, q_emb, agent, k=3)
         for chunk, score in wyniki:
+           
             print(f'{score:.4f} | {chunk["tytul"]}')
             print(chunk['tekst'][:200])
             print('---')

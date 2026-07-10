@@ -3,17 +3,20 @@ from pathlib import Path
 import numpy as np 
 import faiss
 
+ROOT = Path(__file__).resolve().parent.parent
+RAG_DIR = ROOT / 'RAG'
+
 def wczytaj_chunki(sciezka: Path) -> tuple[list[dict], np.ndarray]:
     with open(sciezka, 'r', encoding='utf-8') as r:
        
-       sciezka_embeddings = Path(__file__).parent / 'embeddings.npy'
+       sciezka_embeddings = RAG_DIR / 'embeddings.npy'
        embeddings = np.load(sciezka_embeddings)
 
        return json.load(r), embeddings.astype('float32')
 
 def main():
 
-    sciezka_chunks = Path(__file__).parent / 'chunks.json'
+    sciezka_chunks = RAG_DIR / 'chunks.json'
     chunki,embeddings = wczytaj_chunki(sciezka_chunks)
     nazwy_agentow = ['konto', 'zakupy', 'platnosci']
 
@@ -31,9 +34,9 @@ def main():
         index = faiss.IndexFlatIP(768)
         index.add(agenci_embeddings)
 
-        faiss.write_index(index, str(Path(__file__).parent / f'{nazwa}.faiss'))
+        faiss.write_index(index, str(RAG_DIR / f'{nazwa}.faiss'))
 
-        vector_json = Path(__file__).parent /f'chunks_{nazwa}.json'
+        vector_json = RAG_DIR / f'chunks_{nazwa}.json'
         with open(vector_json, 'w', encoding='utf-8') as w:
          json.dump(agenci_chunki, w, ensure_ascii=False, indent=4)
        
