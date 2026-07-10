@@ -5,6 +5,6 @@ __pycache__/
 embeddings.npy
 RAG/embeddings.npy
 RAG/*.faiss
-RAG/chunks.json
+chunks*.json
 __init__.py
 
