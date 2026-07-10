@@ -1,9 +1,13 @@
-
+from sentence_transformers import SentenceTransformer
+import faiss
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from RAG.retriver import search
 from rankings import search_hybrid 
+
+MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
+model = SentenceTransformer(MODEL_NAME)
 
 GOLDEN = [
     {"query": "jak zmienić hasło", "agent": "konto", "zrodlo_url": "jak-zmienic-haslo-na-allegro-B826XYkbXsA"},
@@ -33,27 +37,39 @@ GOLDEN = [
     {"query": "jak zapłacić przelewem", "agent": "platnosci", "zrodlo_url": "jak-zaplacic-za-przedmiot-kupiony-na-allegro-YLKol7RVxI0"},
 ]
 
-def hit_at_k(search_fn, k=3):
+def search_k(search_fn, k=3):
+
     trafienia = 0
     pudla = []
-    for g in GOLDEN:
-        wyniki = search_fn(g["query"], g["agent"], k=k)
-        urle = [chunk["url"] for chunk, score in wyniki]
 
-        zrodla = g["zrodlo_url"] if isinstance(g["zrodlo_url"], list) else [g["zrodlo_url"]]
-        if any(z in u for z in zrodla for u in urle):
+    for g in GOLDEN:
+
+        query = g['query']
+        query_emb = model.encode([query]).astype('float32')
+        faiss.normalize_L2(query_emb)
+
+        wyniki = search_fn(query, query_emb, g['agent'], k=k)
+        url = [chunk['url'] for chunk, score in wyniki]
+
+        zrodla = g['zrodlo_url'] if isinstance(g['zrodlo_url'],list) else [g['zrodlo_url']]                              
+        if any(z in u for z in zrodla for u in url):
             trafienia += 1
+
         else:
-            pudla.append(g["query"])
-            print(f'\n✗ "{g["query"]}" [{g["agent"]}]')
+
+            pudla.append(query)
+
+            print(f'\n✗ "{query}" [{g["agent"]}]')
             print(f'  oczekiwano: {zrodla}')
+
             for chunk, score in wyniki:
                 print(f'  {score:.4f} | {chunk["url"].split("/")[-1]}')
-    return trafienia / len(GOLDEN), pudla
 
+    return trafienia / len(GOLDEN), pudla
 if __name__ == '__main__':
-    acc_v1, pudla_v1 = hit_at_k(search, k=3)
-    acc_v2, pudla_v2 = hit_at_k(search_hybrid, k=3)
+
+    acc_v1, pudla_v1 = search_k(search, k=3)
+    acc_v2, pudla_v2 = search_k(search_hybrid, k=3)
     
     print(f'v1 (pure vector) Hit@3: {acc_v1:.2f}')
     print(f'v2 (hybrid)      Hit@3: {acc_v2:.2f}')

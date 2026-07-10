@@ -6,13 +6,10 @@ from sentence_transformers import SentenceTransformer
 
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 
-def search(query:str, agent:str, k:int=5, ) -> list[tuple]:
+def search(query,query_emb, agent, k=5 ):
 
-    model = SentenceTransformer(MODEL_NAME)
-    query_emb = model.encode([query]).astype('float32')
-
-    faiss.normalize_L2(query_emb)
     sciezka_indexu = Path(__file__).parent / f'{agent}.faiss'
+    
     index = faiss.read_index(str(sciezka_indexu))
     D,I = index.search(query_emb, k)
 
@@ -24,7 +21,12 @@ def search(query:str, agent:str, k:int=5, ) -> list[tuple]:
     return wyniki
 
 if __name__ == '__main__':
-    wyniki = search("nie pamiętam hasła do konta Allegro, jak odzyskać dostęp", "konto", k=3)
+    from sentence_transformers import SentenceTransformer
+    model = SentenceTransformer(MODEL_NAME)
+    q = "nie pamiętam hasła do konta Allegro, jak odzyskać dostęp"
+    q_emb = model.encode([q]).astype('float32')
+    faiss.normalize_L2(q_emb)
+    wyniki = search(q, q_emb, "konto", k=3)
     for chunk, score in wyniki:
         print(f'{score:.3f} | {chunk["tytul"]}')
         print(chunk['tekst'][:200])

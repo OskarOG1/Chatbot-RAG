@@ -61,12 +61,9 @@ def dedup(wyniki):
             widziane.add(chunk['url'])
             unikalne.append((chunk,score))
     return unikalne
-def search_hybrid(query:str, agent:str, k: int=5) -> list[tuple]:
-   
-    model = SentenceTransformer(MODEL_NAME)
-    query_emb = model.encode([query]).astype('float32')
-    faiss.normalize_L2(query_emb)
 
+def search_hybrid(query:str,query_emb, agent:str, k: int=5) -> list[tuple]:
+   
     chunki = wczytaj_chunki(agent)
     r_faiss = ranking_faiss(query_emb, agent, chunki)
     r_bm25 = ranking_bm25(query, chunki)
@@ -79,14 +76,18 @@ def search_hybrid(query:str, agent:str, k: int=5) -> list[tuple]:
     return wyniki[:k]
     
 if __name__ == '__main__':
+    from sentence_transformers import SentenceTransformer
+    model = SentenceTransformer(MODEL_NAME)
+
     testy = [
         ("jak zmienić haslo", "konto"),
-       
     ]
 
     for query, agent in testy:
         print(f'\n=== "{query}" [{agent}] ===')
-        wyniki = search_hybrid(query, agent, k=3)
+        q_emb = model.encode([query]).astype('float32')
+        faiss.normalize_L2(q_emb)
+        wyniki = search_hybrid(query, q_emb, agent, k=3)
         for chunk, score in wyniki:
             print(f'{score:.4f} | {chunk["tytul"]}')
             print(chunk['tekst'][:200])

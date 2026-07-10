@@ -12,7 +12,7 @@ def run(query:str) -> dict:
     faiss.normalize_L2(query_emb)
 
     agent = classify_top1(query_emb)
-    chunks = search_hybrid(query, agent, k=5)
+    chunks = search_hybrid(query, query_emb, agent, k=5)
 
 
     odpowiedz = answer(query, agent, chunks)

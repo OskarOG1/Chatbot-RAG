@@ -2,10 +2,11 @@ import ollama
 from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
-from RAG.retriver import search
+from rankings import search_hybrid
 import time
 
 MODEL_NAME = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
+
 SYSTEM_PROMPTY = {
     'konto': (
         'Jesteś specjalistą wsparcia Allegro od spraw konta i bezpieczeństwa. '
@@ -78,5 +79,5 @@ def zapytaj(query, agent, chunks, etykieta):
 if __name__ == '__main__':
     query = 'jak zmienić hasło'
     agent = 'konto'
-    chunks = search(query, agent, k=3)
+    chunks = search_hybrid(query, agent, k=3)
     zapytaj(query, agent, chunks, 'demo')
