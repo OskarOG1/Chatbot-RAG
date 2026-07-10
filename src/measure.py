@@ -47,7 +47,7 @@ def search_k(search_fn, k=3):
     for g in GOLDEN:
 
         query = g['query']
-        query_emb = model.encode([query]).astype('float32')
+        query_emb = model.encode(['zapytanie' + query]).astype('float32')
         faiss.normalize_L2(query_emb)
 
         wyniki = search_fn(query, query_emb, g['agent'], k=k)

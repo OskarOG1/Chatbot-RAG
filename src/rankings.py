@@ -93,7 +93,7 @@ if __name__ == '__main__':
     for query, agent in testy:
         print(f'\n=== "{query}" [{agent}] ===')
        
-        q_emb = model.encode([query]).astype('float32')
+        q_emb = model.encode(['zapytanie:' + query]).astype('float32')
         faiss.normalize_L2(q_emb)
        
         wyniki = search_hybrid(query, q_emb, agent, k=3)

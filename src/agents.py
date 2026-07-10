@@ -1,6 +1,5 @@
 import ollama
 from pathlib import Path
-import sys
 from rankings import search_hybrid
 
 import time
