@@ -45,7 +45,7 @@ def main():
         with open(vector_json, 'w', encoding='utf-8') as w:
          json.dump(agenci_chunki, w, ensure_ascii=False, indent=4)
         
-        tokeny = [normalizacja(c['tekst']).split() for c in agenci_chunki]
+        tokeny = [normalizacja(f"(c['tytul']) \n {c['tekst']}").split() for c in agenci_chunki]
         bm25 = BM25Okapi(tokeny)
 
         with open(RAG_DIR / f'{nazwa}.bm25', "wb") as w:
