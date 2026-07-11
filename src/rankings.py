@@ -15,6 +15,7 @@ RAG_DIR = ROOT / 'RAG'
 K_RRF = 60
 
 BM25_CACHE = {}
+
 def get_bm25(agent:str):
     if agent not in BM25_CACHE:
         with open(RAG_DIR / f'{agent}.bm25', 'rb') as r:
@@ -22,6 +23,7 @@ def get_bm25(agent:str):
     return BM25_CACHE[agent]
 
 def wczytaj_chunki(agent:str) -> list[dict]:
+    
     nazwa = 'chunks.json' if agent == 'all' else f'chunks_{agent}.json'
     sciezka_chunki = RAG_DIR / nazwa
     with open(sciezka_chunki, 'r', encoding='utf-8' ) as r:
