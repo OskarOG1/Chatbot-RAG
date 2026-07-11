@@ -24,6 +24,12 @@ def get_bm25(agent:str):
          BM25_CACHE[agent] = pickle.load(r)
     return BM25_CACHE[agent]
 
+FAISS_CACHE = {}
+def get_faiss(agent:str):
+    if agent not in FAISS_CACHE:
+        FAISS_CACHE[agent] = faiss.read_index(str(RAG_DIR / f'{agent}.faiss'))
+    return FAISS_CACHE[agent]
+
 def wczytaj_chunki(agent:str) -> list[dict]:
     
     nazwa = 'chunks.json' if agent == 'all' else f'chunks_{agent}.json'
@@ -34,19 +40,10 @@ def wczytaj_chunki(agent:str) -> list[dict]:
 
 def ranking_faiss(query_emb, agent:str, chunki: list[dict]) -> list[int]:
   
-  sciezka_faiss = RAG_DIR / f'{agent}.faiss'
-  index = faiss.read_index(str(sciezka_faiss))
-  
+  index = get_faiss(agent)
   D, I = index.search(query_emb, len(chunki))
   
   return list(I[0])
-
-def ranking_bm25(query:str, agent:str) -> list[int]:
-
-    bm25 = get_bm25(agent)
-    wyniki = bm25.get_scores(tokenizacja(query))
-
-    return list(np.argsort(wyniki)[::-1])
 
 def tokenizacja(tekst:str) -> list[str]:
     slowa = tekst.split()
@@ -65,6 +62,13 @@ def normalizacja(tekst:str) -> str:
     tekst = unicodedata.normalize('NFKD', tekst)
     tekst = ''.join(c for c in tekst if not unicodedata.combining(c))
     return tekst.lower()
+
+def ranking_bm25(query:str, agent:str) -> list[int]:
+
+    bm25 = get_bm25(agent)
+    wyniki = bm25.get_scores(tokenizacja(query))
+
+    return list(np.argsort(wyniki)[::-1])
 
 def rrf(rankingi: list[list[int]]) -> dict[int, float]:
 
@@ -88,7 +92,7 @@ def dedup(wyniki):
             unikalne.append((chunk,score))
 
     return unikalne
-
+# zostawiony do testów, w produkcji działą search_hybrid
 def search_route(query:str, query_emb, k:int=5) -> tuple[str, list[tuple]]:
     
     chunki = wczytaj_chunki('all')
@@ -107,7 +111,7 @@ def search_route(query:str, query_emb, k:int=5) -> tuple[str, list[tuple]]:
 
     return agent,wyniki
 
-def search_hybrid(query: str, query_emb, agent: str, k: int = 5) -> list[tuple]:
+def search_hybrid(query: str, query_emb, agent: str, k:int= 5) -> list[tuple]:
 
     chunki = wczytaj_chunki(agent)
     r_faiss = ranking_faiss(query_emb, agent, chunki)
