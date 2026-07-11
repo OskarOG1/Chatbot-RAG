@@ -7,6 +7,7 @@ import unicodedata
 from rank_bm25 import BM25Okapi
 import pickle
 from collections import Counter
+import simplemma
 
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 ROOT = Path(__file__).resolve().parent.parent
@@ -39,9 +40,20 @@ def ranking_faiss(query_emb, agent:str, chunki: list[dict]) -> list[int]:
 def ranking_bm25(query:str, agent:str) -> list[int]:
 
     bm25 = get_bm25(agent)
-    wyniki = bm25.get_scores(normalizacja(query).split())
+    wyniki = bm25.get_scores(tokenizacja(query))
 
     return list(np.argsort(wyniki)[::-1])
+
+def tokenizacja(tekst:str) -> list[str]:
+    slowa = tekst.split()
+    wynik = []
+
+    for slowo in slowa:
+
+        lemantyzacja = simplemma.lemmatize(slowo, lang='pl')
+        wynik.append(normalizacja(lemantyzacja))
+
+    return wynik
 
 def normalizacja(tekst:str) -> str:
 

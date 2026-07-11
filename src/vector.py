@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np 
 import faiss
 import pickle
-from rankings import normalizacja
+from rankings import tokenizacja
 from rank_bm25 import BM25Okapi
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -46,7 +46,7 @@ def main():
         with open(vector_json, 'w', encoding='utf-8') as w:
          json.dump(agenci_chunki, w, ensure_ascii=False, indent=4)
         
-        tokeny = [normalizacja(f"{c['tytul']}\n{c['tekst']}").split() for c in agenci_chunki]
+        tokeny = [tokenizacja(f"{c['tytul']}\n{c['tekst']}") for c in agenci_chunki]
         bm25 = BM25Okapi(tokeny)
         
 
@@ -60,7 +60,7 @@ def main():
     index_all.add(emb_all)
     faiss.write_index(index_all, str(RAG_DIR / "all.faiss"))
        
-    tokeny_all = [normalizacja(f"{c['tytul']}\n{c['tekst']}").split() for c in chunki]
+    tokeny_all = [tokenizacja(f"{c['tytul']}\n{c['tekst']}") for c in chunki]
     bm25_all =  BM25Okapi(tokeny_all)
     with open(RAG_DIR / "all.bm25", "wb") as w:
        pickle.dump(bm25_all, w)

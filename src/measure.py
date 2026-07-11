@@ -109,16 +109,22 @@ def routing_acc():
         agent_wybrany, _ = search_route(query, query_emb, k=5)
         
         trafienia += (agent_wybrany == g['agent'])
+        
     return trafienia / len(GOLDEN)
 
 def routing_acc_classify():
+
     trafienia = 0
     for g in GOLDEN:
+
         query_emb = model.encode(['zapytanie: ' + g['query']]).astype('float32')
         faiss.normalize_L2(query_emb)
+
         agent = classify_top1(query_emb)
         trafienia += (agent == g['agent'])
+
     return trafienia / len(GOLDEN)
+
 if __name__ == '__main__':
 
     acc_v1, pudla_v1 = search_k(search, k=3)
