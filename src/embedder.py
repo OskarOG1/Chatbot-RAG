@@ -16,7 +16,8 @@ def main():
      
     sciezka_chunks = RAG_DIR / 'chunks.json'
     chunki = wczytaj_chunki(sciezka_chunks)
-    teksty = [f"{c['tytul']} \n {c['tekst']}" for c in chunki]
+    teksty = [f"{c['tytul']}\n{c['tekst']}" for c in chunki]
+
     model = SentenceTransformer(MODEL_NAME)
     embeddings = model.encode(teksty, batch_size=BATCH_SIZE, show_progress_bar=True)
     sciezka_emb = RAG_DIR / 'embeddings.npy'
