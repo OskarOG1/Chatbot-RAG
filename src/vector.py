@@ -13,14 +13,14 @@ def wczytaj_chunki(sciezka: Path) -> tuple[list[dict], np.ndarray]:
     with open(sciezka, 'r', encoding='utf-8') as r:
        
        sciezka_embeddings = RAG_DIR / 'embeddings.npy'
-       embeddings = np.load(sciezka_embeddings)
+    embeddings = np.load(sciezka_embeddings)
 
-       return json.load(r), embeddings.astype('float32')
+    return json.load(r), embeddings.astype('float32')
 
 def main():
 
     sciezka_chunks = RAG_DIR / 'chunks.json'
-    chunki,embeddings = wczytaj_chunki(sciezka_chunks)
+    chunki, embeddings = wczytaj_chunki(sciezka_chunks)
     nazwy_agentow = ['konto', 'zakupy', 'platnosci']
 
     for nazwa in nazwy_agentow:
@@ -44,14 +44,14 @@ def main():
 
         vector_json = RAG_DIR / f'chunks_{nazwa}.json'
         with open(vector_json, 'w', encoding='utf-8') as w:
-         json.dump(agenci_chunki, w, ensure_ascii=False, indent=4)
+            json.dump(agenci_chunki, w, ensure_ascii=False, indent=4)
         
         tokeny = [tokenizacja(f"{c['tytul']}\n{c['tekst']}") for c in agenci_chunki]
         bm25 = BM25Okapi(tokeny)
         
 
         with open(RAG_DIR / f'{nazwa}.bm25', "wb") as w:
-           pickle.dump( bm25, w)
+           pickle.dump(bm25, w)
 
     emb_all = embeddings.copy()
     faiss.normalize_L2(emb_all)
@@ -65,7 +65,7 @@ def main():
     with open(RAG_DIR / "all.bm25", "wb") as w:
        pickle.dump(bm25_all, w)
 
-    print(f'agent [{nazwa}]:zapisno {len(indeksy)} chunkow i wektorow')
-    print(f'all: zapisano {len(chunki)} chunkow (faiss + bm25)' )
+       print(f'agent [{nazwa}]:zapisano {len(indeksy)} chunkow i wektorow')
+       print(f'all: zapisano {len(chunki)} chunkow (faiss + bm25)' )
 if __name__ == '__main__':
     main()
