@@ -18,7 +18,10 @@ def run(query:str) -> dict:
     odpowiedz = answer(query, agent, chunks)
 
     zrodlo = list(dict.fromkeys(c['url'] for c, score in chunks))
-    return {'agent': agent, "odpowiedz": odpowiedz, 'zrodla': zrodlo}
+    return {'agent': agent, 
+            "odpowiedz": odpowiedz, 
+            'zrodla_glowne': zrodlo[0] if zrodlo else None,
+            'zrodla_pozostale': zrodlo[1:]}
 
 
 if __name__ == '__main__':
