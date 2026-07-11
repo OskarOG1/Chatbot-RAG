@@ -14,7 +14,7 @@ encoder = tiktoken.get_encoding('cl100k_base')
 def wczytaj_dokument(sciezka: Path) -> tuple[dict, str]:
     with open(sciezka, 'r', encoding='utf-8') as r:
        
-        fragmenty = r.read().split('---')
+        fragmenty = r.read().split('---', 2)
         metadane = yaml.safe_load(fragmenty[1])
        
         tresc = fragmenty[2].strip()
@@ -49,10 +49,14 @@ if __name__ == '__main__':
     wszystkie_chunki = []
 
     for plik_md in docs_dir.rglob('*.md'):
-        chunki = chunk_document(plik_md)
-        wszystkie_chunki.extend(chunki)
+        try:
 
-    print(f'plików:~141, chunków łącznie: {len(wszystkie_chunki)}' )
+            chunki = chunk_document(plik_md)
+            wszystkie_chunki.extend(chunki)
+
+        except Exception as e:
+            print(f'Pominięto {plik_md.name}: {e}')
+    print(f'plików: {len(list)} chunków łącznie: {len(wszystkie_chunki)}' )
     
     licznik = Counter(c['agent'] for c in wszystkie_chunki)
     sciezka_json = RAG_DIR /'chunks.json'
