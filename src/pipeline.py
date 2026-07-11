@@ -19,15 +19,16 @@ def run(query:str) -> dict:
 
     zrodlo = list(dict.fromkeys(c['url'] for c, score in chunks))
     return {'agent': agent, 
-            "odpowiedz": odpowiedz, 
-            'zrodla_glowne': zrodlo[0] if zrodlo else None,
+            'odpowiedz': odpowiedz, 
+            'zrodla]o_glowne': zrodlo[0] if zrodlo else None,
             'zrodla_pozostale': zrodlo[1:]}
 
 
 if __name__ == '__main__':
     wynik = run("nie pamiętam hasła do konta Allegro, jak odzyskać dostęp")
     print(f"\n[agent: {wynik['agent']}]")
-    print('Źródła:')
-    for url in wynik['zrodla']:
+    print('Źródło główne:', wynik['zrodla_glowne'] ) 
+    print('Pozostałe:')
+    for url in wynik['zrodla_pozostale']:
         print(url)
  
