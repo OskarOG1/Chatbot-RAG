@@ -1,9 +1,8 @@
 from pathlib import Path
 import numpy as np
-import json
 import faiss
 from sentence_transformers import SentenceTransformer
-
+from rankings import search_route
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
@@ -54,7 +53,7 @@ if __name__ == '__main__':
     trafienia_t = 0
     for pytanie, oczekiwany in testy:
 
-        query_emb = model.encode([pytanie]).astype('float32')
+        query_emb = model.encode(["zapytanie: " + pytanie]).astype('float32')
         faiss.normalize_L2(query_emb)
 
         t = classify_top1(query_emb)

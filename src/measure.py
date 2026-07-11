@@ -1,13 +1,10 @@
 from sentence_transformers import SentenceTransformer
 import faiss
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent))
 
 from retriver import search
 from rankings import search_hybrid 
-
-
+from rankings import search_route
+from classify import classify_top1
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
 
@@ -37,6 +34,37 @@ GOLDEN = [
         "jak-dziala-allegro-ochrona-kupujacych-qzdAg2Klbsl",
     ]},
     {"query": "jak zapłacić przelewem", "agent": "platnosci", "zrodlo_url": "jak-zaplacic-za-przedmiot-kupiony-na-allegro-YLKol7RVxI0"},
+    {'query': 'czy mogę mieć dwa konta na allegro', 'agent': 'konto',
+     'zrodlo_url': 'czy-mozna-uzywac-kilku-kont-na-allegro-mGwAg1dKEtr'},
+
+    {'query': 'chcę żeby moje dane zniknęły z allegro', 'agent': 'konto',
+     'zrodlo_url': 'rodo-kiedy-i-jak-mozna-usunac-swoje-dane-osobowe-z-allegro-vKvmgODrvcl'},
+
+    {'query': 'jak włączyć dwuetapowe potwierdzanie logowania', 'agent': 'konto',
+     'zrodlo_url': 'czym-jest-dwustopniowe-logowanie-i-jak-pomaga-chronic-twoje-konto-dykqg9nMKSZ'},
+
+    {'query': 'gdzie zobaczę kiedy przyjdzie paczka', 'agent': 'zakupy',
+     'zrodlo_url': 'przewidywany-czas-dostawy-twojej-przesylki-z8alPejWRt7'},
+
+    {'query': 'jak oddać rzecz kupioną ze smartem', 'agent': 'zakupy',
+     'zrodlo_url': ['jak-zwrocic-produkty-kupione-w-ramach-allegro-smart-dykrmbo5qTz',
+     "metody-dostawy-i-zwrotu-przesylek-w-ramach-allegro-smart-a1WrzwbOXf6"]},
+
+    {'query': 'czy sprzedawca jest wiarygodny', 'agent': 'zakupy',
+     'zrodlo_url': ['czym-wyroznia-sie-dobry-sprzedajacy-BvGD0e6znC1',
+                    'gdzie-i-jak-sprawdzic-opinie-o-sprzedajacym-5VZxXzGyas1']},
+
+    {'query': 'nie zapłaciłem na czas za zamówienie', 'agent': 'zakupy',
+     'zrodlo_url': 'co-sie-stanie-jesli-nie-oplacisz-zamowienia-9dGRXL4DBHb'},
+
+    {'query': 'czy allegro pay kosztuje', 'agent': 'platnosci',
+     'zrodlo_url': 'czy-korzystanie-z-allegro-pay-wiaze-sie-z-jakimis-oplatami-ZMWdW0Ga3ib'},
+
+    {'query': 'chcę usunąć kartę z konta', 'agent': 'platnosci',
+     'zrodlo_url': 'jak-usunac-zapisana-karte-platnicza-jDejgzrRBsd'},
+
+    {'query': 'ile kosztują raty', 'agent': 'platnosci',
+     'zrodlo_url': 'jakie-sa-koszty-zakupow-na-raty-yVBR0DY6bTv'},
 ]
 
 def search_k(search_fn, k=3):
@@ -68,12 +96,37 @@ def search_k(search_fn, k=3):
                 print(f'  {score:.4f} | {chunk["url"].split("/")[-1]}')
 
     return trafienia / len(GOLDEN), pudla
+
+def routing_acc():
+
+    trafienia = 0
+    for g in GOLDEN:
+        
+        query = g['query']
+        query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
+        faiss.normalize_L2(query_emb)
+
+        agent_wybrany, _ = search_route(query, query_emb, k=5)
+        
+        trafienia += (agent_wybrany == g['agent'])
+    return trafienia / len(GOLDEN)
+
+def routing_acc_classify():
+    trafienia = 0
+    for g in GOLDEN:
+        query_emb = model.encode(['zapytanie: ' + g['query']]).astype('float32')
+        faiss.normalize_L2(query_emb)
+        agent = classify_top1(query_emb)
+        trafienia += (agent == g['agent'])
+    return trafienia / len(GOLDEN)
 if __name__ == '__main__':
 
     acc_v1, pudla_v1 = search_k(search, k=3)
-    acc_v2, pudla_v2 = search_k(search_hybrid, k=3)
+    acc_v2, pudla_v2 = search_k(search_hybrid, k=5)
     
     print(f'v1 (pure vector) Hit@3: {acc_v1:.2f}')
     print(f'v2 (hybrid)      Hit@3: {acc_v2:.2f}')
     print(f'\nv1 pudła ({len(pudla_v1)}): {pudla_v1}')
     print(f'v2 pudła ({len(pudla_v2)}): {pudla_v2}')
+    print(f'\nrouting (hybrid) acc: {routing_acc():.2f}')
+    print(f'routing classify_top1: {routing_acc_classify():.2f}')

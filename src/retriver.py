@@ -27,7 +27,7 @@ if __name__ == '__main__':
     model = SentenceTransformer(MODEL_NAME)
 
     q = "nie pamiętam hasła do konta Allegro, jak odzyskać dostęp"
-    q_emb = model.encode(['zapytanie: ' +q]).astype('float32')
+    q_emb = model.encode(['zapytanie: ' + q]).astype('float32')
     faiss.normalize_L2(q_emb)
    
     wyniki = search(q, q_emb, "konto", k=3)
