@@ -5,6 +5,7 @@ from retriver import search
 from rankings import search_hybrid 
 from rankings import search_route
 from classify import classify_top1
+
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
 
@@ -109,7 +110,7 @@ def routing_acc():
         agent_wybrany, _ = search_route(query, query_emb, k=5)
         
         trafienia += (agent_wybrany == g['agent'])
-        
+
     return trafienia / len(GOLDEN)
 
 def routing_acc_classify():
@@ -129,10 +130,29 @@ if __name__ == '__main__':
 
     acc_v1, pudla_v1 = search_k(search, k=3)
     acc_v2, pudla_v2 = search_k(search_hybrid, k=5)
+    print('\n=== DIAGNOSTYKA PROGU ===')
+    diag = []
+
+    for g in GOLDEN:
+        query = g['query']
+        query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
+        faiss.normalize_L2(query_emb)
+
+        wyniki = search_hybrid(query, query_emb, g['agent'], k=5)
+        top_score = wyniki[0][1]
+
+        trafil = query not in pudla_v2
+        diag.append((top_score, trafil, query))
+
+    diag.sort()
     
+    for score, trafil, query in diag:
+        znacznik = 'OK ' if trafil else 'PUD'
+        print(f'{score:.4f} | {znacznik} | {query}')
     print(f'v1 (pure vector) Hit@3: {acc_v1:.2f}')
     print(f'v2 (hybrid)      Hit@3: {acc_v2:.2f}')
     print(f'\nv1 pudła ({len(pudla_v1)}): {pudla_v1}')
     print(f'v2 pudła ({len(pudla_v2)}): {pudla_v2}')
     print(f'\nrouting (hybrid) acc: {routing_acc():.2f}')
     print(f'routing classify_top1: {routing_acc_classify():.2f}')
+    
