@@ -48,11 +48,24 @@ def main():
         
         tokeny = [normalizacja(f"{c['tytul']}\n{c['tekst']}").split() for c in agenci_chunki]
         bm25 = BM25Okapi(tokeny)
+        
 
         with open(RAG_DIR / f'{nazwa}.bm25', "wb") as w:
            pickle.dump( bm25, w)
-           
-        print(f'agent [{nazwa}]:zapisno {len(indeksy)} chunkow i wektorow')
 
+    emb_all = embeddings.copy()
+    faiss.normalize_L2(emb_all)
+
+    index_all = faiss.IndexFlatIP(emb_all.shape[1])
+    index_all.add(emb_all)
+    faiss.write_index(index_all, str(RAG_DIR / "all.faiss"))
+       
+    tokeny_all = [normalizacja(f"{c['tytul']}\n{c['tekst']}").split() for c in chunki]
+    bm25_all =  BM25Okapi(tokeny_all)
+    with open(RAG_DIR / "all.bm25", "wb") as w:
+       pickle.dump(bm25_all, w)
+
+    print(f'agent [{nazwa}]:zapisno {len(indeksy)} chunkow i wektorow')
+    print(f'all: zapisano {len(chunki)} chunkow (faiss + bm25)' )
 if __name__ == '__main__':
     main()
