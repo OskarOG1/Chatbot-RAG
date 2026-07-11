@@ -2,14 +2,16 @@ import json
 from pathlib import Path
 import numpy as np
 import faiss
-from sentence_transformers import SentenceTransformer
+
 import unicodedata
 from rank_bm25 import BM25Okapi
 import pickle
 from collections import Counter
 import simplemma
 
+
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
+
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
 K_RRF = 60
@@ -64,15 +66,14 @@ def normalizacja(tekst:str) -> str:
     tekst = ''.join(c for c in tekst if not unicodedata.combining(c))
     return tekst.lower()
 
-def rrf(ranking_a: list[int], ranking_b:list[int]) -> dict[int, float]:
-    
+def rrf(rankingi: list[list[int]]) -> dict[int, float]:
+
     punkty = {}
-    for pozycja, idx in enumerate(ranking_a):
-        punkty[idx] = punkty.get(idx, 0) + 1 / (K_RRF + pozycja)
+    for ranking in rankingi:
 
-    for pozycja, idx in enumerate(ranking_b):
-        punkty[idx] = punkty.get(idx, 0) + 1 / (K_RRF + pozycja)
-
+        for pozycja, idx in enumerate(ranking):
+            punkty[idx] = punkty.get(idx, 0) + 1 / (K_RRF + pozycja)
+            
     return punkty
 
 def dedup(wyniki):
@@ -88,26 +89,12 @@ def dedup(wyniki):
 
     return unikalne
 
-def search_hybrid(query:str,query_emb, agent:str, k: int=5) -> list[tuple]:
-   
-    chunki = wczytaj_chunki(agent)
-    r_faiss = ranking_faiss(query_emb, agent, chunki)
-    r_bm25 = ranking_bm25(query, agent)
-    punkty = rrf(r_faiss, r_bm25)
-
-    posortowane = sorted(punkty, key=punkty.get, reverse=True)
-
-    wyniki= [(chunki[idx], punkty[idx]) for idx in posortowane] 
-    wyniki = dedup(wyniki)
-
-    return wyniki[:k]
-
 def search_route(query:str, query_emb, k:int=5) -> tuple[str, list[tuple]]:
     
     chunki = wczytaj_chunki('all')
     r_faiss = ranking_faiss(query_emb, 'all', chunki)
     r_bm25 = ranking_bm25(query, 'all')
-    punkty = rrf(r_faiss, r_bm25)
+    punkty = rrf([r_faiss, r_bm25])
 
     posortowane = sorted(punkty, key=punkty.get, reverse=True)
    
@@ -120,8 +107,22 @@ def search_route(query:str, query_emb, k:int=5) -> tuple[str, list[tuple]]:
 
     return agent,wyniki
 
+def search_hybrid(query: str, query_emb, agent: str, k: int = 5) -> list[tuple]:
+
+    chunki = wczytaj_chunki(agent)
+    r_faiss = ranking_faiss(query_emb, agent, chunki)
+    r_bm25 = ranking_bm25(query, agent)
+    punkty = rrf([r_faiss, r_bm25])
+
+    posortowane = sorted(punkty, key=punkty.get, reverse=True)
+    wyniki = [(chunki[idx], punkty[idx]) for idx in posortowane]
+    wyniki = dedup(wyniki)
+    return wyniki[:k]
+
+
+
+
 if __name__ == '__main__':
-    
     from sentence_transformers import SentenceTransformer
     model = SentenceTransformer(MODEL_NAME)
 
@@ -131,15 +132,14 @@ if __name__ == '__main__':
 
     for query, agent in testy:
         print(f'\n=== "{query}" [{agent}] ===')
-       
+
         q_emb = model.encode(['zapytanie: ' + query]).astype('float32')
         faiss.normalize_L2(q_emb)
-       
+
         wybrany_agent, wyniki = search_route(query, q_emb, k=3)
         print(f'oczekiwano: {agent} | routing: {wybrany_agent}')
-        
-        for chunk, score in wyniki:
 
+        for chunk, score in wyniki:
             print(f'{score:.4f} | {chunk["tytul"]}')
             print(chunk['tekst'][:200])
             print('---')
