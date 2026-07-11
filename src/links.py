@@ -3,6 +3,10 @@ import time
 from bs4 import BeautifulSoup
 import httpx
 import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+RAG_DIR = ROOT / 'RAG'
 
 ARTYKUL_REGEX = re.compile(
     r'^https://allegro\.pl/pomoc/dla-kupujacych/[^/]+/[^/]+-[A-Za-z0-9]{6,}$'
@@ -45,7 +49,7 @@ KATEGORIE = {
 
 
 PODSLUG_DO_AGENTA = {
-    # konto
+
     "rejestracja-i-aktywacja": "konto",
     "logowanie-i-haslo": "konto",
     "dane-i-ustawienia-konta": "konto",
@@ -54,7 +58,7 @@ PODSLUG_DO_AGENTA = {
     "aktywacja-konta": "konto",
     "konto-junior": "konto",
     "bezpieczne-zakupy": "konto",
-    # zakupy
+
     "wyszukiwanie-i-ulubione": "zakupy",
     "sposoby-zakupow": "zakupy",
     "kupony-punkty-i-programy-znizkowe": "zakupy",
@@ -73,7 +77,7 @@ PODSLUG_DO_AGENTA = {
     "wyjatki-i-zasady-dla-wybranych-kategorii": "zakupy",
     "zakupy-firmowe": "zakupy",
     "allegro-charytatywni-kupuje": "zakupy",
-    # platnosci
+
     "status-platnosci": "platnosci",
     "allegro-pay": "platnosci",
     "allegro-pay-business-dla-kupujacych": "platnosci",
@@ -107,10 +111,13 @@ def zbierz_linki_kategorie(slug: str) -> list[str]:
         response = httpx.get(url, headers=HEADER, timeout=10)
         response.raise_for_status()
     except httpx.HTTPStatusError as e:
+
         print(f' {slug}: HTTP {e.response.status_code}, pomijam')
         return []
+    
     except httpx.RequestError as e:
         print(f' {slug}: błąd sieci ({e}), pomijam')
+        return []
     
     soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -128,25 +135,31 @@ def main():
 
     for agent, slugi in KATEGORIE.items():
         for slug in slugi:
+
             linki = zbierz_linki_kategorie(slug)
             wszystkie_linki.update(linki)
+
             print(f'  {slug}: {len(linki)} linków')
             time.sleep(0.5)
 
     for link in wszystkie_linki:
+
         podslug = wyciagnij_podslug(link)
         agent = PODSLUG_DO_AGENTA.get(podslug)
 
         if agent:
+
             wynik[agent].append(link) 
+
         else:
             print(f'Nieznany podslug: {podslug} link: {link}')
         
     for agent, linki in wynik.items():
-        print(f'{agent}: {len(linki)} linków łącznie\n')
-        print(len(linki))
 
-    with open('links.json', 'w', encoding='utf-8') as f:
+        print(f'{agent}: {len(linki)} linków łącznie\n')
+  
+    sciezka_json = RAG_DIR / 'links.json'
+    with open(sciezka_json, 'w', encoding='utf-8') as f:
         json.dump(wynik, f, ensure_ascii=False, indent=2)
 
 
