@@ -79,7 +79,10 @@ def search_k(search_fn, k=3):
         query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
         faiss.normalize_L2(query_emb)
 
-        wyniki = search_fn(query, query_emb, g['agent'], k=k)
+        if search_fn is search:
+             wyniki = search_fn(query_emb, g['agent'], k=k)
+        else:
+            wyniki = search_fn(query, query_emb, g['agent'], k=k)
         url = [chunk['url'] for chunk, score in wyniki]
 
         zrodla = g['zrodlo_url'] if isinstance(g['zrodlo_url'],list) else [g['zrodlo_url']]                              
