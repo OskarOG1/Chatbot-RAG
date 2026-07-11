@@ -5,6 +5,7 @@ import faiss
 import pickle
 from rankings import normalizacja
 from rank_bm25 import BM25Okapi
+
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
 
@@ -35,7 +36,7 @@ def main():
         agenci_embeddings = embeddings[indeksy]
 
         faiss.normalize_L2(agenci_embeddings)
-        wymiar = embeddings.shape[1]
+      
         index = faiss.IndexFlatIP(768)
         index.add(agenci_embeddings)
 
@@ -45,7 +46,7 @@ def main():
         with open(vector_json, 'w', encoding='utf-8') as w:
          json.dump(agenci_chunki, w, ensure_ascii=False, indent=4)
         
-        tokeny = [normalizacja(f"(c['tytul']) \n {c['tekst']}").split() for c in agenci_chunki]
+        tokeny = [normalizacja(f"{c['tytul']}\n{c['tekst']}").split() for c in agenci_chunki]
         bm25 = BM25Okapi(tokeny)
 
         with open(RAG_DIR / f'{nazwa}.bm25', "wb") as w:
