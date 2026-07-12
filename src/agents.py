@@ -2,6 +2,7 @@ import ollama
 from rankings import search_hybrid
 from sentence_transformers import SentenceTransformer
 import time
+import re
 MMLW = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MMLW)
 MODEL_NAME = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
@@ -53,22 +54,17 @@ def answer(query: str, agent: str, chunks: list[dict]) -> str:
             {'role': 'user', 'content': tresc},
         ],
         stream=True,
-        options={'stop': ['Pytanie:']}
+        options={'stop': ['Pytanie:', '<|start_header_id|>']}
     )
     pelna = ''
     for kawalek in strumien:
+        pelna += kawalek['message']['content']
 
-        tekst = kawalek['message']['content']
-       
-        pelna += tekst
-
-    for token in ['<|start_answer_id|>', '<|end_answer_id|>']:
-        pelna =  pelna.replace(token, '')
-
+    pelna = re.sub(r'<\|.*?\|>', '', pelna)
     pelna = pelna.removeprefix('Odpowiedź:').strip()
    
     return pelna
-
+   
 
 def zapytaj(query, agent, chunks, etykieta):
 
