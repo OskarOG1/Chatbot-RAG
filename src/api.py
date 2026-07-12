@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 from pipeline import run
 import httpx
 
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(min_length=1)
 
 class ChatResponse(BaseModel):
    agent: str
