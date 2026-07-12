@@ -1,9 +1,9 @@
 import ollama
-from pathlib import Path
 from rankings import search_hybrid
-
+from sentence_transformers import SentenceTransformer
 import time
-
+MMLW = 'sdadas/mmlw-retrieval-roberta-base'
+model = SentenceTransformer(MMLW)
 MODEL_NAME = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
 
 SYSTEM_PROMPTY = {
@@ -41,7 +41,7 @@ def context(chunks: list[dict]) -> str:
 def answer(query: str, agent: str, chunks: list[dict]) -> str:
 
     system_prompt = SYSTEM_PROMPTY[agent]
-    teksty = [c for c, score in chunks]
+    teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
 
     tresc = f'kontekst:\n{kontekst}\n\nPytanie: {query}'
@@ -53,17 +53,20 @@ def answer(query: str, agent: str, chunks: list[dict]) -> str:
             {'role': 'user', 'content': tresc},
         ],
         stream=True,
+        options={'stop': ['Pytanie:']}
     )
     pelna = ''
-
     for kawalek in strumien:
 
         tekst = kawalek['message']['content']
-        print(tekst, end='', flush=True)
-
+       
         pelna += tekst
 
-    print()
+    for token in ['<|start_answer_id|>', '<|end_answer_id|>']:
+        pelna =  pelna.replace(token, '')
+
+    pelna = pelna.removeprefix('Odpowiedź:').strip()
+   
     return pelna
 
 
@@ -79,9 +82,9 @@ def zapytaj(query, agent, chunks, etykieta):
     print('--- ODPOWIEDŹ ---')
 
     start = time.perf_counter()
-    answer(query, agent, chunks)
+    odpowiedz = answer(query, agent, chunks)
     czas = time.perf_counter() - start
-
+    print(odpowiedz)
     print(f'⏱ generacja: {czas:.1f}s')
 
 
@@ -89,5 +92,6 @@ if __name__ == '__main__':
 
     query = 'jak zmienić hasło'
     agent = 'konto'
-    chunks = search_hybrid(query, agent, k=3)
+    query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
+    chunks = search_hybrid(query, query_emb, agent, k=3)
     zapytaj(query, agent, chunks, 'demo')
