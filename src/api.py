@@ -24,8 +24,7 @@ def chat(req: ChatRequest):
     try:
         wynik = run(req.message)
     except httpx.ConnectError:
-        raise HTTPException(
-            status_code=503,
-            detail="Brak odpowiedzi ze strony Ollamy"
-        )
+        raise HTTPException(status_code=503, detail="Brak odpowiedzi ze strony Ollamy")
+    except httpx.ReadTimeout:
+        raise HTTPException(status_code=504, detail='Zbyt długi czas generowania odpowiedzi')
     return wynik

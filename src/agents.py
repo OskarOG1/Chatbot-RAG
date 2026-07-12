@@ -4,9 +4,15 @@ from rankings import search_hybrid
 from sentence_transformers import SentenceTransformer
 import time
 import re
+import os
 MMLW = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MMLW)
 MODEL_NAME = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
+
+klient = Client(
+    host=os.getenv('OLLAMA_HOST', 'http://localhost:11434'),
+    timeout=int(os.getenv('LLM_TIMEOUT', '120')),
+)
 
 SYSTEM_PROMPTY = {
     'konto': (
@@ -47,7 +53,7 @@ def answer(query: str, agent: str, chunks: list[dict]) -> str:
     kontekst = context(teksty)
 
     tresc = f'kontekst:\n{kontekst}\n\nPytanie: {query}'
-    odp = ollama.chat(
+    odp = klient.chat(
         model=MODEL_NAME,
         messages=[
 
