@@ -3,16 +3,15 @@ import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 from collections import Counter
-from rankings import get_bm25
-from rankings import get_faiss
-from rankings import wczytaj_chunki
-from rankings import tokenizacja
-from rankings import rrf
+from rankings import wczytaj_chunki, get_faiss, normalizacja
+
+
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
 
 # stara metoda 17/20 pytań
+"""""
 def classify_top1(query_emb) -> str:
 
     wyniki = []
@@ -25,7 +24,7 @@ def classify_top1(query_emb) -> str:
         wyniki.append((agent, score))
 
     return max(wyniki, key=lambda x: x[1])[0]
-
+"""""
 
 def vote(query_emb, k=5) -> str:
     index = get_faiss('all')
@@ -62,7 +61,8 @@ if __name__ == '__main__':
         ("kiedy dostanę zwrot pieniędzy", "zakupy"),
         ("jak zapłacić przelewem", "platnosci"),
     ]
-    
+    # stary test
+    """""
     trafienia_t = 0
     for pytanie, oczekiwany in testy:
 
@@ -74,11 +74,13 @@ if __name__ == '__main__':
         zt = 'Trafione' if t == oczekiwany else 'nietrafione'
         
         print(f'{pytanie:42} | ocz {oczekiwany:9} | top1 {t:9} {zt}')
-    
+  
     print(f'\nTop-1: {trafienia_t}/20')
-   
+     """""
+
     trafienia_v = 0
     for pytanie, oczekiwany in testy:
+        
         query_emb = model.encode(["zapytanie: " + pytanie]).astype('float32')
         faiss.normalize_L2(query_emb)
         v = vote(query_emb)
@@ -87,3 +89,4 @@ if __name__ == '__main__':
         print(f'{pytanie:42} | ocz {oczekiwany:9} | vote {v:9} {zv}')
     print(f'\nvote: {trafienia_v}/20')
 
+   

@@ -3,11 +3,14 @@ import faiss
 from classify import vote
 from rankings import search_hybrid
 from agents import answer
-
+from rankings import normalizacja
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
 
+
+
 def run(query:str) -> dict:
+    
     query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
     faiss.normalize_L2(query_emb)
 

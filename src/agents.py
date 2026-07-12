@@ -1,4 +1,5 @@
 import ollama
+from ollama import Client
 from rankings import search_hybrid
 from sentence_transformers import SentenceTransformer
 import time
@@ -46,20 +47,18 @@ def answer(query: str, agent: str, chunks: list[dict]) -> str:
     kontekst = context(teksty)
 
     tresc = f'kontekst:\n{kontekst}\n\nPytanie: {query}'
-    strumien = ollama.chat(
+    odp = ollama.chat(
         model=MODEL_NAME,
         messages=[
 
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': tresc},
         ],
-        stream=True,
+        stream=False,
         options={'stop': ['Pytanie:', '<|start_header_id|>']}
     )
-    pelna = ''
-    for kawalek in strumien:
-        pelna += kawalek['message']['content']
 
+    pelna = odp['message']['content']
     pelna = re.sub(r'<\|.*?\|>', '', pelna)
     pelna = pelna.removeprefix('Odpowiedź:').strip()
    
