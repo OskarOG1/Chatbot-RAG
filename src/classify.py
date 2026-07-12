@@ -13,7 +13,6 @@ ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
 
 # stara metoda 17/20 pytań
-"""""
 def classify_top1(query_emb) -> str:
 
     wyniki = []
@@ -35,19 +34,6 @@ def vote(query_emb, k=5) -> str:
 
     agenci = [chunki[i]['agent'] for i in I[0]]
     return Counter(agenci).most_common(1)[0][0]
-"""""
-def vot_bm(query:str, query_emb, k=5) -> str:
- chunki = wczytaj_chunki('all')
- _, I = get_faiss('all').search(query_emb, k=5)
- r_faiss = list(I[0])
- bm25 = get_bm25('all')
- scores = bm25.get_scores(tokenizacja(query))
- r_bm25 = list(np.argsort(scores)[::-1])
-
- punkty = rrf([r_faiss, r_bm25])
- top = sorted(punkty, key=punkty.get, reverse=True)[:k]
- agenci = [chunki[i]['agent'] for i in top]
- return Counter(agenci).most_common(1)[0][0]
 
 if __name__ == '__main__':
     model = SentenceTransformer(MODEL_NAME)
@@ -76,7 +62,7 @@ if __name__ == '__main__':
         ("kiedy dostanę zwrot pieniędzy", "zakupy"),
         ("jak zapłacić przelewem", "platnosci"),
     ]
-    """""
+    
     trafienia_t = 0
     for pytanie, oczekiwany in testy:
 
@@ -101,13 +87,3 @@ if __name__ == '__main__':
         print(f'{pytanie:42} | ocz {oczekiwany:9} | vote {v:9} {zv}')
     print(f'\nvote: {trafienia_v}/20')
 
-"""""
-    trafienia_b = 0
-    for pytanie, oczekiwany in testy:
-        query_emb = model.encode(["zapytanie: " + pytanie]).astype('float32')
-        faiss.normalize_L2( query_emb)
-        b = vot_bm(pytanie, query_emb)
-        trafienia_b += (b == oczekiwany)
-        zb = 'Trafione' if b == oczekiwany else 'nietrafione'
-        print(f'{pytanie:42} | ocz {oczekiwany:9} | vote {b:9} {zb}')
-    print(f'\nvote: {trafienia_b}/20')

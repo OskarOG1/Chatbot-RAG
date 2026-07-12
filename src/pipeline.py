@@ -1,6 +1,6 @@
 from sentence_transformers import SentenceTransformer
 import faiss
-from classify import classify_top1
+from classify import vote
 from rankings import search_hybrid
 from agents import answer
 
@@ -11,7 +11,7 @@ def run(query:str) -> dict:
     query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
     faiss.normalize_L2(query_emb)
 
-    agent = classify_top1(query_emb)
+    agent = vote(query_emb)
     chunks = search_hybrid(query, query_emb, agent, k=5)
 
 

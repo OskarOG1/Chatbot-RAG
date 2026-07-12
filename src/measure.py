@@ -4,7 +4,7 @@ import faiss
 from retriver import search
 from rankings import search_hybrid 
 from rankings import search_route
-from classify import classify_top1
+from classify import vote
 
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
@@ -67,95 +67,57 @@ GOLDEN = [
     {'query': 'ile kosztują raty', 'agent': 'platnosci',
      'zrodlo_url': 'jakie-sa-koszty-zakupow-na-raty-yVBR0DY6bTv'},
 ]
+def embed(query):
+   
+    query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
+    faiss.normalize_L2(query_emb)
+    return query_emb
+
 
 def search_k(search_fn, k=3):
-
     trafienia = 0
     pudla = []
 
     for g in GOLDEN:
-
         query = g['query']
-        query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
-        faiss.normalize_L2(query_emb)
+        query_emb = embed(query)
 
-        if search_fn is search:
-             wyniki = search_fn(query_emb, g['agent'], k=k)
-        else:
-            wyniki = search_fn(query, query_emb, g['agent'], k=k)
+        wyniki = search_fn(query, query_emb, g['agent'], k)
         url = [chunk['url'] for chunk, score in wyniki]
 
-        zrodla = g['zrodlo_url'] if isinstance(g['zrodlo_url'],list) else [g['zrodlo_url']]                              
+        zrodla = g['zrodlo_url'] if isinstance(g['zrodlo_url'], list) else [g['zrodlo_url']]
         if any(z in u for z in zrodla for u in url):
             trafienia += 1
-
         else:
-
             pudla.append(query)
-
             print(f'\n✗ "{query}" [{g["agent"]}]')
             print(f'  oczekiwano: {zrodla}')
-
             for chunk, score in wyniki:
                 print(f'  {score:.4f} | {chunk["url"].split("/")[-1]}')
 
     return trafienia / len(GOLDEN), pudla
 
-def routing_acc():
 
+def routing_acc(route_fn):
+   
     trafienia = 0
     for g in GOLDEN:
-        
-        query = g['query']
-        query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
-        faiss.normalize_L2(query_emb)
-
-        agent_wybrany, _ = search_route(query, query_emb, k=5)
-        
-        trafienia += (agent_wybrany == g['agent'])
-
-    return trafienia / len(GOLDEN)
-
-def routing_acc_classify():
-
-    trafienia = 0
-    for g in GOLDEN:
-
-        query_emb = model.encode(['zapytanie: ' + g['query']]).astype('float32')
-        faiss.normalize_L2(query_emb)
-
-        agent = classify_top1(query_emb)
+        agent = route_fn(g['query'], embed(g['query']))
         trafienia += (agent == g['agent'])
-
     return trafienia / len(GOLDEN)
+
 
 if __name__ == '__main__':
-
-    acc_v1, pudla_v1 = search_k(search, k=3)
+ 
+    acc_v1, pudla_v1 = search_k(lambda q, emb, agent, k: search(emb, agent, k), k=3)
     acc_v2, pudla_v2 = search_k(search_hybrid, k=5)
-    print('\n=== DIAGNOSTYKA PROGU ===')
-    diag = []
 
-    for g in GOLDEN:
-        query = g['query']
-        query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
-        faiss.normalize_L2(query_emb)
+    acc_vote = routing_acc(lambda q, emb: vote(emb, k=5))
+    acc_route = routing_acc(lambda q, emb: search_route(q, emb, k=5)[0])
 
-        wyniki = search_hybrid(query, query_emb, g['agent'], k=5)
-        top_score = wyniki[0][1]
-
-        trafil = query not in pudla_v2
-        diag.append((top_score, trafil, query))
-
-    diag.sort()
-    
-    for score, trafil, query in diag:
-        znacznik = 'OK ' if trafil else 'PUD'
-        print(f'{score:.4f} | {znacznik} | {query}')
-    print(f'v1 (pure vector) Hit@3: {acc_v1:.2f}')
+    print(f'\nv1 (pure vector) Hit@3: {acc_v1:.2f}')
     print(f'v2 (hybrid)      Hit@3: {acc_v2:.2f}')
     print(f'\nv1 pudła ({len(pudla_v1)}): {pudla_v1}')
     print(f'v2 pudła ({len(pudla_v2)}): {pudla_v2}')
-    print(f'\nrouting (hybrid) acc: {routing_acc():.2f}')
-    print(f'routing classify_top1: {routing_acc_classify():.2f}')
-    
+    print(f'\nrouting vote k=5 (produkcyjny):             {acc_vote:.2f}')
+    print(f'routing search_route (baseline, odrzucony): {acc_route:.2f}')
