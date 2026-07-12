@@ -9,16 +9,17 @@ model = SentenceTransformer(MODEL_NAME)
 
 
 
-def run(query:str) -> dict:
+def run(query:str, agent:str | None=None, bielik_model:str | None=None) -> dict:
     
     query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
     faiss.normalize_L2(query_emb)
 
-    agent = vote(query_emb)
+    if agent is None:
+        agent = vote(query_emb)
     chunks = search_hybrid(query, query_emb, agent, k=5)
 
 
-    odpowiedz = answer(query, agent, chunks)
+    odpowiedz = answer(query, agent, chunks, bielik_model)
 
     zrodlo = list(dict.fromkeys(c['url'] for c, _ in chunks))
     return {'agent': agent, 
@@ -28,11 +29,7 @@ def run(query:str) -> dict:
 
 
 if __name__ == '__main__':
-    wynik = run("nie pamiętam hasła do konta Allegro, jak odzyskać dostęp")
-    print(f"\n[agent: {wynik['agent']}]")
-    print('main_source:', wynik['main_source'] ) 
-    print('Pozostałe:')
-    print(wynik['answer'])
-    for url in wynik['additional_sources']:
-        print(url)
+ print(run("jak zmienić hasło", agent="konto")['agent'])
+ print(run("jak zmienić hasło?")['agent'])
+ print(run("jak zmienić haslo")['agent'])
  

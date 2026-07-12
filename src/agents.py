@@ -46,15 +46,16 @@ def context(chunks: list[dict]) -> str:
     return '\n\n'.join(f'[{i}] {c["tekst"]}' for i, c in enumerate(chunks, 1))
 
 
-def answer(query: str, agent: str, chunks: list[dict]) -> str:
+def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None) -> str:
 
     system_prompt = SYSTEM_PROMPTY[agent]
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
 
     tresc = f'kontekst:\n{kontekst}\n\nPytanie: {query}'
+    nazwa = bielik_model or MODEL_NAME
     odp = klient.chat(
-        model=MODEL_NAME,
+        model=nazwa,
         messages=[
 
             {'role': 'system', 'content': system_prompt},
