@@ -12,13 +12,29 @@ for msg in st.session_state.messages:
 
 if prompt := st.chat_input():
     st.session_state.messages.append({"role": "user", "content": prompt})
+   
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
+       
         with st.spinner("Generuje odpowiedź"):
             odp = httpx.post(API_URL, json={"message": prompt}, timeout=1000000 )
             dane = odp.json()
+            
             answer = dane['answer']
         st.markdown(answer)
         st.session_state.messages.append({"role": "assistant", "content": answer})
+   
+    st.caption(f"Sekcja: {dane['agent']}")
+
+    st.markdown(answer)
+
+    main = dane['main_source']
+    dodatkowe = dane['additional_sources']
+
+    if main:
+        st.markdown(f"**Najlepsze źródłó:[{main}]({main})")
+
+    for url in dodatkowe:
+        st.markdown(f"Dodatkowe źródła:[{url}]({url})")
