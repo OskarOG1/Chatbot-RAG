@@ -1,5 +1,6 @@
 from sentence_transformers import SentenceTransformer
 import faiss
+import math
 
 from retriver import search
 from rankings import search_hybrid 
@@ -74,7 +75,7 @@ def embed(query):
     return query_emb
 
 
-def search_k(search_fn, k=3):
+def main_ac(strategia, k=5):
     trafienia = 0
     pudla = []
 
@@ -82,33 +83,62 @@ def search_k(search_fn, k=3):
         query = g['query']
         query_emb = embed(query)
 
-        wyniki = search_fn(query, query_emb, g['agent'], k)
-        url = [chunk['url'] for chunk, score in wyniki]
+        wyniki = search_hybrid(query, query_emb, g['agent'], k)
+        main_url = wybierz_main(wyniki, strategia)
 
         zrodla = g['zrodlo_url'] if isinstance(g['zrodlo_url'], list) else [g['zrodlo_url']]
-        if any(z in u for z in zrodla for u in url):
+        
+        if main_url and any(z in main_url for z in zrodla):
             trafienia += 1
         else:
             pudla.append(query)
-            print(f'\n✗ "{query}" [{g["agent"]}]')
-            print(f'  oczekiwano: {zrodla}')
-            for chunk, score in wyniki:
-                print(f'  {score:.4f} | {chunk["url"].split("/")[-1]}')
 
     return trafienia / len(GOLDEN), pudla
+
+def wybierz_main(wyniki, strategia):
+
+    if not wyniki:
+       return None
+    
+    if strategia == 'baseline':
+        pierwszy_chunk, _ = wyniki[0]
+
+        return pierwszy_chunk['url']
+    
+    per_url = {}
+    for i, (chunk, score) in enumerate(wyniki):
+        url = chunk['url']
+        
+        if strategia == 'count':
+            waga = 1
+
+        elif strategia == 'suma':
+            waga = score
+
+        elif strategia == 'dyskont':
+            waga = score / math.log2(i + 2)
+        else: 
+            raise ValueError(f"nienznana strategia: {strategia}")
+       
+        per_url[url] = per_url.get(url, 0) + waga
+ 
+    return max(per_url, key=per_url.get)
 
 
 def routing_acc(route_fn):
    
     trafienia = 0
     for g in GOLDEN:
+
         agent = route_fn(g['query'], embed(g['query']))
+        
         trafienia += (agent == g['agent'])
     return trafienia / len(GOLDEN)
 
 
 if __name__ == '__main__':
- 
+
+    """""
     acc_v1, pudla_v1 = search_k(lambda q, emb, agent, k: search(emb, agent, k), k=3)
     acc_v2, pudla_v2 = search_k(search_hybrid, k=5)
 
@@ -121,3 +151,8 @@ if __name__ == '__main__':
     print(f'v2 pudła ({len(pudla_v2)}): {pudla_v2}')
     print(f'\nrouting vote k=5 (produkcyjny):             {acc_vote:.2f}')
     print(f'routing search_route (baseline, odrzucony): {acc_route:.2f}')
+    """""
+    print('\n--- MAIN-AC---')
+    for strategia in ['baseline', 'count', 'suma', 'dyskont']:
+        acc, pudla = main_ac(strategia, k=5)
+        print(f'{strategia:10s} MAIN-ac = {acc:.3f}  ({len(pudla)} pudeł)')

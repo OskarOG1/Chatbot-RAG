@@ -8,13 +8,13 @@ MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
 
 pytania = [
-    # konto (5)
+   
     "Zapomniałem hasła, jak je odzyskać?",
     "Jak skasować swoje konto?",
     "Ktoś mógł włamać się na moje konto, co robić?",
     "Gdzie zmienię adres e-mail przypisany do konta?",
     "Jak włączyć logowanie dwuskładnikowe?",
-    # zakupy (9)
+  
     "Paczka nie dotarła, a status mówi że dostarczono - co teraz?",
     "Chcę oddać towar, który mi nie pasuje.",
     "Sprzedawca nie odpowiada na wiadomości, jak złożyć reklamację?",
@@ -24,7 +24,7 @@ pytania = [
     "Towar przyszedł uszkodzony, co mi przysługuje?",
     "Jak długo mam na zwrot po odebraniu paczki?",
     "Sprzedawca chce, żebym zapłacił poza Allegro - czy to bezpieczne?",
-    # platnosci (6)
+    
     "Jak rozłożyć zakup na raty?",
     "Płatność się nie powiodła, a pieniądze zniknęły z konta.",
     "Gdzie znajdę fakturę za zakupy?",

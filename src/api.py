@@ -6,6 +6,8 @@ import httpx
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1)
+    agent:str | None = None
+    bielik_model: str |None = None
 
 class ChatResponse(BaseModel):
    agent: str
@@ -20,11 +22,11 @@ def health():
     return {'status': 'ok'}
 
 @app.post('/chat', response_model=ChatResponse)
-def chat(req: ChatRequest):
+def chat(request: ChatRequest):
     try:
-        wynik = run(req.message)
+        wynik = run(request.message, agent=request.agent, bielik_model=request.bielik_model)
+        return wynik
     except httpx.ConnectError:
         raise HTTPException(status_code=503, detail="Brak odpowiedzi ze strony Ollamy")
     except httpx.ReadTimeout:
         raise HTTPException(status_code=504, detail='Zbyt długi czas generowania odpowiedzi')
-    return wynik

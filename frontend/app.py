@@ -3,6 +3,11 @@ import httpx
 
 API_URL = "http://127.0.0.1:8000/chat" 
 
+with st.sidebar:
+    st.header("Ustawienia")
+    wybor = st.selectbox("Sekcja (agent)", ["auto", "konto", "zakupy", "platnosci"])
+agent_param = None if wybor == "auto" else wybor
+
 if 'messages' not in st.session_state:
     st.session_state.messages = []
 
@@ -19,22 +24,20 @@ if prompt := st.chat_input():
     with st.chat_message("assistant"):
        
         with st.spinner("Generuje odpowiedź"):
-            odp = httpx.post(API_URL, json={"message": prompt}, timeout=1000000 )
+            odp = httpx.post(API_URL, json={"message": prompt, "agent": agent_param}, timeout=100000 )
             dane = odp.json()
-            
             answer = dane['answer']
+        st.caption(f"Sekcja: {dane['agent']}")
         st.markdown(answer)
         st.session_state.messages.append({"role": "assistant", "content": answer})
-   
-    st.caption(f"Sekcja: {dane['agent']}")
-
-    st.markdown(answer)
+ 
 
     main = dane['main_source']
     dodatkowe = dane['additional_sources']
 
     if main:
-        st.markdown(f"**Najlepsze źródłó:[{main}]({main})")
-
-    for url in dodatkowe:
-        st.markdown(f"Dodatkowe źródła:[{url}]({url})")
+        st.markdown(f"**Najlepsze źródło:** [{main}]({main})")
+    if dodatkowe:
+        st.caption("Dodatkowe źródła:")
+        for url in dodatkowe:
+            st.markdown(f"[{url}]({url})")
