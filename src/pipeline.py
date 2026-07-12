@@ -7,6 +7,31 @@ from rankings import normalizacja
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
 
+pytania = [
+    # konto (5)
+    "Zapomniałem hasła, jak je odzyskać?",
+    "Jak skasować swoje konto?",
+    "Ktoś mógł włamać się na moje konto, co robić?",
+    "Gdzie zmienię adres e-mail przypisany do konta?",
+    "Jak włączyć logowanie dwuskładnikowe?",
+    # zakupy (9)
+    "Paczka nie dotarła, a status mówi że dostarczono - co teraz?",
+    "Chcę oddać towar, który mi nie pasuje.",
+    "Sprzedawca nie odpowiada na wiadomości, jak złożyć reklamację?",
+    "Jak sprawdzić, gdzie jest moja przesyłka?",
+    "Kupiłem coś przez pomyłkę, da się anulować zamówienie?",
+    "Czy mogę odebrać zamówienie w automacie paczkowym?",
+    "Towar przyszedł uszkodzony, co mi przysługuje?",
+    "Jak długo mam na zwrot po odebraniu paczki?",
+    "Sprzedawca chce, żebym zapłacił poza Allegro - czy to bezpieczne?",
+    # platnosci (6)
+    "Jak rozłożyć zakup na raty?",
+    "Płatność się nie powiodła, a pieniądze zniknęły z konta.",
+    "Gdzie znajdę fakturę za zakupy?",
+    "Jak dodać nową kartę do płatności?",
+    "Czy mogę zapłacić BLIKIEM?",
+    "Ile kosztuje przesyłka kurierem?",
+]
 
 
 def run(query:str, agent:str | None=None, bielik_model:str | None=None) -> dict:
@@ -29,7 +54,19 @@ def run(query:str, agent:str | None=None, bielik_model:str | None=None) -> dict:
 
 
 if __name__ == '__main__':
- print(run("jak zmienić hasło", agent="konto")['agent'])
- print(run("jak zmienić hasło?")['agent'])
- print(run("jak zmienić haslo")['agent'])
- 
+    linie = []
+
+    for i, p in enumerate(pytania, 1):
+        wynik = run(p)
+        blok = (
+            f"{'='*60}\n"
+            f"[{i}] PYTANIE: {p}\n"
+            f"AGENT: {wynik['agent']}\n"
+            f"MAIN: {wynik['main_source']}\n"
+            f"ODPOWIEDŹ:\n{wynik['answer']}\n"
+        )
+        print(blok)
+        linie.append(blok)
+
+    with open('outputs/eval_1.5b.md', 'w', encoding='utf-8') as f:
+        f.write('\n'.join(linie))
