@@ -106,7 +106,7 @@ def search_route(query:str, query_emb, k:int=5) -> tuple[str, list[tuple]]:
     wyniki = dedup(wyniki)
     wyniki = wyniki[:k]
 
-    agenci = [chunk['agent'] for chunk, score in wyniki]
+    agenci = [chunk['agent'] for chunk, _ in wyniki]
     agent = Counter(agenci).most_common(1)[0][0]
 
     return agent,wyniki
