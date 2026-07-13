@@ -1,11 +1,9 @@
 from sentence_transformers import SentenceTransformer
 import faiss
 import math
-
-from retriver import search
-from rankings import search_hybrid 
-from rankings import search_route
-from classify import vote
+import unicodedata
+import simplemma
+from rankings import search_hybrid
 
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
@@ -36,79 +34,125 @@ GOLDEN = [
         "jak-dziala-allegro-ochrona-kupujacych-qzdAg2Klbsl",
     ]},
     {"query": "jak zapłacić przelewem", "agent": "platnosci", "zrodlo_url": "jak-zaplacic-za-przedmiot-kupiony-na-allegro-YLKol7RVxI0"},
-    {'query': 'czy mogę mieć dwa konta na allegro', 'agent': 'konto',
-     'zrodlo_url': 'czy-mozna-uzywac-kilku-kont-na-allegro-mGwAg1dKEtr'},
-
-    {'query': 'chcę żeby moje dane zniknęły z allegro', 'agent': 'konto',
-     'zrodlo_url': 'rodo-kiedy-i-jak-mozna-usunac-swoje-dane-osobowe-z-allegro-vKvmgODrvcl'},
-
-    {'query': 'jak włączyć dwuetapowe potwierdzanie logowania', 'agent': 'konto',
-     'zrodlo_url': 'czym-jest-dwustopniowe-logowanie-i-jak-pomaga-chronic-twoje-konto-dykqg9nMKSZ'},
-
-    {'query': 'gdzie zobaczę kiedy przyjdzie paczka', 'agent': 'zakupy',
-     'zrodlo_url': 'przewidywany-czas-dostawy-twojej-przesylki-z8alPejWRt7'},
-
-    {'query': 'jak oddać rzecz kupioną ze smartem', 'agent': 'zakupy',
-     'zrodlo_url': ['jak-zwrocic-produkty-kupione-w-ramach-allegro-smart-dykrmbo5qTz',
-     "metody-dostawy-i-zwrotu-przesylek-w-ramach-allegro-smart-a1WrzwbOXf6"]},
-
-    {'query': 'czy sprzedawca jest wiarygodny', 'agent': 'zakupy',
-     'zrodlo_url': ['czym-wyroznia-sie-dobry-sprzedajacy-BvGD0e6znC1',
-                    'gdzie-i-jak-sprawdzic-opinie-o-sprzedajacym-5VZxXzGyas1']},
-
-    {'query': 'nie zapłaciłem na czas za zamówienie', 'agent': 'zakupy',
-     'zrodlo_url': 'co-sie-stanie-jesli-nie-oplacisz-zamowienia-9dGRXL4DBHb'},
-
-    {'query': 'czy allegro pay kosztuje', 'agent': 'platnosci',
-     'zrodlo_url': 'czy-korzystanie-z-allegro-pay-wiaze-sie-z-jakimis-oplatami-ZMWdW0Ga3ib'},
-
-    {'query': 'chcę usunąć kartę z konta', 'agent': 'platnosci',
-     'zrodlo_url': 'jak-usunac-zapisana-karte-platnicza-jDejgzrRBsd'},
-
-    {'query': 'ile kosztują raty', 'agent': 'platnosci',
-     'zrodlo_url': 'jakie-sa-koszty-zakupow-na-raty-yVBR0DY6bTv'},
+    {"query": "czy mogę mieć dwa konta na allegro", "agent": "konto",
+     "zrodlo_url": "czy-mozna-uzywac-kilku-kont-na-allegro-mGwAg1dKEtr"},
+    {"query": "chcę żeby moje dane zniknęły z allegro", "agent": "konto",
+     "zrodlo_url": "rodo-kiedy-i-jak-mozna-usunac-swoje-dane-osobowe-z-allegro-vKvmgODrvcl"},
+    {"query": "jak włączyć dwuetapowe potwierdzanie logowania", "agent": "konto",
+     "zrodlo_url": "czym-jest-dwustopniowe-logowanie-i-jak-pomaga-chronic-twoje-konto-dykqg9nMKSZ"},
+    {"query": "gdzie zobaczę kiedy przyjdzie paczka", "agent": "zakupy",
+     "zrodlo_url": "przewidywany-czas-dostawy-twojej-przesylki-z8alPejWRt7"},
+    {"query": "jak oddać rzecz kupioną ze smartem", "agent": "zakupy",
+     "zrodlo_url": ["jak-zwrocic-produkty-kupione-w-ramach-allegro-smart-dykrmbo5qTz",
+                    "metody-dostawy-i-zwrotu-przesylek-w-ramach-allegro-smart-a1WrzwbOXf6"]},
+    {"query": "czy sprzedawca jest wiarygodny", "agent": "zakupy",
+     "zrodlo_url": ["czym-wyroznia-sie-dobry-sprzedajacy-BvGD0e6znC1",
+                    "gdzie-i-jak-sprawdzic-opinie-o-sprzedajacym-5VZxXzGyas1"]},
+    {"query": "nie zapłaciłem na czas za zamówienie", "agent": "zakupy",
+     "zrodlo_url": "co-sie-stanie-jesli-nie-oplacisz-zamowienia-9dGRXL4DBHb"},
+    {"query": "czy allegro pay kosztuje", "agent": "platnosci",
+     "zrodlo_url": "czy-korzystanie-z-allegro-pay-wiaze-sie-z-jakimis-oplatami-ZMWdW0Ga3ib"},
+    {"query": "chcę usunąć kartę z konta", "agent": "platnosci",
+     "zrodlo_url": "jak-usunac-zapisana-karte-platnicza-jDejgzrRBsd"},
+    {"query": "ile kosztują raty", "agent": "platnosci",
+     "zrodlo_url": "jakie-sa-koszty-zakupow-na-raty-yVBR0DY6bTv"},
 ]
+
+
 def embed(query):
-   
+
     query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
     faiss.normalize_L2(query_emb)
+
     return query_emb
 
 
-def main_ac(strategia, k=5):
+def zrodla_jako_lista(g):
+    z = g['zrodlo_url']
+
+    return z if isinstance(z, list) else [z]
+
+def ogonki(tekst):
+
+    tekst = tekst.replace("ł", 'l').replace('Ł', 'L')
+    normalizacja = unicodedata.normalize('NFKD', tekst)
+    
+    return ''.join(znak for znak in normalizacja if not unicodedata.combining(znak))
+
+def zapytania(query):
+
+    slowa = query.split()
+    wynik = set()
+
+    for slowo in slowa:
+        lemat = simplemma.lemmatize(slowo, lang='pl')
+        lemat = ogonki(lemat).lower()
+        wynik.add(lemat)
+   
+    return wynik
+
+def slowa_url(url):
+
+    cut_url = url.split('/')[-1]
+    czesci_url = cut_url.split('-')
+
+    return {ogonki(slowo).lower() for slowo in czesci_url}
+
+
+def hit_at_k(k=5):
+  
     trafienia = 0
-    pudla = []
 
     for g in GOLDEN:
-        query = g['query']
-        query_emb = embed(query)
 
-        wyniki = search_hybrid(query, query_emb, g['agent'], k)
-        main_url = wybierz_main(wyniki, strategia)
+        emb = embed(g['query'])
+        wyniki = search_hybrid(g['query'], emb, g['agent'], k)
+        urls = [chunk['url'] for chunk, score in wyniki]
+        zrodla = zrodla_jako_lista(g)
 
-        zrodla = g['zrodlo_url'] if isinstance(g['zrodlo_url'], list) else [g['zrodlo_url']]
-        
-        if main_url and any(z in main_url for z in zrodla):
+        if any(z in u for z in zrodla for u in urls):
             trafienia += 1
+        
         else:
-            pudla.append(query)
+            print(f'  BRAK w top-{k}: {g["query"]!r}')
 
-    return trafienia / len(GOLDEN), pudla
+    acc = trafienia / len(GOLDEN)
+    
+    print(f'\nHit@{k}: {trafienia}/{len(GOLDEN)} = {acc:.3f}')
+    return acc
 
-def wybierz_main(wyniki, strategia):
+STOP = {'jak', 'na', 'co', 'i', 'w', 'z', 'do', 'sie', 'czy', 'moje', 'za'}
 
+def leksyka(query, url):
+    
+    q = zapytania(query)
+    u = slowa_url(url)
+
+    wspolne = q & u 
+    wspolne = wspolne - STOP
+
+    return len(wspolne)
+
+def wybierz_main(wyniki, strategia, query=None):
     if not wyniki:
-       return None
-    
-    if strategia == 'baseline':
-        pierwszy_chunk, _ = wyniki[0]
 
-        return pierwszy_chunk['url']
+        return None
+
+    if strategia == 'baseline':
+       return wyniki[0][0]['url']
+
+    if strategia == 'leks':
+        najlepszy = max(
+            enumerate(wyniki),
+            key=lambda para: (leksyka(query, para[1][0]['url']), -para[0])
+         )
+        return najlepszy[1][0]['url']
     
+
     per_url = {}
     for i, (chunk, score) in enumerate(wyniki):
         url = chunk['url']
-        
+
         if strategia == 'count':
             waga = 1
 
@@ -117,42 +161,48 @@ def wybierz_main(wyniki, strategia):
 
         elif strategia == 'dyskont':
             waga = score / math.log2(i + 2)
-        else: 
-            raise ValueError(f"nienznana strategia: {strategia}")
-       
+
+        else:
+            raise ValueError(f'nieznana strategia: {strategia}')
+
         per_url[url] = per_url.get(url, 0) + waga
- 
+
     return max(per_url, key=per_url.get)
 
+def main_accuracy(strategia, k=5):
 
-def routing_acc(route_fn):
-   
+    
     trafienia = 0
+    pudla = []
     for g in GOLDEN:
 
-        agent = route_fn(g['query'], embed(g['query']))
-        
-        trafienia += (agent == g['agent'])
-    return trafienia / len(GOLDEN)
+        emb = embed(g['query'])
+        wyniki = search_hybrid(g['query'], emb, g['agent'], k)
+        main_url = wybierz_main(wyniki, strategia, query=g['query'])
+        zrodla = zrodla_jako_lista(g)
+
+        if main_url and any(z in main_url for z in zrodla):
+           
+            trafienia += 1
+        else:
+            pudla.append(g['query'])
+
+    acc = trafienia / len(GOLDEN)
+
+    return acc, pudla
+
+
+def porownaj_strategie(k=5):
+  
+    print(f'\n--- MAIN-accuracy (k={k}) ---')
+    
+    for strategia in ['baseline', 'count', 'suma', 'dyskont', 'leks']:
+        acc, pudla = main_accuracy(strategia, k)
+       
+        print(f'{strategia:10s} = {acc:.3f}  ({len(pudla)} pudeł)')
 
 
 if __name__ == '__main__':
-
-    """""
-    acc_v1, pudla_v1 = search_k(lambda q, emb, agent, k: search(emb, agent, k), k=3)
-    acc_v2, pudla_v2 = search_k(search_hybrid, k=5)
-
-    acc_vote = routing_acc(lambda q, emb: vote(emb, k=5))
-    acc_route = routing_acc(lambda q, emb: search_route(q, emb, k=5)[0])
-
-    print(f'\nv1 (pure vector) Hit@3: {acc_v1:.2f}')
-    print(f'v2 (hybrid)      Hit@3: {acc_v2:.2f}')
-    print(f'\nv1 pudła ({len(pudla_v1)}): {pudla_v1}')
-    print(f'v2 pudła ({len(pudla_v2)}): {pudla_v2}')
-    print(f'\nrouting vote k=5 (produkcyjny):             {acc_vote:.2f}')
-    print(f'routing search_route (baseline, odrzucony): {acc_route:.2f}')
-    """""
-    print('\n--- MAIN-AC---')
-    for strategia in ['baseline', 'count', 'suma', 'dyskont']:
-        acc, pudla = main_ac(strategia, k=5)
-        print(f'{strategia:10s} MAIN-ac = {acc:.3f}  ({len(pudla)} pudeł)')
+    hit_at_k(k=5)
+    porownaj_strategie(k=5)
+  
