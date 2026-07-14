@@ -85,15 +85,19 @@ def ranking_faiss(query_emb, agent:str, chunki: list[dict]) -> list[int]:
   
   return list(I[0])
 
+def ortografia(token, n=3):
+    t = f'#{token}'
+    return [t[i:i+n] for i in range(len(t) - n + 1)] if len(t) >= n else {t}
+
 def tokenizacja(tekst:str) -> list[str]:
-    slowa = tekst.split()
     wynik = []
 
-    for slowo in slowa:
-
+    for slowo in tekst.split():
+     
         lemantyzacja = simplemma.lemmatize(slowo, lang='pl')
-        wynik.append(normalizacja(lemantyzacja))
 
+        wynik.append(normalizacja(lemantyzacja))
+        wynik.extend(ortografia(lemantyzacja, 3))
     return wynik
 
 def normalizacja(tekst:str) -> str:

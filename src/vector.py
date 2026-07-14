@@ -11,11 +11,10 @@ RAG_DIR = ROOT / 'RAG'
 
 def wczytaj_chunki(sciezka: Path) -> tuple[list[dict], np.ndarray]:
     with open(sciezka, 'r', encoding='utf-8') as r:
-       
-       sciezka_embeddings = RAG_DIR / 'embeddings.npy'
-    embeddings = np.load(sciezka_embeddings)
-
-    return json.load(r), embeddings.astype('float32')
+        chunki = json.load(r)
+   
+    embeddings = np.load(RAG_DIR / 'embeddings.npy')
+    return chunki, embeddings.astype('float32')
 
 def main():
 
