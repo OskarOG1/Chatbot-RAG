@@ -2,38 +2,78 @@ import json
 from pathlib import Path
 import numpy as np
 import faiss
-
+from sentence_transformers import SentenceTransformer, CrossEncoder
 import unicodedata
 from rank_bm25 import BM25Okapi
 import pickle
 from collections import Counter
 import simplemma
 
-
+RERANKER_NAME = 'BAAI/bge-reranker-v2-m3'
+RERANKER = None
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
 K_RRF = 60
 
-BM25_CACHE = {}
+def get_reranker():
+    global RERANKER
+    if RERANKER is None:
+        RERANKER = CrossEncoder(RERANKER_NAME, max_length=512)
+    return RERANKER
 
+def NO_dedup(query, query_emb, agent, k_surowe):
+
+    chunki = wczytaj_chunki(agent)
+    r_faiss = ranking_faiss(query_emb, agent, chunki)
+    r_bm25 = ranking_bm25(query, agent)
+    punkty = rrf([r_faiss, r_bm25])
+    posortowane = sorted(punkty, key=punkty.get, reverse=True)
+    
+    return [(chunki[idx], punkty[idx]) for idx in posortowane][:k_surowe]
+
+def search_reranked(query, query_emb, agent, k=3, k_surowe=20):
+    linki = NO_dedup(query, query_emb, agent, k_surowe=20)
+
+    if not linki:
+        return []
+    
+    pary = [(query, chunk['tekst']) for chunk, _ in linki]
+    scores = get_reranker().predict(pary, batch_size=16)
+
+    najlepszy = {}
+    for (chunk, _), s in zip(linki, scores):
+        url, s = chunk['url'], float(s)
+        
+        if url not in najlepszy or s > najlepszy[url][0]:
+            najlepszy[url] = (s, chunk)
+
+    posortowane = sorted(najlepszy.values(), key=lambda p: p[0], reverse=True)
+        
+    return [(chunk, score) for score, chunk in posortowane][:k]
+    
+BM25_CACHE = {}
 def get_bm25(agent:str):
     if agent not in BM25_CACHE:
+        
         with open(RAG_DIR / f'{agent}.bm25', 'rb') as r:
          BM25_CACHE[agent] = pickle.load(r)
+
     return BM25_CACHE[agent]
 
 FAISS_CACHE = {}
 def get_faiss(agent:str):
+   
     if agent not in FAISS_CACHE:
         FAISS_CACHE[agent] = faiss.read_index(str(RAG_DIR / f'{agent}.faiss'))
+   
     return FAISS_CACHE[agent]
 
 def wczytaj_chunki(agent:str) -> list[dict]:
-    
     nazwa = 'chunks.json' if agent == 'all' else f'chunks_{agent}.json'
     sciezka_chunki = RAG_DIR / nazwa
+
     with open(sciezka_chunki, 'r', encoding='utf-8' ) as r:
        
         return json.load(r)

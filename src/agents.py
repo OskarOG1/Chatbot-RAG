@@ -11,7 +11,7 @@ MODEL_NAME = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
 
 klient = Client(
     host=os.getenv('OLLAMA_HOST', 'http://localhost:11434'),
-    timeout=int(os.getenv('LLM_TIMEOUT', '120')),
+    timeout=int(os.getenv('LLM_TIMEOUT', '6000')),
 )
 
 SYSTEM_PROMPTY = {
@@ -62,6 +62,7 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
             {'role': 'user', 'content': tresc},
         ],
         stream=False,
+        keep_alive='30m',
         options={'stop': ['Pytanie:', '<|start_header_id|>']}
     )
 

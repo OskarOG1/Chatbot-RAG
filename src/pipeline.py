@@ -1,23 +1,14 @@
 from sentence_transformers import SentenceTransformer
 import faiss
 from classify import vote
-from rankings import search_hybrid
+from rankings import search_reranked
 from agents import answer
-from rankings import normalizacja
+
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
 
 pytania = [
    
-    "Zapomniałem hasła, jak je odzyskać?",
-    "Jak skasować swoje konto?",
-    "Ktoś mógł włamać się na moje konto, co robić?",
-    "Gdzie zmienię adres e-mail przypisany do konta?",
-    "Jak włączyć logowanie dwuskładnikowe?",
-  
-    "Paczka nie dotarła, a status mówi że dostarczono - co teraz?",
-    "Chcę oddać towar, który mi nie pasuje.",
-    "Sprzedawca nie odpowiada na wiadomości, jak złożyć reklamację?",
     "Jak sprawdzić, gdzie jest moja przesyłka?",
     "Kupiłem coś przez pomyłkę, da się anulować zamówienie?",
     "Czy mogę odebrać zamówienie w automacie paczkowym?",
@@ -41,7 +32,7 @@ def run(query:str, agent:str | None=None, bielik_model:str | None=None) -> dict:
 
     if agent is None:
         agent = vote(query_emb)
-    chunks = search_hybrid(query, query_emb, agent, k=5)
+    chunks = search_reranked(query, query_emb, agent, k=5, k_surowe=20)
 
 
     odpowiedz = answer(query, agent, chunks, bielik_model)
