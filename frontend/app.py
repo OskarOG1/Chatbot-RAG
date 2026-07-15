@@ -16,28 +16,24 @@ for msg in st.session_state.messages:
         st.markdown(msg['content'])
 
 if prompt := st.chat_input():
+    historia = list(st.session_state.messages)
     st.session_state.messages.append({"role": "user", "content": prompt})
-   
+
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-       
+
         with st.spinner("Generuje odpowiedź"):
-            odp = httpx.post(API_URL, json={"message": prompt, "agent": agent_param}, timeout=100000 )
+            odp = httpx.post(API_URL, json={"message": prompt, "agent": agent_param, "history": historia}, timeout=100000)
             dane = odp.json()
             answer = dane['answer']
         st.caption(f"Sekcja: {dane['agent']}")
         st.markdown(answer)
         st.session_state.messages.append({"role": "assistant", "content": answer})
- 
 
-    main = dane['main_source']
-    dodatkowe = dane['additional_sources']
-
-    if main:
-        st.markdown(f"**Najlepsze źródło:** [{main}]({main})")
-    if dodatkowe:
-        st.caption("Dodatkowe źródła:")
-        for url in dodatkowe:
-            st.markdown(f"[{url}]({url})")
+    zrodla = dane.get('sources', [])
+    if zrodla:
+        st.caption("Źródła:")
+        for url in zrodla:
+            st.markdown(f"- [{url}]({url})")

@@ -86,7 +86,8 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     return {'tekst': tekst, 'cytaty': cytaty, 'obce': obce}
 
 
-def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None) -> dict:
+def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
+           history:list[dict] | None=None) -> dict:
 
     system_prompt = SYSTEM_PROMPTY[agent] + CYTATY_INSTRUKCJA
     teksty = [c for c, _ in chunks]
@@ -94,13 +95,16 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
 
     tresc = f'kontekst:\n{kontekst}\n\nPytanie: {query}'
     nazwa = bielik_model or MODEL_NAME
+
+    wiadomosci = [{'role': 'system', 'content': system_prompt}]
+    for w in (history or []):
+        if w.get('role') in ('user', 'assistant') and w.get('content'):
+            wiadomosci.append({'role': w['role'], 'content': w['content']})
+    wiadomosci.append({'role': 'user', 'content': tresc})
+
     odp = klient.chat(
         model=nazwa,
-        messages=[
-
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': tresc},
-        ],
+        messages=wiadomosci,
         stream=False,
         keep_alive='30m',
         options={'stop': ['Pytanie:', '<|start_header_id|>']}

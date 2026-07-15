@@ -7,6 +7,8 @@ from guards import sprawdz
 from spell import correct
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
+MARGINES = 1
+OKNO_HISTORII = 6
 
 pytania = [
    
@@ -26,22 +28,27 @@ pytania = [
 ]
 
 
-def run(query:str, agent:str | None=None, bielik_model:str | None=None) -> dict:
+def run(query:str, agent:str | None=None, bielik_model:str | None=None,
+        history:list[dict] | None=None) -> dict:
     powod = sprawdz(query)
     if powod:
         return {'agent': '', 'answer': powod, 'sources': [], 'citations': []}
+    history = (history or [])[-OKNO_HISTORII:]
     query = correct(query)['poprawione']
-    query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
+
+    poprzedni_user = [w['content'] for w in history if w['role'] == 'user'][-1:]
+    zapytanie_ret = ' '.join(poprzedni_user + [query])
+    query_emb = model.encode(['zapytanie: ' + zapytanie_ret]).astype('float32')
     faiss.normalize_L2(query_emb)
 
     if agent is None:
-        agenci = vote(query_emb, top2=True)
+        agenci = vote(query_emb, top2=True, margines=MARGINES)
     else:
         agenci = [agent]
-    chunks = search_reranked_multi(query, query_emb, agenci, k=5, k_surowe=20)
+    chunks = search_reranked_multi(zapytanie_ret, query_emb, agenci, k=5, k_surowe=20)
 
     agent_odp = chunks[0][0]['agent'] if chunks else agenci[0]
-    odpowiedz = answer(query, agent_odp, chunks, bielik_model)
+    odpowiedz = answer(query, agent_odp, chunks, bielik_model, history)
 
     zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
     return {'agent': agent_odp,
