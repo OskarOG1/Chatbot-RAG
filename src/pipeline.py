@@ -3,7 +3,7 @@ import faiss
 from classify import vote
 from rankings import search_reranked
 from agents import answer
-
+from guards import sprawdz
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
 
@@ -26,7 +26,9 @@ pytania = [
 
 
 def run(query:str, agent:str | None=None, bielik_model:str | None=None) -> dict:
-    
+    powod = sprawdz(query)
+    if powod:
+        return {'agent': '', 'answer': powod, 'main_source': None, 'additional_sources': []}
     query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
     faiss.normalize_L2(query_emb)
 
