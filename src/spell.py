@@ -1,0 +1,148 @@
+import json
+import re
+import pickle
+from pathlib import Path
+from collections import Counter
+
+ROOT = Path(__file__).resolve().parent.parent
+RAG_DIR = ROOT / 'RAG'
+SLOWNIK_PLIK = RAG_DIR / 'slownik.pkl'
+
+MIN_DLUGOSC = 4
+MIN_CZESTOSC = 1
+MAX_ODLEGLOSC = 2 
+
+WZORZEC = re.compile(r'[^\W\d_]+', re.UNICODE)
+
+
+def tokenize_words(tekst: str) -> list[str]:
+    return WZORZEC.findall(tekst.lower())
+
+
+def distance(a: str, b: str) -> int:
+
+    dl_a, dl_b = len(a), len(b)
+    macierz = [[0] * (dl_b + 1) for _ in range(dl_a + 1)]
+
+    for i in range(dl_a + 1):
+        macierz[i][0] = i
+    for j in range(dl_b + 1):
+        macierz[0][j] = j
+
+    for i in range(1, dl_a + 1):
+        for j in range(1, dl_b + 1):
+            koszt = 0 if a[i - 1] == b[j - 1] else 1
+            macierz[i][j] = min(
+                macierz[i - 1][j] + 1,
+                macierz[i][j - 1] + 1,
+                macierz[i - 1][j - 1] + koszt,
+            )
+            if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
+                macierz[i][j] = min(macierz[i][j], macierz[i - 2][j - 2] + 1)
+
+    return macierz[dl_a][dl_b]
+
+
+def build_dictionary(chunki: list[dict] | None = None) -> Counter:
+    if chunki is None:
+        with open(RAG_DIR / 'chunks.json', 'r', encoding='utf-8') as r:
+            chunki = json.load(r)
+
+    licznik = Counter()
+    for chunk in chunki:
+        tekst = f"{chunk.get('tytul', '')}\n{chunk.get('tekst', '')}"
+        licznik.update(tokenize_words(tekst))
+
+    slownik = Counter({
+        slowo: liczba
+        for slowo, liczba in licznik.items()
+        if len(slowo) >= MIN_DLUGOSC and liczba >= MIN_CZESTOSC
+    })
+
+    with open(SLOWNIK_PLIK, 'wb') as w:
+        pickle.dump(slownik, w)
+
+    return slownik
+
+
+SLOWNIK_CACHE = None
+def load_dictionary() -> Counter:
+    global SLOWNIK_CACHE
+    if SLOWNIK_CACHE is None:
+        if SLOWNIK_PLIK.exists():
+            with open(SLOWNIK_PLIK, 'rb') as r:
+                SLOWNIK_CACHE = pickle.load(r)
+        else:
+            SLOWNIK_CACHE = build_dictionary()
+
+    return SLOWNIK_CACHE
+
+
+def best_candidate(token: str, slownik: Counter) -> str | None:
+
+    dozwolona = 1 if len(token) <= 6 else MAX_ODLEGLOSC
+    najlepszy = None
+    najlepsza_odleglosc = dozwolona + 1
+    najlepsza_czestosc = 0
+
+    for slowo, czestosc in slownik.items():
+        if abs(len(slowo) - len(token)) > dozwolona:
+            continue
+
+        odleglosc = distance(token, slowo)
+        if odleglosc == 0:
+            return slowo
+        
+        if odleglosc < najlepsza_odleglosc or (
+            odleglosc == najlepsza_odleglosc and czestosc > najlepsza_czestosc
+        ):
+            najlepszy = slowo
+            najlepsza_odleglosc = odleglosc
+            najlepsza_czestosc = czestosc
+
+    if najlepszy is not None and najlepsza_odleglosc <= dozwolona:
+        return najlepszy
+    return None
+
+
+def correct(query: str) -> dict:
+    
+    slownik = load_dictionary()
+    zmiany = []
+    nieznane = []
+
+    def replace(dopasowanie):
+        token = dopasowanie.group(0)
+        maly = token.lower()
+
+        if len(maly) < MIN_DLUGOSC or maly in slownik:
+            return token
+        
+        kandydat = best_candidate(maly, slownik)
+        if kandydat is not None and kandydat != maly:
+            zmiany.append((token, kandydat))
+            return kandydat
+        
+        nieznane.append(token)
+        return token
+
+    poprawione = WZORZEC.sub(replace, query)
+    return {
+        'poprawione': poprawione,
+        'zmieniono': bool(zmiany),
+        'zmiany': zmiany,
+        'nieznane': nieznane,
+    }
+
+
+if __name__ == '__main__':
+  
+    slownik = build_dictionary()
+    print(f'słownik: {len(slownik)} słów, zapisano do {SLOWNIK_PLIK}')
+
+    testy = ['jak zmienić haslo do kotno', 'zaplacilem smrtem', 'gdzie jest przesylak']
+    for zapytanie in testy:
+        wynik = correct(zapytanie)
+        print(f'\n"{zapytanie}"')
+        print(f'  -> "{wynik["poprawione"]}"')
+        print(f'  zmiany: {wynik["zmiany"]} | nieznane: {wynik["nieznane"]}')

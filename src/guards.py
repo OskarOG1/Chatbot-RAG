@@ -11,7 +11,7 @@ def liter(q:str) -> float:
     return sum(z.isalpha() for z in q) / len(q) if q else 0.0
 
 def sprawdz(query: str) -> str | None:
-    q = query.strip
+    q = query.strip()
 
     if len(q) < MIN_ZNAKI:
         return "Napisz proszę pełne pytanie."
