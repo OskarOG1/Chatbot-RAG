@@ -1,6 +1,7 @@
 import ollama
 from ollama import Client
 from rankings import search_hybrid
+from links import ARTYKUL_REGEX
 from sentence_transformers import SentenceTransformer
 import time
 import re
@@ -49,6 +50,7 @@ CYTATY_INSTRUKCJA = (
 )
 
 URL_REGEX = re.compile(r'https?://\S+|\bwww\.\S+', re.IGNORECASE)
+KONCOWKA = '.,;:!?)]}>"\''
 
 
 def context(chunks: list[dict]) -> str:
@@ -64,10 +66,11 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     obce = []
 
     def strip_url(dopasowanie):
-        url = dopasowanie.group(0)
-        if 'allegro.pl' in url.lower():
-            return url
-        obce.append(url)
+        surowy = dopasowanie.group(0)
+        rdzen = surowy.rstrip(KONCOWKA)
+        if ARTYKUL_REGEX.match(rdzen):
+            return surowy
+        obce.append(surowy)
         return ''
 
     tekst = URL_REGEX.sub(strip_url, pelna)

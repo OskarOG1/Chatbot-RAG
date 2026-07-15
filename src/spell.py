@@ -1,6 +1,7 @@
 import json
 import re
 import pickle
+import unicodedata
 from pathlib import Path
 from collections import Counter
 
@@ -17,6 +18,12 @@ WZORZEC = re.compile(r'[^\W\d_]+', re.UNICODE)
 
 def tokenize_words(tekst: str) -> list[str]:
     return WZORZEC.findall(tekst.lower())
+
+
+def fold(tekst: str) -> str:
+    tekst = tekst.replace('ł', 'l')
+    tekst = unicodedata.normalize('NFKD', tekst)
+    return ''.join(z for z in tekst if not unicodedata.combining(z))
 
 
 def distance(a: str, b: str) -> int:
@@ -62,6 +69,8 @@ def build_dictionary(chunki: list[dict] | None = None) -> Counter:
     with open(SLOWNIK_PLIK, 'wb') as w:
         pickle.dump(slownik, w)
 
+    global FOLDED_CACHE
+    FOLDED_CACHE = None
     return slownik
 
 
@@ -78,21 +87,27 @@ def load_dictionary() -> Counter:
     return SLOWNIK_CACHE
 
 
+FOLDED_CACHE = None
+def folded_index(slownik: Counter) -> list:
+    global FOLDED_CACHE
+    if FOLDED_CACHE is None:
+        FOLDED_CACHE = [(slowo, czestosc, fold(slowo)) for slowo, czestosc in slownik.items()]
+    return FOLDED_CACHE
+
+
 def best_candidate(token: str, slownik: Counter) -> str | None:
 
+    zlozony = fold(token)
     dozwolona = 1 if len(token) <= 6 else MAX_ODLEGLOSC
     najlepszy = None
     najlepsza_odleglosc = dozwolona + 1
     najlepsza_czestosc = 0
 
-    for slowo, czestosc in slownik.items():
-        if abs(len(slowo) - len(token)) > dozwolona:
+    for slowo, czestosc, zlozone in folded_index(slownik):
+        if abs(len(zlozone) - len(zlozony)) > dozwolona:
             continue
 
-        odleglosc = distance(token, slowo)
-        if odleglosc == 0:
-            return slowo
-        
+        odleglosc = distance(zlozony, zlozone)
         if odleglosc < najlepsza_odleglosc or (
             odleglosc == najlepsza_odleglosc and czestosc > najlepsza_czestosc
         ):
