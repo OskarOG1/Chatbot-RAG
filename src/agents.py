@@ -117,6 +117,30 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
     return verify_answer(pelna, chunks)
    
 
+def przepisz_zapytanie(query: str, history: list[dict] | None, bielik_model: str | None = None) -> str:
+    if not history:
+        return query
+    rozmowa = '\n'.join(f"{w['role']}: {w['content']}" for w in history
+                        if w.get('role') in ('user', 'assistant') and w.get('content'))
+    system_prompt = (
+        'Przepisz OSTATNIE pytanie użytkownika jako samodzielne, pełne pytanie po polsku '
+        'na podstawie rozmowy. Rozwiń odwołania typu „to", „tego", „a jak". '
+        'Zwróć wyłącznie samo pytanie, bez komentarza.'
+    )
+    odp = klient.chat(
+        model=bielik_model or MODEL_NAME,
+        messages=[
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': f'{rozmowa}\nuser: {query}\n\nSamodzielne pytanie:'},
+        ],
+        stream=False,
+        keep_alive='30m',
+        options={'stop': ['\n', 'Pytanie:']}
+    )
+    tekst = re.sub(r'<\|.*?\|>', '', odp['message']['content']).strip()
+    return tekst or query
+
+
 def zapytaj(query, agent, chunks, etykieta):
 
     print(f'\n===== {etykieta} =====')

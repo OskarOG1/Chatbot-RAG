@@ -13,6 +13,8 @@ class ChatRequest(BaseModel):
     agent:str | None = None
     bielik_model: str |None = None
     history: list[Wiadomosc] = []
+    agent_poprzedni: str | None = None
+    przepisz: bool = False
 
 class Cytat(BaseModel):
    n: int
@@ -34,7 +36,8 @@ def health():
 def chat(request: ChatRequest):
     try:
         wynik = run(request.message, agent=request.agent, bielik_model=request.bielik_model,
-                    history=[w.model_dump() for w in request.history])
+                    history=[w.model_dump() for w in request.history],
+                    agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz)
         return wynik
     except httpx.ConnectError:
         raise HTTPException(status_code=503, detail="Brak odpowiedzi ze strony Ollamy")

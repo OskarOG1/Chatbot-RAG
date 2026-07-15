@@ -25,12 +25,16 @@ if prompt := st.chat_input():
     with st.chat_message("assistant"):
 
         with st.spinner("Generuje odpowiedź"):
-            odp = httpx.post(API_URL, json={"message": prompt, "agent": agent_param, "history": historia}, timeout=100000)
+            odp = httpx.post(API_URL, json={"message": prompt, "agent": agent_param,
+                                            "history": historia,
+                                            "agent_poprzedni": st.session_state.get("ostatni_agent")},
+                             timeout=100000)
             dane = odp.json()
             answer = dane['answer']
         st.caption(f"Sekcja: {dane['agent']}")
         st.markdown(answer)
         st.session_state.messages.append({"role": "assistant", "content": answer})
+        st.session_state.ostatni_agent = dane['agent']
 
     zrodla = dane.get('sources', [])
     if zrodla:

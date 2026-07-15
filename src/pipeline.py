@@ -2,7 +2,7 @@ from sentence_transformers import SentenceTransformer
 import faiss
 from classify import vote
 from rankings import search_reranked_multi
-from agents import answer
+from agents import answer, przepisz_zapytanie
 from guards import sprawdz
 from spell import correct
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
@@ -29,25 +29,35 @@ pytania = [
 
 
 def run(query:str, agent:str | None=None, bielik_model:str | None=None,
-        history:list[dict] | None=None) -> dict:
+        history:list[dict] | None=None, agent_poprzedni:str | None=None,
+        przepisz:bool=False) -> dict:
     powod = sprawdz(query)
     if powod:
         return {'agent': '', 'answer': powod, 'sources': [], 'citations': []}
     history = (history or [])[-OKNO_HISTORII:]
     query = correct(query)['poprawione']
 
-    poprzedni_user = [w['content'] for w in history if w['role'] == 'user'][-1:]
-    zapytanie_ret = ' '.join(poprzedni_user + [query])
+    if przepisz and history:
+        zapytanie_ret = przepisz_zapytanie(query, history, bielik_model)
+    else:
+        poprzedni_user = [w['content'] for w in history if w['role'] == 'user'][-1:]
+        zapytanie_ret = ' '.join(poprzedni_user + [query])
     query_emb = model.encode(['zapytanie: ' + zapytanie_ret]).astype('float32')
     faiss.normalize_L2(query_emb)
 
     if agent is None:
         agenci = vote(query_emb, top2=True, margines=MARGINES)
+        if agent_poprzedni and agent_poprzedni not in agenci:
+            agenci = agenci + [agent_poprzedni]
     else:
         agenci = [agent]
     chunks = search_reranked_multi(zapytanie_ret, query_emb, agenci, k=5, k_surowe=20)
 
-    agent_odp = chunks[0][0]['agent'] if chunks else agenci[0]
+    agenci_chunkow = [c['agent'] for c, _ in chunks]
+    if agent is None and agent_poprzedni and agent_poprzedni in agenci_chunkow:
+        agent_odp = agent_poprzedni
+    else:
+        agent_odp = chunks[0][0]['agent'] if chunks else agenci[0]
     odpowiedz = answer(query, agent_odp, chunks, bielik_model, history)
 
     zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
