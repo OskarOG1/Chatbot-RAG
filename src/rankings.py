@@ -34,23 +34,28 @@ def NO_dedup(query, query_emb, agent, k_surowe):
     return [(chunki[idx], punkty[idx]) for idx in posortowane][:k_surowe]
 
 def search_reranked(query, query_emb, agent, k=3, k_surowe=20):
-    linki = NO_dedup(query, query_emb, agent, k_surowe=20)
+    return search_reranked_multi(query, query_emb, [agent], k, k_surowe)
+
+def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20):
+    linki = []
+    for agent in agenci:
+        linki.extend(NO_dedup(query, query_emb, agent, k_surowe))
 
     if not linki:
         return []
-    
+
     pary = [(query, chunk['tekst']) for chunk, _ in linki]
     scores = get_reranker().predict(pary, batch_size=16)
 
     najlepszy = {}
     for (chunk, _), s in zip(linki, scores):
         url, s = chunk['url'], float(s)
-        
+
         if url not in najlepszy or s > najlepszy[url][0]:
             najlepszy[url] = (s, chunk)
 
     posortowane = sorted(najlepszy.values(), key=lambda p: p[0], reverse=True)
-        
+
     return [(chunk, score) for score, chunk in posortowane][:k]
     
 BM25_CACHE = {}

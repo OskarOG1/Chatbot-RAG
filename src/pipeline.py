@@ -1,7 +1,7 @@
 from sentence_transformers import SentenceTransformer
 import faiss
 from classify import vote
-from rankings import search_reranked
+from rankings import search_reranked_multi
 from agents import answer
 from guards import sprawdz
 from spell import correct
@@ -35,14 +35,16 @@ def run(query:str, agent:str | None=None, bielik_model:str | None=None) -> dict:
     faiss.normalize_L2(query_emb)
 
     if agent is None:
-        agent = vote(query_emb)
-    chunks = search_reranked(query, query_emb, agent, k=5, k_surowe=20)
+        agenci = vote(query_emb, top2=True)
+    else:
+        agenci = [agent]
+    chunks = search_reranked_multi(query, query_emb, agenci, k=5, k_surowe=20)
 
-
-    odpowiedz = answer(query, agent, chunks, bielik_model)
+    agent_odp = chunks[0][0]['agent'] if chunks else agenci[0]
+    odpowiedz = answer(query, agent_odp, chunks, bielik_model)
 
     zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
-    return {'agent': agent,
+    return {'agent': agent_odp,
             'answer': odpowiedz['tekst'],
             'sources': zrodla,
             'citations': odpowiedz['cytaty']}
@@ -57,7 +59,7 @@ if __name__ == '__main__':
             f"{'='*60}\n"
             f"[{i}] PYTANIE: {p}\n"
             f"AGENT: {wynik['agent']}\n"
-            f"MAIN: {wynik['main_source']}\n"
+            f"SOURCES: {wynik['sources']}\n"
             f"ODPOWIEDŹ:\n{wynik['answer']}\n"
         )
         print(blok)

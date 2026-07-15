@@ -26,13 +26,21 @@ def classify_top1(query_emb) -> str:
     return max(wyniki, key=lambda x: x[1])[0]
 """""
 
-def vote(query_emb, k=5) -> str:
+def vote(query_emb, k=5, top2=False, margines=1):
     index = get_faiss('all')
     chunki = wczytaj_chunki('all')
     _, I = index.search(query_emb, k=k)
 
     agenci = [chunki[i]['agent'] for i in I[0]]
-    return Counter(agenci).most_common(1)[0][0]
+    rozklad = Counter(agenci).most_common()
+    if not top2:
+        return rozklad[0][0]
+    if len(rozklad) == 1:
+        return [rozklad[0][0]]
+    (agent_1, glosy_1), (agent_2, glosy_2) = rozklad[0], rozklad[1]
+    if glosy_1 - glosy_2 > margines:
+        return [agent_1]
+    return [agent_1, agent_2]
 
 if __name__ == '__main__':
     model = SentenceTransformer(MODEL_NAME)
