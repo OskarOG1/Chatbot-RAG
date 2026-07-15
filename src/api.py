@@ -9,11 +9,15 @@ class ChatRequest(BaseModel):
     agent:str | None = None
     bielik_model: str |None = None
 
+class Cytat(BaseModel):
+   n: int
+   url: str
+
 class ChatResponse(BaseModel):
    agent: str
    answer: str
-   main_source: str | None
-   additional_sources: list[str]
+   sources: list[str]
+   citations: list[Cytat]
 
 app = FastAPI()
 

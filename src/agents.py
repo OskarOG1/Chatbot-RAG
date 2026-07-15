@@ -42,13 +42,50 @@ SYSTEM_PROMPTY = {
 }
 
 
+CYTATY_INSTRUKCJA = (
+    ' Po każdej informacji z kontekstu podaj w nawiasie kwadratowym numer źródła, '
+    'np. [1] lub [2]. Używaj wyłącznie numerów źródeł z podanego kontekstu. '
+    'Nie podawaj żadnych adresów URL — linki zostaną dołączone automatycznie.'
+)
+
+URL_REGEX = re.compile(r'https?://\S+|\bwww\.\S+', re.IGNORECASE)
+
+
 def context(chunks: list[dict]) -> str:
     return '\n\n'.join(f'[{i}] {c["tekst"]}' for i, c in enumerate(chunks, 1))
 
 
-def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None) -> str:
+def verify_answer(pelna: str, chunks: list) -> dict:
+    zrodla = []
+    for c, _ in chunks:
+        if c['url'] not in zrodla:
+            zrodla.append(c['url'])
 
-    system_prompt = SYSTEM_PROMPTY[agent]
+    obce = []
+
+    def strip_url(dopasowanie):
+        url = dopasowanie.group(0)
+        if 'allegro.pl' in url.lower():
+            return url
+        obce.append(url)
+        return ''
+
+    tekst = URL_REGEX.sub(strip_url, pelna)
+    tekst = re.sub(r'[ \t]{2,}', ' ', tekst).strip()
+
+    numery = []
+    for m in re.findall(r'\[(\d+)\]', tekst):
+        n = int(m)
+        if 1 <= n <= len(zrodla) and n not in numery:
+            numery.append(n)
+    cytaty = [{'n': n, 'url': zrodla[n - 1]} for n in numery]
+
+    return {'tekst': tekst, 'cytaty': cytaty, 'obce': obce}
+
+
+def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None) -> dict:
+
+    system_prompt = SYSTEM_PROMPTY[agent] + CYTATY_INSTRUKCJA
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
 
@@ -69,8 +106,8 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
     pelna = odp['message']['content']
     pelna = re.sub(r'<\|.*?\|>', '', pelna)
     pelna = pelna.removeprefix('Odpowiedź:').strip()
-   
-    return pelna
+
+    return verify_answer(pelna, chunks)
    
 
 def zapytaj(query, agent, chunks, etykieta):
@@ -87,7 +124,8 @@ def zapytaj(query, agent, chunks, etykieta):
     start = time.perf_counter()
     odpowiedz = answer(query, agent, chunks)
     czas = time.perf_counter() - start
-    print(odpowiedz)
+    print(odpowiedz['tekst'])
+    print(f'cytaty: {odpowiedz["cytaty"]}')
     print(f'⏱ generacja: {czas:.1f}s')
 
 

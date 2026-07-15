@@ -4,6 +4,7 @@ from classify import vote
 from rankings import search_reranked
 from agents import answer
 from guards import sprawdz
+from spell import correct
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
 
@@ -28,7 +29,8 @@ pytania = [
 def run(query:str, agent:str | None=None, bielik_model:str | None=None) -> dict:
     powod = sprawdz(query)
     if powod:
-        return {'agent': '', 'answer': powod, 'main_source': None, 'additional_sources': []}
+        return {'agent': '', 'answer': powod, 'sources': [], 'citations': []}
+    query = correct(query)['poprawione']
     query_emb = model.encode(['zapytanie: ' + query]).astype('float32')
     faiss.normalize_L2(query_emb)
 
@@ -39,11 +41,11 @@ def run(query:str, agent:str | None=None, bielik_model:str | None=None) -> dict:
 
     odpowiedz = answer(query, agent, chunks, bielik_model)
 
-    zrodlo = list(dict.fromkeys(c['url'] for c, _ in chunks))
-    return {'agent': agent, 
-            'answer': odpowiedz, 
-            'main_source': zrodlo[0] if zrodlo else None,
-            'additional_sources': zrodlo[1:]}
+    zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
+    return {'agent': agent,
+            'answer': odpowiedz['tekst'],
+            'sources': zrodla,
+            'citations': odpowiedz['cytaty']}
 
 
 if __name__ == '__main__':

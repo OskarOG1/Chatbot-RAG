@@ -22,5 +22,5 @@ def test_chat_zwraca_klucze():
     dane = r.json()
     assert "agent" in dane
     assert "answer" in dane
-    assert "main_source" in dane
-    assert "additional_sources" in dane
+    assert "sources" in dane
+    assert "citations" in dane
