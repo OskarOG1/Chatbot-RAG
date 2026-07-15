@@ -7,8 +7,8 @@ from guards import sprawdz
 from spell import correct
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
-MARGINES = 1
-OKNO_HISTORII = 6
+MARGINES = 2
+OKNO_HISTORII = 3
 
 pytania = [
    

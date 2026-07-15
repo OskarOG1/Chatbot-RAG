@@ -7,3 +7,7 @@ __pycache__/
 *.faiss
 chunks*.json
 *.bm25
+.pytest_cahce
+pytest.ini
+*.pkl
+
