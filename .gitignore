@@ -17,3 +17,5 @@ spell.py
 measure.py
 ZMIANY.md
 trudne.jsonl
+diag_abstain.py
+diag_pokrycie.py
