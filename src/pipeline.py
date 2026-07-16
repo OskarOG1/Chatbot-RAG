@@ -4,7 +4,7 @@ from classify import vote
 from rankings import search_reranked_multi
 from agents import answer, przepisz_zapytanie, czy_kontekst_odpowiada
 from guards import sprawdz
-from spell import correct
+from spell import correct, tokenize_words, MIN_DLUGOSC
 from pathlib import Path
 from datetime import datetime, timezone
 import json
@@ -66,8 +66,13 @@ def run(query:str, agent:str | None=None, bielik_model:str | None=None,
         query = korekta['poprawione']
         if korekta['nieznane']:
             loguj_trudne(query, korekta['nieznane'])
-            return {'agent': '', 'answer': 'Przepraszam, nie zrozumiałem pytania — czy możesz napisać je inaczej?',
-                    'sources': [], 'citations': [], 'doprecyzowanie': None}
+            tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]
+            # twardy fallback TYLKO dla realnego gibberishu — wszystkie tokeny treści nieznane.
+            # Pojedyncze słowo spoza słownika korpusu (np. "pozbyć") jedzie dalej;
+            # jeśli naprawdę poza bazą, odetnie je bramka po cytatach (a).
+            if tokeny and len(korekta['nieznane']) >= len(tokeny):
+                return {'agent': '', 'answer': 'Przepraszam, nie zrozumiałem pytania — czy możesz napisać je inaczej?',
+                        'sources': [], 'citations': [], 'doprecyzowanie': None}
         doprecyzowanie = f'Szukam dla: „{query}" — czy o to chodziło?' if korekta['zmieniono'] else None
 
     if przepisz and history:

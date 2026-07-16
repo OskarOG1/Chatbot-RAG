@@ -68,13 +68,11 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     def strip_url(dopasowanie):
         surowy = dopasowanie.group(0)
         rdzen = surowy.rstrip(KONCOWKA)
-        if ARTYKUL_REGEX.match(rdzen):
-            return surowy
-        obce.append(surowy)
-        return ''
+        if not ARTYKUL_REGEX.match(rdzen):
+            obce.append(surowy)
+        return ''  # usuwamy KAŻDY URL z tekstu — linki są w sources + citations
 
     tekst = URL_REGEX.sub(strip_url, pelna)
-    tekst = re.sub(r'[ \t]{2,}', ' ', tekst).strip()
 
     numery = []
     for m in re.findall(r'\[(\d+)\]', tekst):
@@ -82,6 +80,12 @@ def verify_answer(pelna: str, chunks: list) -> dict:
         if 1 <= n <= len(zrodla) and n not in numery:
             numery.append(n)
     cytaty = [{'n': n, 'url': zrodla[n - 1]} for n in numery]
+
+    # po wycięciu URL-i zostaje osierocona bibliografia "[n] [n] ..." — usuń ją.
+    # inline [n] w środku zdań zostają (nie są samodzielną linią ani ciągiem 2+ na końcu).
+    tekst = re.sub(r'(?m)^[ \t]*(?:\[\d+\][ \t]*)+$\n?', '', tekst)   # cała linia = same referencje
+    tekst = re.sub(r'(?:[ \t]*\[\d+\])+[ \t]*$', '', tekst).rstrip()  # osierocony ciąg na końcu
+    tekst = re.sub(r'[ \t]{2,}', ' ', tekst).strip()
 
     return {'tekst': tekst, 'cytaty': cytaty, 'obce': obce}
 

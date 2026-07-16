@@ -10,4 +10,10 @@ chunks*.json
 .pytest_cahce
 pytest.ini
 *.pkl
-
+test_abstain.py
+test_regresja.py
+test_api.py
+spell.py
+measure.py
+ZMIANY.md
+trudne.jsonl
