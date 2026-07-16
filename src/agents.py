@@ -7,7 +7,6 @@ import time
 import re
 import os
 MMLW = 'sdadas/mmlw-retrieval-roberta-base'
-model = SentenceTransformer(MMLW)
 MODEL_NAME = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
 
 klient = Client(
@@ -44,11 +43,9 @@ SYSTEM_PROMPTY = {
 
 
 CYTATY_INSTRUKCJA = (
-    ' Po KAŻDYM zdaniu opartym na kontekście dopisz numer źródła w nawiasie '
-    'kwadratowym, np.: „Hasło zmienisz w ustawieniach konta [1].". '
-    'Używaj wyłącznie numerów źródeł z podanego kontekstu. '
-    'Nie podawaj żadnych adresów URL — linki zostaną dołączone automatycznie. '
-    'Odpowiedź MUSI zawierać co najmniej jeden numer źródła w nawiasie [ ].'
+    ' Po każdej informacji z kontekstu podaj w nawiasie kwadratowym numer źródła, '
+    'np. [1] lub [2]. Używaj wyłącznie numerów źródeł z podanego kontekstu. '
+    'Nie podawaj żadnych adresów URL — linki zostaną dołączone automatycznie.'
 )
 
 URL_REGEX = re.compile(r'https?://\S+|\bwww\.\S+', re.IGNORECASE)
@@ -89,9 +86,40 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     return {'tekst': tekst, 'cytaty': cytaty, 'obce': obce}
 
 
+def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
+                  history:list[dict] | None=None):
+    system_prompt = SYSTEM_PROMPTY[agent] + CYTATY_INSTRUKCJA
+    teksty = [c for c, _ in chunks]
+    kontekst = context(teksty)
+
+    tresc = f'kontekst:\n{kontekst}\n\nPytanie: {query}'
+    nazwa = bielik_model or MODEL_NAME
+
+    wiadomosci = [{'role': 'system', 'content': system_prompt}]
+    for w in (history or []):
+        if w.get('role') in ('user', 'assistant') and w.get('content'):
+            wiadomosci.append({'role': w['role'], 'content': w['content']})
+    wiadomosci.append({'role': 'user', 'content': tresc})
+
+    pelna = ''
+    for kawalek in klient.chat(
+        model=nazwa,
+        messages=wiadomosci,
+        stream=True,
+        keep_alive='30m',
+        options={'stop': ['Pytanie:', '<|start_header_id|>']}
+    ):
+        token = kawalek['message']['content']
+        pelna += token
+        yield {'typ': 'token', 'tekst': token}
+
+    pelna = re.sub(r'<\|.*?\|>', '', pelna)
+    pelna = pelna.removeprefix('Odpowiedź:').strip()
+    yield {'typ': 'koniec', 'dane': verify_answer(pelna, chunks)}
+
+
 def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
            history:list[dict] | None=None) -> dict:
-
     system_prompt = SYSTEM_PROMPTY[agent] + CYTATY_INSTRUKCJA
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
@@ -116,7 +144,6 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
     pelna = odp['message']['content']
     pelna = re.sub(r'<\|.*?\|>', '', pelna)
     pelna = pelna.removeprefix('Odpowiedź:').strip()
-
     return verify_answer(pelna, chunks)
    
 
@@ -151,10 +178,8 @@ SEDZIA_SYSTEM = (
 
 
 def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = None) -> bool:
-    """Warstwa (b) — semantyczny sędzia pod produkcję (domyślnie NIEUŻYWANY).
-    Jeden dodatkowy krótki call LLM: czy pobrany kontekst pozwala odpowiedzieć
-    na pytanie. True = tak. Wyłapuje źle dobrany kontekst tematycznie, czego
-    próg na score nie umie (kalibracja_progu = brak sygnału)."""
+    """Warstwa (b) — Dodatkowa opcja z LLM jako sędzią czy kontekst pasuję. """
+    
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
     odp = klient.chat(
@@ -192,6 +217,7 @@ def zapytaj(query, agent, chunks, etykieta):
 
 if __name__ == '__main__':
 
+    model = SentenceTransformer(MMLW)
     query = 'jak zmienić hasło'
     agent = 'konto'
     query_emb = model.encode(['zapytanie: ' + query]).astype('float32')

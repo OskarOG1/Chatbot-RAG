@@ -4,6 +4,7 @@ import pickle
 import unicodedata
 from pathlib import Path
 from collections import Counter
+from wordfreq import zipf_frequency
 
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
@@ -11,9 +12,14 @@ SLOWNIK_PLIK = RAG_DIR / 'slownik.pkl'
 
 MIN_DLUGOSC = 4
 MIN_CZESTOSC = 1
-MAX_ODLEGLOSC = 2 
+MAX_ODLEGLOSC = 2
+PROG_PL = 2.0
 
 WZORZEC = re.compile(r'[^\W\d_]+', re.UNICODE)
+
+
+def polish_word(slowo: str) -> bool:
+    return zipf_frequency(slowo, 'pl') >= PROG_PL
 
 
 def tokenize_words(tekst: str) -> list[str]:
@@ -132,7 +138,10 @@ def correct(query: str) -> dict:
 
         if len(maly) < MIN_DLUGOSC or maly in slownik:
             return token
-        
+
+        if polish_word(maly):
+            return token
+
         kandydat = best_candidate(maly, slownik)
         if kandydat is not None and kandydat != maly:
             zmiany.append((token, kandydat))

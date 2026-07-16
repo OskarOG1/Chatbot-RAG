@@ -8,8 +8,6 @@ NEGACJE = {"nie", "nie o to chodziło", "nie o to mi chodziło", "to nie to", "�
 
 
 def jest_negacja(tekst: str) -> bool:
-    """True tylko gdy CAŁA wiadomość to negacja (pełny tekst, nie prefiks),
-    żeby 'nie mogę się zalogować' nie zostało potraktowane jako odrzucenie."""
     return tekst.strip().lower() in NEGACJE
 
 
@@ -28,26 +26,28 @@ for msg in st.session_state.messages:
         st.markdown(msg['content'])
 
 if prompt := st.chat_input():
-    # user odrzucił korektę ("nie") → wróć do oryginału sprzed korekty, bez korektora
     if jest_negacja(prompt) and st.session_state.get("ostatnia_korekta"):
         wiadomosc = st.session_state.ostatnia_korekta
         bez_korekty = True
-        st.session_state.ostatnia_korekta = None  # nie zapętlaj kolejnym "nie"
+        st.session_state.ostatnia_korekta = None
     else:
         wiadomosc = prompt
         bez_korekty = False
 
     historia = list(st.session_state.historia_api)
 
-    # w czacie pokazujemy to, co user NAPISAŁ (prompt), a do API leci wiadomosc
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        dane = None
-        blad = None
-        with st.status("Myślę…", expanded=True) as status:
+        status = st.status("Myślę…", expanded=True)
+        caption_ph = st.empty()
+        info_ph = st.empty()
+        answer_ph = st.empty()
+        holder = {"dane": None, "blad": None}
+
+        def strumien():
             with httpx.stream("POST", API_URL,
                               json={"message": wiadomosc, "agent": agent_param,
                                     "history": historia,
@@ -58,35 +58,41 @@ if prompt := st.chat_input():
                     if not linia or not linia.startswith("data:"):
                         continue
                     ev = json.loads(linia[5:].strip())
-                    if ev["typ"] == "krok":
-                        st.write(ev["tekst"])
-                    elif ev["typ"] == "wynik":
-                        dane = ev["dane"]
-                    elif ev["typ"] == "blad":
-                        blad = ev["tekst"]
-            status.update(label="Gotowe" if dane else "Błąd",
-                          state="complete" if dane else "error")
+                    typ = ev["typ"]
+                    if typ == "krok":
+                        status.write(ev["tekst"])
+                    elif typ == "token":
+                        yield ev["tekst"]
+                    elif typ == "wynik":
+                        holder["dane"] = ev["dane"]
+                    elif typ == "blad":
+                        holder["blad"] = ev["tekst"]
+
+        with answer_ph.container():
+            st.write_stream(strumien)
+
+        dane = holder["dane"]
+        status.update(label="Gotowe" if dane else "Błąd",
+                      state="complete" if dane else "error")
 
         if dane is None:
-            komunikat = blad or "Backend nie odpowiedział — uruchom uvicorn."
-            st.error(komunikat)
-            dane = {"agent": "", "answer": komunikat, "sources": [], "citations": [], "doprecyzowanie": None}
+            dane = {"agent": "", "answer": holder["blad"] or "Backend nie odpowiedział — uruchom uvicorn.",
+                    "sources": [], "citations": [], "doprecyzowanie": None}
 
         answer = dane["answer"]
-        st.caption(f"Sekcja: {dane['agent']}")
+        if dane["agent"]:
+            caption_ph.caption(f"Sekcja: {dane['agent']}")
         if dane.get("doprecyzowanie"):
-            st.info(dane["doprecyzowanie"])
-        st.markdown(answer)
+            info_ph.info(dane["doprecyzowanie"])
+        answer_ph.markdown(answer)
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
 
-    # zapamiętaj ORYGINAŁ tej tury do obsługi "nie"; przy normalnej turze wyczyść
     if dane.get("doprecyzowanie"):
         st.session_state.ostatnia_korekta = wiadomosc
     elif not bez_korekty:
         st.session_state.ostatnia_korekta = None
 
-    # czysta historia + sticky agent TYLKO dla udanych wymian (agent != '')
     if dane["agent"]:
         st.session_state.historia_api.append({"role": "user", "content": wiadomosc})
         st.session_state.historia_api.append({"role": "assistant", "content": answer})

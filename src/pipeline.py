@@ -2,13 +2,14 @@ from sentence_transformers import SentenceTransformer
 import faiss
 from classify import vote
 from rankings import search_reranked_multi
-from agents import answer, przepisz_zapytanie, czy_kontekst_odpowiada
+from agents import answer, answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada
 from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
 from pathlib import Path
 from datetime import datetime, timezone
 import json
 import math
+import pickle
 import simplemma
 from collections import Counter
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
@@ -18,7 +19,7 @@ OKNO_HISTORII = 3
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 BRAK_WIEDZY = ('Nie znalazłem tej informacji w bazie pomocy Allegro. '
                'Sprawdź bezpośrednio w Centrum Pomocy: https://allegro.pl/pomoc')
-PROG_POKRYCIA = 0.5 
+PROG_POKRYCIA = 0.65
 PROG_RERANK = 0.05 
 
 
@@ -39,18 +40,32 @@ def pokrycie_leksykalne(tekst: str, chunks: list) -> float:
 
 
 CHUNKS_JSON = Path(__file__).resolve().parent.parent / 'RAG' / 'chunks.json'
+IDF_CACHE = CHUNKS_JSON.parent / 'idf.pkl'
 IDF = {}
 IDF_MAX = 1.0
 try:
-    with open(CHUNKS_JSON, encoding='utf-8') as _plik:
-        _chunki = json.load(_plik)
-    _n = len(_chunki) or 1
-    _df = Counter()
-    for _chunk in _chunki:
-        for _lemat in _lematy(_chunk.get('tekst', '')):
-            _df[_lemat] += 1
-    IDF = {_lemat: math.log(_n / (1 + _liczba)) for _lemat, _liczba in _df.items()}
-    IDF_MAX = math.log(_n)
+    _stamp = int(CHUNKS_JSON.stat().st_mtime)
+    _zapis = None
+    if IDF_CACHE.exists():
+        with open(IDF_CACHE, 'rb') as _plik:
+            _kandydat = pickle.load(_plik)
+        if _kandydat.get('stamp') == _stamp:
+            _zapis = _kandydat
+    if _zapis is None:
+        with open(CHUNKS_JSON, encoding='utf-8') as _plik:
+            _chunki = json.load(_plik)
+        _n = len(_chunki) or 1
+        _df = Counter()
+        for _chunk in _chunki:
+            for _lemat in _lematy(_chunk.get('tekst', '')):
+                _df[_lemat] += 1
+        IDF = {_lemat: math.log((1 + _n) / (1 + _liczba)) for _lemat, _liczba in _df.items()}
+        IDF_MAX = math.log(1 + _n)
+        with open(IDF_CACHE, 'wb') as _plik:
+            pickle.dump({'stamp': _stamp, 'idf': IDF, 'idf_max': IDF_MAX}, _plik)
+    else:
+        IDF = _zapis['idf']
+        IDF_MAX = _zapis['idf_max']
 except Exception:
     pass
 
@@ -155,22 +170,22 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
 
     if not chunks or chunks[0][1] < PROG_RERANK:
         yield krok('Poza zakresem bazy pomocy — odmawiam')
-        yield wynik({'agent': agent_odp, 'answer': BRAK_WIEDZY,
+        yield wynik({'agent': '', 'answer': BRAK_WIEDZY,
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
         return
 
     if sedzia and chunks:
         yield krok('Sprawdzam, czy kontekst odpowiada na pytanie')
         if not czy_kontekst_odpowiada(query, chunks, bielik_model):
-            yield wynik({'agent': agent_odp, 'answer': BRAK_WIEDZY,
+            yield wynik({'agent': '', 'answer': BRAK_WIEDZY,
                          'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
             return
 
     yield krok(f'Generuję odpowiedź (sekcja: {agent_odp})')
     odpowiedz = answer(query, agent_odp, chunks, bielik_model, history)
 
-    if pokrycie_leksykalne(odpowiedz['tekst'], chunks) < PROG_POKRYCIA:
-        yield wynik({'agent': agent_odp, 'answer': BRAK_WIEDZY,
+    if pokrycie_idf(odpowiedz['tekst'], chunks) < PROG_POKRYCIA:
+        yield wynik({'agent': '', 'answer': BRAK_WIEDZY,
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
         return
 
