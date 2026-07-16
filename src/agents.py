@@ -44,9 +44,11 @@ SYSTEM_PROMPTY = {
 
 
 CYTATY_INSTRUKCJA = (
-    ' Po każdej informacji z kontekstu podaj w nawiasie kwadratowym numer źródła, '
-    'np. [1] lub [2]. Używaj wyłącznie numerów źródeł z podanego kontekstu. '
-    'Nie podawaj żadnych adresów URL — linki zostaną dołączone automatycznie.'
+    ' Po KAŻDYM zdaniu opartym na kontekście dopisz numer źródła w nawiasie '
+    'kwadratowym, np.: „Hasło zmienisz w ustawieniach konta [1].". '
+    'Używaj wyłącznie numerów źródeł z podanego kontekstu. '
+    'Nie podawaj żadnych adresów URL — linki zostaną dołączone automatycznie. '
+    'Odpowiedź MUSI zawierać co najmniej jeden numer źródła w nawiasie [ ].'
 )
 
 URL_REGEX = re.compile(r'https?://\S+|\bwww\.\S+', re.IGNORECASE)
