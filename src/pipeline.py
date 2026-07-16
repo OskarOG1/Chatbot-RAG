@@ -51,17 +51,28 @@ pytania = [
 ]
 
 
-def run(query:str, agent:str | None=None, bielik_model:str | None=None,
-        history:list[dict] | None=None, agent_poprzedni:str | None=None,
-        przepisz:bool=False, bez_korekty:bool=False, sedzia:bool=False) -> dict:
+def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
+               history:list[dict] | None=None, agent_poprzedni:str | None=None,
+               przepisz:bool=False, bez_korekty:bool=False, sedzia:bool=False):
+    """Generator: yield-uje kroki {'typ':'krok','tekst':...} po drodze,
+    a na końcu jeden {'typ':'wynik','dane': <ten sam dict co run()>}.
+    run() konsumuje go i zwraca sam wynik — jedna logika, dwa wejścia."""
+    def krok(t):
+        return {'typ': 'krok', 'tekst': t}
+    def wynik(d):
+        return {'typ': 'wynik', 'dane': d}
+
+    yield krok('Sprawdzam pytanie')
     powod = sprawdz(query)
     if powod:
-        return {'agent': '', 'answer': powod, 'sources': [], 'citations': []}
+        yield wynik({'agent': '', 'answer': powod, 'sources': [], 'citations': [], 'doprecyzowanie': None})
+        return
     history = (history or [])[-OKNO_HISTORII:]
     if bez_korekty:
         # użytkownik odrzucił korektę ("nie") → jedziemy na oryginale, bez zgadywania
         doprecyzowanie = None
     else:
+        yield krok('Poprawiam literówki')
         korekta = correct(query)
         query = korekta['poprawione']
         if korekta['nieznane']:
@@ -71,24 +82,31 @@ def run(query:str, agent:str | None=None, bielik_model:str | None=None,
             # Pojedyncze słowo spoza słownika korpusu (np. "pozbyć") jedzie dalej;
             # jeśli naprawdę poza bazą, odetnie je bramka po cytatach (a).
             if tokeny and len(korekta['nieznane']) >= len(tokeny):
-                return {'agent': '', 'answer': 'Przepraszam, nie zrozumiałem pytania — czy możesz napisać je inaczej?',
-                        'sources': [], 'citations': [], 'doprecyzowanie': None}
+                yield wynik({'agent': '', 'answer': 'Przepraszam, nie zrozumiałem pytania — czy możesz napisać je inaczej?',
+                             'sources': [], 'citations': [], 'doprecyzowanie': None})
+                return
         doprecyzowanie = f'Szukam dla: „{query}" — czy o to chodziło?' if korekta['zmieniono'] else None
 
     if przepisz and history:
+        yield krok('Przepisuję pytanie z kontekstu rozmowy')
         zapytanie_ret = przepisz_zapytanie(query, history, bielik_model)
     else:
         poprzedni_user = [w['content'] for w in history if w['role'] == 'user'][-1:]
         zapytanie_ret = ' '.join(poprzedni_user + [query])
+
+    yield krok('Zamieniam pytanie na wektor')
     query_emb = model.encode(['zapytanie: ' + zapytanie_ret]).astype('float32')
     faiss.normalize_L2(query_emb)
 
+    yield krok('Rozpoznaję sekcję (konto / zakupy / płatności)')
     if agent is None:
         agenci = vote(query_emb, top2=True, margines=MARGINES)
         if agent_poprzedni and agent_poprzedni not in agenci:
             agenci = agenci + [agent_poprzedni]
     else:
         agenci = [agent]
+
+    yield krok('Przeszukuję bazę wiedzy i porządkuję wyniki')
     chunks = search_reranked_multi(zapytanie_ret, query_emb, agenci, k=5, k_surowe=20)
 
     agenci_chunkow = [c['agent'] for c, _ in chunks]
@@ -99,23 +117,39 @@ def run(query:str, agent:str | None=None, bielik_model:str | None=None,
 
     # Warstwa (b) — sędzia semantyczny PRZED generacją (pod produkcję, domyślnie off).
     # Łapie źle dobrany kontekst tematycznie — czego próg geometryczny nie umie.
-    if sedzia and chunks and not czy_kontekst_odpowiada(query, chunks, bielik_model):
-        return {'agent': agent_odp, 'answer': BRAK_WIEDZY,
-                'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie}
+    if sedzia and chunks:
+        yield krok('Sprawdzam, czy kontekst odpowiada na pytanie')
+        if not czy_kontekst_odpowiada(query, chunks, bielik_model):
+            yield wynik({'agent': agent_odp, 'answer': BRAK_WIEDZY,
+                         'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
+            return
 
+    yield krok(f'Generuję odpowiedź (sekcja: {agent_odp})')
     odpowiedz = answer(query, agent_odp, chunks, bielik_model, history)
 
     # Warstwa (a) — brak cytatu => brak oparcia w źródle => nie zmyślamy.
     if bez_pokrycia(odpowiedz):
-        return {'agent': agent_odp, 'answer': BRAK_WIEDZY,
-                'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie}
+        yield wynik({'agent': agent_odp, 'answer': BRAK_WIEDZY,
+                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
+        return
 
     zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
-    return {'agent': agent_odp,
-            'answer': odpowiedz['tekst'],
-            'sources': zrodla,
-            'citations': odpowiedz['cytaty'],
-            'doprecyzowanie': doprecyzowanie}
+    yield wynik({'agent': agent_odp,
+                 'answer': odpowiedz['tekst'],
+                 'sources': zrodla,
+                 'citations': odpowiedz['cytaty'],
+                 'doprecyzowanie': doprecyzowanie})
+
+
+def run(query:str, agent:str | None=None, bielik_model:str | None=None,
+        history:list[dict] | None=None, agent_poprzedni:str | None=None,
+        przepisz:bool=False, bez_korekty:bool=False, sedzia:bool=False) -> dict:
+    dane = {}
+    for ev in run_stream(query, agent, bielik_model, history,
+                         agent_poprzedni, przepisz, bez_korekty, sedzia):
+        if ev['typ'] == 'wynik':
+            dane = ev['dane']
+    return dane
 
 
 if __name__ == '__main__':

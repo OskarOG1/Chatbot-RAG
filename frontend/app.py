@@ -1,7 +1,8 @@
 import streamlit as st
 import httpx
+import json
 
-API_URL = "http://127.0.0.1:8000/chat"
+API_URL = "http://127.0.0.1:8000/chat/stream"
 
 NEGACJE = {"nie", "nie o to chodziło", "nie o to mi chodziło", "to nie to", "źle"}
 
@@ -44,34 +45,54 @@ if prompt := st.chat_input():
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Generuję odpowiedź"):
-            odp = httpx.post(API_URL, json={"message": wiadomosc, "agent": agent_param,
-                                            "history": historia,
-                                            "agent_poprzedni": st.session_state.get("ostatni_agent"),
-                                            "bez_korekty": bez_korekty},
-                             timeout=100000)
-            dane = odp.json()
-            answer = dane['answer']
+        dane = None
+        blad = None
+        with st.status("Myślę…", expanded=True) as status:
+            with httpx.stream("POST", API_URL,
+                              json={"message": wiadomosc, "agent": agent_param,
+                                    "history": historia,
+                                    "agent_poprzedni": st.session_state.get("ostatni_agent"),
+                                    "bez_korekty": bez_korekty},
+                              timeout=100000) as r:
+                for linia in r.iter_lines():
+                    if not linia or not linia.startswith("data:"):
+                        continue
+                    ev = json.loads(linia[5:].strip())
+                    if ev["typ"] == "krok":
+                        st.write(ev["tekst"])
+                    elif ev["typ"] == "wynik":
+                        dane = ev["dane"]
+                    elif ev["typ"] == "blad":
+                        blad = ev["tekst"]
+            status.update(label="Gotowe" if dane else "Błąd",
+                          state="complete" if dane else "error")
+
+        if dane is None:
+            komunikat = blad or "Backend nie odpowiedział — uruchom uvicorn."
+            st.error(komunikat)
+            dane = {"agent": "", "answer": komunikat, "sources": [], "citations": [], "doprecyzowanie": None}
+
+        answer = dane["answer"]
         st.caption(f"Sekcja: {dane['agent']}")
-        if dane.get('doprecyzowanie'):
-            st.info(dane['doprecyzowanie'])
+        if dane.get("doprecyzowanie"):
+            st.info(dane["doprecyzowanie"])
         st.markdown(answer)
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
 
     # zapamiętaj ORYGINAŁ tej tury do obsługi "nie"; przy normalnej turze wyczyść
-    if dane.get('doprecyzowanie'):
+    if dane.get("doprecyzowanie"):
         st.session_state.ostatnia_korekta = wiadomosc
     elif not bez_korekty:
         st.session_state.ostatnia_korekta = None
 
     # czysta historia + sticky agent TYLKO dla udanych wymian (agent != '')
-    if dane['agent']:
+    if dane["agent"]:
         st.session_state.historia_api.append({"role": "user", "content": wiadomosc})
         st.session_state.historia_api.append({"role": "assistant", "content": answer})
-        st.session_state.ostatni_agent = dane['agent']
+        st.session_state.ostatni_agent = dane["agent"]
 
-    zrodla = dane.get('sources', [])
+    zrodla = dane.get("sources", [])
     if zrodla:
         st.caption("Źródła:")
         for url in zrodla:

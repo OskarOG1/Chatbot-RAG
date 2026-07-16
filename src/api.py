@@ -1,8 +1,10 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
-from pipeline import run
+from pipeline import run, run_stream
 import httpx
+import json
 
 class Wiadomosc(BaseModel):
    role: str
@@ -47,3 +49,19 @@ def chat(request: ChatRequest):
         raise HTTPException(status_code=503, detail="Brak odpowiedzi ze strony Ollamy")
     except httpx.ReadTimeout:
         raise HTTPException(status_code=504, detail='Zbyt długi czas generowania odpowiedzi')
+
+
+@app.post('/chat/stream')
+def chat_stream(request: ChatRequest):
+    def gen():
+        try:
+            for ev in run_stream(request.message, agent=request.agent, bielik_model=request.bielik_model,
+                                 history=[w.model_dump() for w in request.history],
+                                 agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
+                                 bez_korekty=request.bez_korekty, sedzia=request.sedzia):
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+        except httpx.ConnectError:
+            yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': 'Brak odpowiedzi ze strony Ollamy'}, ensure_ascii=False)}\n\n"
+        except httpx.ReadTimeout:
+            yield f"data: {json.dumps({'typ': 'blad', 'kod': 504, 'tekst': 'Zbyt długi czas generowania odpowiedzi'}, ensure_ascii=False)}\n\n"
+    return StreamingResponse(gen(), media_type='text/event-stream')
