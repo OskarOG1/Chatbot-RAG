@@ -141,6 +141,33 @@ def przepisz_zapytanie(query: str, history: list[dict] | None, bielik_model: str
     return tekst or query
 
 
+SEDZIA_SYSTEM = (
+    'Oceniasz, czy KONTEKST zawiera informacje potrzebne do odpowiedzi na PYTANIE. '
+    'Odpowiedz jednym słowem: TAK albo NIE. Nic więcej.'
+)
+
+
+def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = None) -> bool:
+    """Warstwa (b) — semantyczny sędzia pod produkcję (domyślnie NIEUŻYWANY).
+    Jeden dodatkowy krótki call LLM: czy pobrany kontekst pozwala odpowiedzieć
+    na pytanie. True = tak. Wyłapuje źle dobrany kontekst tematycznie, czego
+    próg na score nie umie (kalibracja_progu = brak sygnału)."""
+    teksty = [c for c, _ in chunks]
+    kontekst = context(teksty)
+    odp = klient.chat(
+        model=bielik_model or MODEL_NAME,
+        messages=[
+            {'role': 'system', 'content': SEDZIA_SYSTEM},
+            {'role': 'user', 'content': f'KONTEKST:\n{kontekst}\n\nPYTANIE: {query}\n\nCzy da się odpowiedzieć? (TAK/NIE):'},
+        ],
+        stream=False,
+        keep_alive='30m',
+        options={'stop': ['\n', 'Pytanie:']},
+    )
+    tekst = re.sub(r'<\|.*?\|>', '', odp['message']['content']).strip().upper()
+    return tekst.startswith('TAK')
+
+
 def zapytaj(query, agent, chunks, etykieta):
 
     print(f'\n===== {etykieta} =====')

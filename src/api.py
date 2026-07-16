@@ -15,6 +15,8 @@ class ChatRequest(BaseModel):
     history: list[Wiadomosc] = []
     agent_poprzedni: str | None = None
     przepisz: bool = False
+    bez_korekty: bool = False
+    sedzia: bool = False
 
 class Cytat(BaseModel):
    n: int
@@ -25,6 +27,7 @@ class ChatResponse(BaseModel):
    answer: str
    sources: list[str]
    citations: list[Cytat]
+   doprecyzowanie: str | None = None
 
 app = FastAPI()
 
@@ -37,7 +40,8 @@ def chat(request: ChatRequest):
     try:
         wynik = run(request.message, agent=request.agent, bielik_model=request.bielik_model,
                     history=[w.model_dump() for w in request.history],
-                    agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz)
+                    agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
+                    bez_korekty=request.bez_korekty, sedzia=request.sedzia)
         return wynik
     except httpx.ConnectError:
         raise HTTPException(status_code=503, detail="Brak odpowiedzi ze strony Ollamy")
