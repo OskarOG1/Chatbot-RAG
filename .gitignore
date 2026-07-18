@@ -22,3 +22,4 @@ diag_pokrycie.py
 diag_halucynacja.py
 *.md
 !README.md
+Python.code-workspace
