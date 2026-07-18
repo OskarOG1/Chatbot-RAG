@@ -1,103 +1,226 @@
 ## Chatbot-RAG
 
-Chatbot RAG z 3 oddzielnymi sekcjami do klasyfikacji zapytań przez embeddingi, z własnym stylem odpowiedzi
+Chatbot RAG z 3 oddzielnymi sekcjami do klasyfikacji zapytań przez embeddingi, z własnym stylem odpowiedzi.
 
-Dane: 141 artykułów z Allegro Pomoc (konto 34, zakupy 69, płatności 38), pocięte na 576 chunków po 500 tokenów z zakładką 50. Jest to najprostsza metoda, jednak, co w tym przypadku istotne (zachowanie nagłówków) wpłyneło by co najwyżej minimalnie na jakość odpowiedzi. (do zmierzenia w przyszłości)
+Dane: 141 artykułów z Allegro Pomoc (konto 34, zakupy 69, płatności 38). Cały stack jest lokalny (Ollama, FAISS, embeddingi liczone na miejscu), bo docelowy kierunek to sektor, gdzie dane nie mogą wychodzić na zewnątrz.
+
+Projekt edukacyjny, niezwiązany z Allegro. Treść artykułów, fragmenty, embeddingi i indeksy są w `.gitignore` i nie ma ich w repozytorium — są objęte licencją Allegro. Repo zawiera wyłącznie kod, dane odtwarza się skryptami. „Sekcje" to router i 3 konfiguracje RAG, bez tool-callingu.
 
 ## Architektura
 
 ```
 Pytanie użytkownika
       │
-      ▼  embedding (mmlw, prefiks "zapytanie: ", prefiks wymagany przy tym modelu )
-ROUTER (vote: Najczęściej występujący istotny wynik)
+      ▼  filtry wejścia: puste / za krótkie / za długie / obcy alfabet / wzorce injection
+      ▼  korektor literówek (Damerau-Levenshtein + próg częstości słowa)
+      ▼  embedding (mmlw, prefiks "zapytanie: ", wymagany przy tym modelu)
+ROUTER (głosowanie po 5 fragmentach, dwie sekcje przy remisie, margines=2)
       │
       ▼
-WYSZUKIWANIE HYBRYDOWE — po słowach (BM25, z lematyzacją) + po znaczeniu (FAISS),
-rankingi łączone przez RRF, duplikaty artykułów wycinane po URL → top-k chunków/ osobna funkcja do zachowywania url do routingu 
+WYSZUKIWANIE HYBRYDOWE — po słowach (BM25 z lematyzacją i trigramami) + po znaczeniu
+(FAISS), rankingi łączone po pozycji (RRF), duplikaty wycinane po URL → 20 kandydatów
       │
       ▼
-AGENT (system prompt specjalizacji + kontekst → Bielik przez Ollamę)
+RERANKER (cross-encoder ocenia parę pytanie–fragment, okno 20) → 3 linki
       │
-      ▼
-Odpowiedź + Źródła (URL-e artykułów, top 3 istotne)
+      ▼  odmowa, jeśli najlepszy wynik rerankera < 0.05 (pytanie spoza bazy, bez generacji)
+AGENT (system prompt sekcji + historia rozmowy + kontekst → Bielik przez Ollamę)
+      │
+      ▼  wycięcie URL-i z tekstu, mapowanie cytatów [n] → źródło
+      ▼  odmowa, jeśli pokrycie odpowiedzi kontekstem < 0.65
+Odpowiedź + Źródła
 ```
 
 Pierwotnym planem było zwracanie głównego linka, jednak trafny artykuł znajdował się często w top 3, a nie na pierwszym miejscu. Stąd zmiana na pokazywanie w odpowiedzi 3 linków, celność 56/60 vs 47/60 dla pojedynczego linka.
 
-Cały stack jest lokalny (Ollama, FAISS, embeddingi liczone na miejscu), bo docelowy kierunek to sektor, gdzie dane nie mogą wychodzić na zewnątrz.
+mmlw jako embedder, bo to model retrieval trenowany pod polski język, więc polski embedder łapie znaczenie lepiej niż wielojęzyczny. FAISS do wektorów, bo lokalny, szybki i wystarcza na tej skali. BM25 dołożony obok, bo sam embedding gubił pytania ze słowami-kluczami. Hybryda łączy znaczenie z dosłownym trafieniem.
 
-mmlw jako embedder, bo to model retrieval trenowany pod polski język, więc polski embedder łapie znaczenie lepiej niż wielojęzyczny. FAISS do wektorów, bo lokalny, szybki i wystarcza na tej skali . BM25 dołożony obok, bo sam embedding gubił pytania ze słowami-kluczami. Hybryda łączy znaczenie z dosłownym trafieniem.
+Bielik jako model odpowiadający, bo polski model do polskich treści. Dwie wersje do różnych zadań: minitron 7B do jakości odpowiedzi, 1.5B do testów.
 
-Bielik jako model odpowiadający, bo polski model do polskich treści. Dwie wersje do różnych zadań: minitron 7B do jakości odpowiedzi, 1.5B testów.
+## Chunking
 
-## Wyniki
+Pierwsza wersja to fixed-size: 576 fragmentów po 500 tokenów z zakładką 50, najprostsza metoda, świadomie wzięta jako baseline. Zakładałem, że zachowanie nagłówków wpłynie na jakość co najwyżej minimalnie — myliłem się.
 
-Wyniki na testowych pytaniach z ręcznie dopasowanymi sekcjami i linkami. Przykłady zestawu: „jak zmienić hasło", „zapomniałem loginu", „towar nie dotarł", „paczka przyszła uszkodzona", „czym jest allegro pay", „jak rozłożyć zakup na raty", „czy sprzedawca jest wiarygodny", „jak oddać rzecz kupioną ze smartem". Każde pytanie ma ręcznie przypisaną sekcję i URL artykułu, który powinien pojawić się w top-3.
+Druga wersja tnie po sekcjach zamiast przez nagłówki, dokleja nagłówek do treści każdego fragmentu (wchodzi więc do embeddingu, BM25 i rerankera) i wycina wykryty spis treści. Wielosekcyjnych artykułów jest 29 ze 141. Wyszło 641 fragmentów zamiast 576, z czego 236 z nagłówkiem.
 
-Wyszukiwanie samym FAISS — Hit@3 = 10/20. 
-Po dodaniu BM25 i RRF wynik wzrósł do 12/20. 
-Hybrydowe wyszukiwanie zmieniło odpowiedzi na pytania ze słowami-kluczami, jak „jak zmienić hasło", gdzie embedding łapał „zmienić" i odpowiedź z hasła przechodziła na zmianę waluty. BM25 wyłapywał te klucze i zwiększył wynik.
+| Zestaw | top-3 przed | top-3 po | top-5 przed | top-5 po |
+|---|---|---|---|---|
+| czyste | 0.867 | **0.933** | 0.900 | **0.967** |
+| z literówkami, sekcja z etykiety | 0.800 | **0.867** | 0.867 | 0.867 |
 
-Rozszerzenie w kilku przypadkach etykiet z linkami — 13/20.
-Wprowadzenie poprawek w kodzie, błędów, przez które potencjał wcześniejszych zmian nie był wykorzystywany — 16/20. 
+## Wyniki wyszukiwania
 
-Po dodaniu stemmingu (simplemma) BM25 zaczął łapać odmiany słów. Zniknęły pudła typu „zapomniałem loginu", gdzie problemem była inna forma słowa, nie inne słowo. 
-Finalny wynik na bazie 30 pytań - 28/30
+Zestaw testowy: pytania z ręcznie przypisaną sekcją i URL-em artykułu, który powinien się pojawić w wynikach. Przykłady: „jak zmienić hasło", „zapomniałem loginu", „towar nie dotarł", „paczka przyszła uszkodzona", „czym jest allegro pay", „jak rozłożyć zakup na raty", „czy sprzedawca jest wiarygodny", „jak oddać rzecz kupioną ze smartem". Top-3 oznacza, że właściwy artykuł jest wśród trzech pierwszych wyników.
 
-Zestaw pytań rozszerzony do 60 pytań. Dopisałem potoczne pytania pod realne artykuły („gdzie zobaczę kiedy przyjdzie paczka", „mam kod rabatowy jak go użyć"), każda etykieta zwalidowana, że artykuł faktycznie jest w indeksie. Na tym zbiorze hybryda bez rerankera daje 48/60 w top-3 i 56/60 w top-5.
+Ścieżka na pierwszych 20 pytaniach:
 
-                               | top-3|| top-5|
-| hybryda (RRF, bez rerankera) | 48/60 | 56/60 |
-| + cross-encoder, okno 10 kandydatów | 56/60 | 57/60 |
-| + cross-encoder, okno 20 kandydatów | 58/60 | 60/60 |
+| krok | top-3 |
+|---|---|
+| samo wyszukiwanie po znaczeniu (FAISS) | 10/20 |
+| + BM25 i łączenie rankingów (RRF) | 12/20 |
+| + rozszerzone etykiety w kilku przypadkach | 13/20 |
+| + poprawki błędów blokujących wcześniejsze zmiany | 16/20 |
 
-Przy oknie 20 linków, pytanie: „jak spłacić allegro pay" wypadło z top-3. Wokół allegro-pay jest  około 18 artykułów i reranker wynosi bliski duplikat nad dokładny cel, więc szersze okno nie jest . Top-5 to domyka
+BM25 zmienił odpowiedzi na pytania ze słowami-kluczami, jak „jak zmienić hasło", gdzie embedding łapał „zmienić" i odpowiedź z hasła przechodziła na zmianę waluty.
 
-Na bazie pytań z błędami ortograficznymi, wynik: 
-| metoda | hit@3 | hit@5 |
+Po dodaniu lematyzacji (simplemma) BM25 zaczął łapać odmiany słów. Zniknęły pudła typu „zapomniałem loginu", gdzie problemem była inna forma słowa, nie inne słowo. Na rozszerzonym zestawie 30 pytań — 28/30.
+
+Zestaw rozszerzony do 60. Dopisałem potoczne pytania pod realne artykuły („gdzie zobaczę kiedy przyjdzie paczka", „mam kod rabatowy jak go użyć"), każda etykieta zwalidowana, że artykuł faktycznie jest w indeksie.
+
+| metoda | top-1 | top-3 | top-5 |
+|---|---|---|---|
+| hybryda (RRF, bez rerankera) | — | 48/60 | 56/60 |
+| + cross-encoder, okno 10 kandydatów | — | 56/60 | 57/60 |
+| + cross-encoder, okno 20 kandydatów | **47/60** | **58/60** | **60/60** |
+
+Najbardziej uczciwym wynikiem pozostaje 47/60 przy jednym linku. Reranker wybiera pięć z dwudziestu kandydatów, więc losowy wybór dałby 25%, a baza ma tylko 141 artykułów. Top-5 przestaje różnicować warianty, decyzje podejmowałem na top-3.
+
+Przy oknie 20 pytanie „jak spłacić allegro pay" wypadło z top-3. Wokół allegro-pay jest około 18 artykułów i reranker wynosi bliski duplikat nad dokładny cel. Przegląd wartości potwierdził 20 kandydatów jako punkt, w którym wynik przestaje rosnąć; cięcie niżej kosztowało jakość.
+
+## Literówki
+
+Zestaw testowy jest pisany poprawną polszczyzną, realne zapytania nie. Na pytaniach z błędami top-3 spadło do 0.700, to był najsłabszy punkt.
+
+| metoda | top-3 | top-5 |
 |---|---|---|
 | sam embedding | 0.700 | — |
-| + BM25 n-gramowy (trigramy + lematyzacja) | 0.800 | 0.867 |
+| + BM25 na trigramach znakowych + lematyzacja | 0.800 | 0.867 |
 | + korektor literówek (Damerau-Levenshtein, bez zależności) | 0.867 | 0.900 |
-| + routing top-2 (margines=2, end-to-end) | 0.800 | 0.833 |
+| + routing na dwie sekcje (margines=2, end-to-end) | 0.800 | 0.833 |
+
+Trigramy znakowe podniosły też czyste pytania z 0.967 do 1.000. Korektor działa na słowniku zbudowanym z tytułów i treści artykułów, wariant OSA łapie transpozycje, które przechodzą przez trigramy. Naprawia `kotno→konto`, `smrtem→smartem` przed embeddingiem i przed BM25.
+
+Nad korektorem stoi próg częstości słowa (`wordfreq`): poprawny polski wyraz o częstości powyżej 2.0 nie jest ruszany. Bez tego korektor manglował poprawne wejścia („Puść" → „push"). Świadomy efekt uboczny: literówki bez ogonków (`haslo` ma częstość 2.83) są chronione, więc nie są korygowane. Minimalna długość korygowanego słowa to 4 znaki, więc `jka→jak` przechodzi bez zmian.
+
+Najmocniejszy efekt korektora był nie w wyszukiwaniu, tylko w routingu: trafność wyboru sekcji na zaszumionych pytaniach podskoczyła z 0.467 do 0.833. Literówka rozwala embedding zapytania, a router stoi wyłącznie na embeddingu.
+
+## Odporność wejścia
+
+Filtry odrzucają zapytania puste, za krótkie, za długie, napisane innym alfabetem niż łaciński (próg poniżej 0.5 liter łacińskich, cyrylica; zero fałszywych alarmów na polskim bez ogonków) oraz proste wzorce prompt injection. Realną obroną jest oparcie odpowiedzi na kontekście i próg pokrycia, filtr wzorców to jedna warstwa.
+
+Fallback jest dwupoziomowy i sterowany korektorem, nie progiem pewności. Gdy korektor coś zmienił, nad odpowiedzią pojawia się „Szukam dla: … — czy o to chodziło?". Odpowiedź „nie" wysyła oryginał sprzed korekty z flagą `bez_korekty`. „Nie zrozumiałem" leci wyłącznie przy w pełni niezrozumiałych zdaniach, czyli gdy wszystkie słowa od 4 znaków są nieznane. Wcześniejsza wersja blokowała pytanie przy jednym nieznanym słowie — `correct('jak pozbyć się konta')` zwracał `nieznane: ['pozbyć']` i zabijał całkowicie poprawne zapytanie. Tury fallbacku nie wchodzą do historii ani do wyszukiwania, żeby nie zatruwać kontekstu.
+
+Zapytania z nieznanymi słowami lądują w logu `trudne.jsonl` jako materiał na rozbudowę słownika i zestawu testowego.
+
+## Odmowa odpowiedzi
+
+Pierwsze podejście, próg pewności na wyniku wyszukiwania, odrzucone na pomiarze. 
+
+
+Zostały dwa sygnały, każdy kalibrowany osobno.
+
+Pytanie spoza bazy łapie wynik rerankera przed generacją, próg 0.05. Najniższy wynik na zestawie testowym to 0.945, najwyższy na pytaniach spoza bazy 0.005. Odmowa przed generacją oszczędza najdroższy krok.
+
+Halucynację łapie pokrycie po generacji, próg 0.65: ile ważonych słów odpowiedzi występuje w kontekście. Waga IDF `log((1+N)/(1+df))` tłumi słowa, których w tej domenie jest wszędzie pełno („allegro", „konto", „zamówienie") i które zawyżały zwykłe pokrycie. Rozdzielenie na halucynacjach: 0.40 z wagami, 0.28 bez.
+
+| próg | fałszywe odmowy | złapane halucynacje |
+|---|---|---|
+| 0.50 | 0/4 | 0/4 |
+| **0.65** | **0/4** | **3/4** |
+
+Czwarty przypadek (0.71) świadomie przepuszczony, podniesienie progu zjadłoby margines do najniższej poprawnej odpowiedzi (0.84).
+
+Progi produkcyjne: reranker 0.05, pokrycie 0.65, częstość słowa 2.0, margines routingu 2, kandydaci 20.
+
+LLM-as-judge: jedno wywołanie „TAK/NIE", czy kontekst odpowiada na pytanie, jest napisany, ale domyślnie wyłączony. Łapie kontekst źle dobrany tematycznie, czego żadna liczba nie łapie, ale podwaja czas odpowiedzi na CPU. 
+
+## Cytaty i źródła
+
+Prompt każe modelowi wstawiać `[n]` w treści i zabrania podawania URL-i. `verify_answer` wycina z tekstu wszystkie linki i osieroconą bibliografię, a `[n]` mapuje na realne źródło. Powód jest w danych: wszystkie 141 artykułów mają linki we własnej treści, więc 1.5B przepisywał je jako gotową listę i dublował sekcję „Źródła". Obce URL-e odsiewa ten sam regex, który buduje `links.json` 
+
+Cytaty służą tylko do wyświetlania. Do odmowy odpowiedzi używam pokrycia, nie obecności `[n]`.
+
+## Pamięć rozmowy
+
+Historia to okno 3 tur. Wyszukiwanie leci na sklejce ostatniej tury użytkownika i bieżącego pytania, więc „a jak to zrobić z telefonu?" po pytaniu o hasło trafia tam, gdzie powinno. Przy okazji stabilizuje to routing, bo sekcja liczona jest z tego samego zapytania. Poprzednia sekcja wchodzi dodatkowo do routingu jako unia, dzięki czemu styl odpowiedzi nie zmienia się w połowie rozmowy. Wszystko bez dodatkowego wywołania modelu.
+
+Przepisywanie pytania przez model jest zaimplementowane, ale domyślnie wyłączone, dokłada wywołanie LLM, a sklej ostatniej tury załatwia większość przypadków.
+
+## API i frontend
+
+Backend to FastAPI. `POST /chat` zwraca JSON z odpowiedzią, sekcją, listą źródeł i cytatami. `POST /chat/stream` to ten sam przepływ przez SSE, generator wysyła kolejne kroki (korekta, routing, wyszukiwanie, reranking, generacja), a na końcu wynik. 
+
+Frontend to Streamlit: chat, wyświetlana sekcja, klikalne źródła, podgląd kroków na żywo, sidebar z ręcznym wyborem sekcji.
+
 ## Co sprawdziłem i odrzuciłem
 
-Pojedynczy „najlepszy link" (MAIN), czyli wybór jednego głównego źródła przez reranker z domieszką leksyki tytułu (blend z wagą λ). Najlepszy wynik 47/60 przy λ=1,0, ale kolejne poziomy λ dokładały regresy, bo blend wciągał leksykalnie podobne, złe artykuły („mam kod rabatowy jak go użyć" przeleciało z trafienia w pudło). W tym samym czasie sekcja trzech rerankowanych linków dawała 56/60 bez żadnego parametru do strojenia. MAIN wyrzucony, trzy linki są prostsze i lepsze.
+Pojedynczy główny link, czyli wybór jednego źródła przez reranker z domieszką słów z tytułu (waga λ). Najlepszy wynik 47/60 przy λ=1,0, kolejne poziomy λ pogarszały, bo domieszka wciągała podobne leksykalnie, ale złe artykuły („mam kod rabatowy jak go użyć" przeleciało z trafienia w pudło). Trzy linki dawały w tym czasie 56/60 bez żadnego parametru do strojenia. Wcześniejsze warianty (suma, zliczanie, dyskont po URL) dały wynik identyczny co do jednego z baseline, bo po deduplikacji każdy URL ma dokładnie jeden fragment — nie było czego agregować.
 
-Filtr TOC również się nie sprawdził przez to, że dużo artykułów zawiera listy kroków — diagnostyka złapała 86 z 576 chunków, ale po sprawdzeniu na źródle to była normalna treść (instrukcje, listy), nie spisy treści.
+Próg pewności na wyszukiwaniu, cztery sygnały, żaden nie rozdziela.
 
-Multi-query: Bielik 1.5B generuje 2–3 parafrazy pytania, retrieval dla każdej osobno, wyniki skleja RRF. Na moich danych pogorszyło, naprawiło jedno trudne pytanie, zepsuło kilka łatwych, bo w fuzji parafrazy przegłosowują oryginał. 28/30 → 24/30 przy trzech parafrazach, przy dwóch jeszcze gorzej, wariant z warunkowym progiem 22/30 — wycofane. Możliwe że problem jest w jakości parafraz z 1.5B, nie w samym mechanizmie, ale większego modelu nie dało się sprawdzić w pętli pomiarowej na CPU.
+Odmowa przy braku cytatu `[n]`. 1.5B opiera odpowiedź na kontekście, ale nie cytuje konsekwentnie: przy trafnym wyniku 0.942 i poprawnej odpowiedzi lista cytatów bywała pusta. Odmowy leciały na dobrych odpowiedziach.
 
+Wymuszona instrukcja cytowania („odpowiedź MUSI zawierać [n]") plus przykład. Najgorszy regres w projekcie: 1.5B zdegenerował odpowiedzi do samego spamu cytatów, czyszczenie tekstu wycinało je do pustego stringa, pokrycie spadało do zera i system odmawiał na wszystko. Wróciło do łagodnej wersji.
 
-Normalizacja zapytania przed embeddingiem. Przy testach API wyszło, że „jak usunac konto" (bez ogonków i bez znaku zapytania) routuje do płatności, choć wszystkie inne warianty tego pytania idą do konta. Diagnoza: pojedynczy graniczny przypadek, nie systematyczny bug, embedding w pipeline i w pomiarze liczony identycznie. Próba naprawy przez dopisywanie „?", gdy go brakuje: golden spadł z 18/20 na 15/20, odrzucone. Normalizacja ogonków zostaje tylko po stronie BM25, mmlw wymaga polskich znaków.
+Pokrycie IDF jako sygnał pytania spoza bazy, wypadło tak samo jak pokrycie bez wag i było niestabilne między uruchomieniami („ile to 2+2" raz dawało 0.0, raz 0.89). Zostało przy rerankerze.
+
+Filtr spisów treści w pierwszej wersji: diagnostyka złapała 86 z 576 fragmentów, ale po sprawdzeniu na źródle to była normalna treść (instrukcje, listy), nie spisy. Wycinanie wróciło później jako element chunkingu po sekcjach, sterowany strukturą dokumentu zamiast progiem na długość linii.
+
+Multi-query: Bielik 1.5B generuje 2–3 parafrazy pytania, wyszukiwanie dla każdej osobno, wyniki sklejane przez RRF. Naprawiło jedno trudne pytanie, zepsuło kilka łatwych, bo w fuzji parafrazy przegłosowują oryginał: 28/30 → 24/30 przy trzech parafrazach, przy dwóch gorzej, wariant warunkowy 22/30. Możliwe, że problem jest w jakości parafraz z 1.5B, nie w mechanizmie, ale korektor i trigramy zjadły większość tego celu.
+
+Normalizacja zapytania przed embeddingiem. „jak usunac konto" (bez ogonków i bez znaku zapytania) routowało do płatności, choć wszystkie inne warianty szły do konta. Pojedynczy graniczny przypadek, nie systematyczny błąd. Próba naprawy przez dopisywanie „?": wynik spadł z 18/20 na 15/20. Normalizacja ogonków zostaje tylko po stronie BM25, mmlw wymaga polskich znaków.
 
 ## Dopasowanie sekcji
 
-Cały sweep wariantów routingu wymusiło pierwsze żywe żądanie przez API: „jak zmienić hasło" poszło do zakupów i wróciło ze źródłami o kupowaniu.
+Sweep wariantów routingu wymusiło pierwsze żywe żądanie przez API: „jak zmienić hasło" poszło do zakupów i wróciło ze źródłami o kupowaniu.
 
-Centroid 13/20, top-1 14/20. Centroid przegrywa przez zbyt spójną sekcję konto: wąska tematyka (logowanie, hasło, dane) daje „ostry" centroid, który przyciąga wszystkie niejednoznaczne pytania, wszystkie pudła centroidu wpadły w konto. Wynik top-1 wzrósł do 17/20, gdy naprawiłem błąd w skrypcie pomiarowym: embeddowanie zapytania użytkownika bez prefiksu „zapytanie: ", którego wymaga mmlw. W pipeline prefiks był od początku, więc to poprawa pomiaru, nie routera.
-
-Sprawdziłem wariant z max zamiast mean (top-1 liczy średnią similarity z top-3 chunków): 15/20, regres. Max premiuje pojedynczy przypadkowy chunk, przy płaskich score jeden dobrze dopasowany kawałek w złej sekcji przeważa całą decyzję. Mean wymaga zgody kilku chunków, więc jest stabilniejszy.
-
-Osobne indeksy mają jeszcze jeden problem, score z różnych indeksów nie są porównywalne. Rozwiązanie: jeden wspólny indeks i głosowanie. Biorę top-k chunków, każdy ma w metadanych sekcję, wygrywa ta, która dominuje. Przy k=10 wyszło 16/20, zakupowe chunki przegłosowywały login i raty. Przy k=5 18/20, najlepszy wynik, naprawił między innymi „jak zmienić hasło". Wartości k od 1 do 5 dają tę samą trafność, ale k=1 to najbliższy sąsiad, nie głosowanie, jeden nietypowy chunk decyduje bez korekty. Zostało k=5, ten sam wynik plus margines na przegłosowanie pojedynczego złego chunka.
-
-Routing hybrydowy (RRF z FAISS i BM25 na wspólnym indeksie, głosowanie po top-5) dał ten sam wynik 18/20 z tymi samymi dwoma pudłami, przy większej złożoności. Odrzucony, router zostaje szybki i czysty.
-
-| Wariant routingu | Wynik |
+| wariant | wynik |
 |---|---|
-| centroid | 13/20 |
-| top-1 mean top-3 | 17/20 (po naprawie pomiaru) |
-| top-1 max | 15/20 (regres, odrzucone) |
-| vote k=10 | 16/20 |
-| **vote k=5** | **18/20 (wybrane)** |
-| hybrid RRF k=5 | 18/20 (równy, odrzucone) |
+| centroid sekcji | 13/20 |
+| najlepszy wynik, średnia z 3 fragmentów | 17/20 (po naprawie pomiaru) |
+| najlepszy wynik, maksimum | 15/20 |
+| głosowanie po 10 fragmentach | 16/20 |
+| **głosowanie po 5 fragmentach** | **18/20 (wybrane)** |
+| głosowanie hybrydowe (RRF) po 5 | 18/20 (równy, odrzucone) |
 
-Dwa pozostałe pudła zostają świadomie. „Nie działa moja karta": karta to płatność, ale kontekst awarii ciągnie semantycznie w stronę zakupów. „Kiedy dostanę zwrot pieniędzy": sporne, zwrot pieniędzy logicznie jest przepływem płatności. Oba to nakładające się domeny zakupy/płatności, nie błędy metody. Próba dociśnięcia ich prawie na pewno cofnęłaby któreś z 18 trafień, co było widać na max i k=10, psuły więcej niż zyskiwały.
+Centroid przegrywa przez zbyt spójną sekcję konto: wąska tematyka (logowanie, hasło, dane) daje „ostry" centroid, który przyciąga wszystkie niejednoznaczne pytania — wszystkie jego pudła wpadły w konto. Wynik wariantu top-1 wzrósł z 14/20 do 17/20, gdy naprawiłem błąd w skrypcie pomiarowym: embedding zapytania bez prefiksu „zapytanie: ", którego wymaga mmlw. W samym chatbocie prefiks był od początku, więc to poprawa pomiaru, nie routera.
 
+Maksimum zamiast średniej premiuje pojedynczy przypadkowy fragment, przy płaskich wynikach jeden dobrze dopasowany kawałek w złej sekcji przeważa całą decyzję. Średnia wymaga zgody kilku fragmentów.
+
+Osobne indeksy mają jeszcze jeden problem: wyniki z różnych indeksów nie są porównywalne. Stąd jeden wspólny indeks i głosowanie. każdy fragment ma w metadanych sekcję, wygrywa ta, która dominuje. Przy 10 fragmentach zakupowe przegłosowywały login i raty. Wartości od 1 do 5 dają tę samą trafność, ale 1 to najbliższy sąsiad, nie głosowanie. Zostało 5: ten sam wynik plus margines na przegłosowanie pojedynczego złego fragmentu.
+
+Głosowanie hybrydowe dało ten sam wynik z tymi samymi pudłami przy większej złożoności, więc odpadło.
+
+Na zaszumionych pytaniach doszedł routing warunkowy na dwie sekcje: gdy lider wygrywa przewagą nie większą niż margines, przeszukiwane są obie, a kandydaci z obu idą razem do rerankera.
+
+| margines | trafność sekcji | top-5 | udział decyzji 2-sekcyjnych |
+|---|---|---|---|
+| 2 | 0.900 | 0.833 | 33% |
+| 3 | 0.967 | 0.900 | 70% |
+
+Margines 3 domyka praktycznie całą stratę routingu. Wybrałem 2, bo 3 uruchamia podwójne wyszukiwanie i reranking na 70% ruchu, co na CPU jest za drogie. Świadoma wymiana jakości na czas, nie najlepszy wynik w tabeli.
 
 ## Pomiary czasowe
- Generowanie odpowiedzi: Bielik-minitron 7B Q4_K_M ~53–61 sekund na odpowiedź, Bielik 1.5B ~8–10 sekund, ale ze spadkiem jakości — 1.5B bierze z kontekstu, tylko nie odsiewa niepotrzebnych chunków. Router < 50 ms.
 
+| krok | czas |
+|---|---|
+| router | < 50 ms |
+| korekta + wyszukiwanie + reranking | 1–3 s |
+| generacja, Bielik 1.5B | 8–10 s |
+| generacja, Bielik-minitron 7B Q4_K_M | 53–61 s |
 
-Projekt edukacyjny.  „Sekcje" to router + 3 konfiguracje RAG, bez tool-callingu.
+Długa generacja z racji na sprzęt, przez co produkcyjnie system nie będzie w pełni lokalny. 
+
+Model mmlw ładowany jest raz na moduł — wcześniej `agents.py` trzymał własną kopię używaną tylko w testach, czyli trzy modele w pamięci zamiast dwóch. Wagi IDF cache'owane na dysk z kluczem po czasie modyfikacji korpusu. Pomiary mają własny cache rerankera i embeddingów, zapisywany po każdym wyliczeniu i unieważniany przy zmianie danych, więc przerwany pomiar wznawia się od miejsca przerwania.
+
+## Uruchomienie
+
+Wymagana Ollama z pobranym modelem Bielik.
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+
+ollama pull SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M
+
+python src/links.py
+python src/links_scraping.py
+python src/chunking.py
+python src/embedder.py
+python src/vector.py
+
+uvicorn src.api:app --reload
+streamlit run frontend/app.py
+```
+

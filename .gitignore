@@ -19,3 +19,6 @@ ZMIANY.md
 trudne.jsonl
 diag_abstain.py
 diag_pokrycie.py
+diag_halucynacja.py
+*.md
+!README.md
