@@ -80,7 +80,8 @@ def chunk_document(sciezka: Path) -> list[dict]:
             continue
         prefiks = f'{naglowek}\n' if naglowek else ''
         rezerwa = len(encoder.encode(prefiks))
-        for kawalek in podziel_na_chunki(tekst_sekcji, CHUNK_SIZE - rezerwa, CHUNK_OVERLAP):
+        size = max(CHUNK_OVERLAP + 1, CHUNK_SIZE - rezerwa)
+        for kawalek in podziel_na_chunki(tekst_sekcji, size, CHUNK_OVERLAP):
             chunki.append({'tekst': prefiks + kawalek, 'naglowek': naglowek or '', **metadane})
     return chunki
 

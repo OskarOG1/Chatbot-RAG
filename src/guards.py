@@ -1,12 +1,17 @@
-import re
+
 import unicodedata
 
 MIN_ZNAKI = 3
 MAX_ZNAKI = 500
 IGNORUJ = [
-    'ignore previous', 'ignoruj instrukcje', 'zapomnij instrukcje',
-    'system prompt', 'act as', 'udawaj', 'jailbreak', 'pomin instrukcje',
+    'ignore previous', 'ignoruj instrukcje', 'zignoruj instrukcje',
+    'zapomnij instrukcje', 'zapomnij o instrukcjach', 'system prompt',
+    'act as', 'udawaj', 'jailbreak', 'pomin instrukcje',
 ]
+
+def bez_ogonkow(s: str) -> str:
+    rozlozone = unicodedata.normalize('NFKD', s)
+    return ''.join(z for z in rozlozone if not unicodedata.combining(z))
 
 def liter(q:str) -> float:
     return sum(z.isalpha() for z in q) / len(q) if q else 0.0
@@ -30,7 +35,7 @@ def sprawdz(query: str) -> str | None:
     if alfabet_lacinski(q) < 0.5:
         return "Pomagam w sprawach Allegro po polsku — napisz proszę pytanie po polsku."
     
-    low = q.lower()
+    low = bez_ogonkow(q.lower())
     if any(i in low for i in IGNORUJ):
         return "Mogę pomóc tylko w sprawach zakupów, konta i płatności"
     

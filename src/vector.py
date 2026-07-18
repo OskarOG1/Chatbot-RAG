@@ -64,7 +64,7 @@ def main():
     with open(RAG_DIR / "all.bm25", "wb") as w:
        pickle.dump(bm25_all, w)
 
-       print(f'agent [{nazwa}]:zapisano {len(indeksy)} chunkow i wektorow')
-       print(f'all: zapisano {len(chunki)} chunkow (faiss + bm25)' )
+    print(f'agent [{nazwa}]:zapisano {len(indeksy)} chunkow i wektorow')
+    print(f'all: zapisano {len(chunki)} chunkow (faiss + bm25)' )
 if __name__ == '__main__':
     main()

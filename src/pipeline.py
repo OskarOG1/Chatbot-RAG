@@ -2,7 +2,7 @@ from sentence_transformers import SentenceTransformer
 import faiss
 from classify import vote
 from rankings import search_reranked_multi
-from agents import answer, answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada
+from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada
 from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
 from pathlib import Path
@@ -12,6 +12,7 @@ import math
 import pickle
 import simplemma
 from collections import Counter
+
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
 MARGINES = 2
@@ -20,7 +21,15 @@ LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 BRAK_WIEDZY = ('Nie znalazłem tej informacji w bazie pomocy Allegro. '
                'Sprawdź bezpośrednio w Centrum Pomocy: https://allegro.pl/pomoc')
 PROG_POKRYCIA = 0.65
-PROG_RERANK = 0.05 
+PROG_RERANK = 0.05
+ZAIMKI = {'to', 'tego', 'tym', 'tam', 'ten', 'ta', 'te', 'nim', 'niej', 'nich'}
+
+
+def _followup(query: str) -> bool:
+    low = query.lower().strip()
+    if low.startswith('a '):
+        return True
+    return bool(set(tokenize_words(low)) & ZAIMKI)
 
 
 def _lematy(tekst: str) -> set:
@@ -143,9 +152,11 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
     if przepisz and history:
         yield krok('Przepisuję pytanie z kontekstu rozmowy')
         zapytanie_ret = przepisz_zapytanie(query, history, bielik_model)
-    else:
+    elif history and _followup(query):
         poprzedni_user = [w['content'] for w in history if w['role'] == 'user'][-1:]
         zapytanie_ret = ' '.join(poprzedni_user + [query])
+    else:
+        zapytanie_ret = query
 
     yield krok('Zamieniam pytanie na wektor')
     query_emb = model.encode(['zapytanie: ' + zapytanie_ret]).astype('float32')
@@ -182,9 +193,14 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
             return
 
     yield krok(f'Generuję odpowiedź (sekcja: {agent_odp})')
-    odpowiedz = answer(query, agent_odp, chunks, bielik_model, history)
+    odpowiedz = None
+    for ev in answer_stream(query, agent_odp, chunks, bielik_model, history):
+        if ev['typ'] == 'token':
+            yield ev
+        elif ev['typ'] == 'koniec':
+            odpowiedz = ev['dane']
 
-    if pokrycie_idf(odpowiedz['tekst'], chunks) < PROG_POKRYCIA:
+    if odpowiedz is None or pokrycie_idf(odpowiedz['tekst'], chunks) < PROG_POKRYCIA:
         yield wynik({'agent': '', 'answer': BRAK_WIEDZY,
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
         return
@@ -223,5 +239,7 @@ if __name__ == '__main__':
         print(blok)
         linie.append(blok)
 
-    with open('outputs/eval_1.5b.md', 'w', encoding='utf-8') as f:
+    out = Path(__file__).resolve().parent.parent / 'outputs' / 'eval_1.5b.md'
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, 'w', encoding='utf-8') as f:
         f.write('\n'.join(linie))

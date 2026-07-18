@@ -2,6 +2,7 @@ import asyncio
 import json
 from pathlib import Path
 import httpx
+import yaml
 from bs4 import BeautifulSoup
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
@@ -50,20 +51,14 @@ def zapisz_md(artykul: dict, docs_dir: Path) -> None:
     sciezka = docs_dir / artykul['agent'] / nazwa
     sciezka.parent.mkdir(parents=True, exist_ok=True)
 
-    frontmatter = (
-        f'---\n'
-        f'url: {artykul["url"]}\n'
-        f'tytul: {artykul["tytul"]}\n'
-        f'agent: {artykul["agent"]}\n'
-        f'podslug: {artykul["podslug"]}\n'
-        f'---\n\n'
-    )
+    meta = {k: artykul[k] for k in ('url', 'tytul', 'agent', 'podslug')}
+    frontmatter = '---\n' + yaml.safe_dump(meta, allow_unicode=True, sort_keys=False) + '---\n\n'
     sciezka.write_text(frontmatter + artykul['tresc'], encoding='utf-8')
 
 async def main():
 
    links_json = RAG_DIR / 'links.json'
-   with open('links.json', encoding='utf-8') as f:
+   with open(links._son, encoding='utf-8') as f:
       links = json.load(f)
 
    docs_dir = RAG_DIR / 'docs'
@@ -79,7 +74,7 @@ async def main():
       wyniki = await asyncio.gather(*zadania, return_exceptions=True)
 
    for artykul in wyniki:
-      if isinstance(artykul):
+      if isinstance(artykul, Exception):
          zapisz_md(artykul, docs_dir)
       elif isinstance(artykul, Exception):
          print(f'problem z {artykul}')

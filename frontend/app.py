@@ -48,25 +48,30 @@ if prompt := st.chat_input():
         holder = {"dane": None, "blad": None}
 
         def strumien():
-            with httpx.stream("POST", API_URL,
-                              json={"message": wiadomosc, "agent": agent_param,
-                                    "history": historia,
-                                    "agent_poprzedni": st.session_state.get("ostatni_agent"),
-                                    "bez_korekty": bez_korekty},
-                              timeout=100000) as r:
-                for linia in r.iter_lines():
-                    if not linia or not linia.startswith("data:"):
-                        continue
-                    ev = json.loads(linia[5:].strip())
-                    typ = ev["typ"]
-                    if typ == "krok":
-                        status.write(ev["tekst"])
-                    elif typ == "token":
-                        yield ev["tekst"]
-                    elif typ == "wynik":
-                        holder["dane"] = ev["dane"]
-                    elif typ == "blad":
-                        holder["blad"] = ev["tekst"]
+            try:
+                with httpx.stream("POST", API_URL,
+                                  json={"message": wiadomosc, "agent": agent_param,
+                                        "history": historia,
+                                        "agent_poprzedni": st.session_state.get("ostatni_agent"),
+                                        "bez_korekty": bez_korekty},
+                                  timeout=httpx.Timeout(120.0, connect=5.0)) as r:
+                    for linia in r.iter_lines():
+                        if not linia or not linia.startswith("data:"):
+                            continue
+                        ev = json.loads(linia[5:].strip())
+                        typ = ev["typ"]
+                        if typ == "krok":
+                            status.write(ev["tekst"])
+                        elif typ == "token":
+                            yield ev["tekst"]
+                        elif typ == "wynik":
+                            holder["dane"] = ev["dane"]
+                        elif typ == "blad":
+                            holder["blad"] = ev["tekst"]
+            except httpx.ConnectError:
+                holder["blad"] = "Backend nie odpowiada — uruchom uvicorn."
+            except httpx.ReadTimeout:
+                holder["blad"] = "Zbyt długi czas odpowiedzi — spróbuj ponownie."
 
         with answer_ph.container():
             st.write_stream(strumien)

@@ -1,4 +1,4 @@
-import ollama
+
 from ollama import Client
 from rankings import search_hybrid
 from links import ARTYKUL_REGEX
@@ -6,12 +6,13 @@ from sentence_transformers import SentenceTransformer
 import time
 import re
 import os
+
 MMLW = 'sdadas/mmlw-retrieval-roberta-base'
 MODEL_NAME = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
 
 klient = Client(
     host=os.getenv('OLLAMA_HOST', 'http://localhost:11434'),
-    timeout=int(os.getenv('LLM_TIMEOUT', '6000')),
+    timeout=int(os.getenv('LLM_TIMEOUT', '150')),
 )
 
 SYSTEM_PROMPTY = {
@@ -57,10 +58,7 @@ def context(chunks: list[dict]) -> str:
 
 
 def verify_answer(pelna: str, chunks: list) -> dict:
-    zrodla = []
-    for c, _ in chunks:
-        if c['url'] not in zrodla:
-            zrodla.append(c['url'])
+    mapa = {i: c['url'] for i, (c, _) in enumerate(chunks, 1)}
 
     obce = []
 
@@ -75,9 +73,9 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     numery = []
     for m in re.findall(r'\[(\d+)\]', tekst):
         n = int(m)
-        if 1 <= n <= len(zrodla) and n not in numery:
+        if n in mapa and n not in numery:
             numery.append(n)
-    cytaty = [{'n': n, 'url': zrodla[n - 1]} for n in numery]
+    cytaty = [{'n': n, 'url': mapa[n]} for n in numery]
 
     tekst = re.sub(r'(?m)^[ \t]*(?:\[\d+\][ \t]*)+$\n?', '', tekst)
     tekst = re.sub(r'(?:[ \t]*\[\d+\])+[ \t]*$', '', tekst).rstrip()

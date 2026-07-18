@@ -1,9 +1,8 @@
 from pathlib import Path
-import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
 from collections import Counter
-from rankings import wczytaj_chunki, get_faiss, normalizacja
+from rankings import wczytaj_chunki, get_faiss
 
 
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
@@ -84,7 +83,7 @@ if __name__ == '__main__':
         print(f'{pytanie:42} | ocz {oczekiwany:9} | top1 {t:9} {zt}')
   
     print(f'\nTop-1: {trafienia_t}/20')
-     """""
+     
 
     trafienia_v = 0
     for pytanie, oczekiwany in testy:
@@ -96,5 +95,5 @@ if __name__ == '__main__':
         zv = 'Trafione' if v == oczekiwany else 'nietrafione'
         print(f'{pytanie:42} | ocz {oczekiwany:9} | vote {v:9} {zv}')
     print(f'\nvote: {trafienia_v}/20')
-
+    """""
    

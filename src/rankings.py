@@ -4,7 +4,6 @@ import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer, CrossEncoder
 import unicodedata
-from rank_bm25 import BM25Okapi
 import pickle
 from collections import Counter
 import simplemma
@@ -92,7 +91,7 @@ def ranking_faiss(query_emb, agent:str, chunki: list[dict]) -> list[int]:
 
 def ortografia(token, n=3):
     t = f'#{token}'
-    return [t[i:i+n] for i in range(len(t) - n + 1)] if len(t) >= n else {t}
+    return [t[i:i+n] for i in range(len(t) - n + 1)] if len(t) >= n else [t]
 
 def tokenizacja(tekst:str) -> list[str]:
     wynik = []
