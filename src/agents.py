@@ -1,18 +1,28 @@
 
-from ollama import Client
+from huggingface_hub import InferenceClient
 from rankings import search_hybrid
 from links import ARTYKUL_REGEX
 from sentence_transformers import SentenceTransformer
+from pathlib import Path
+from dotenv import load_dotenv
 import time
 import re
 import os
 
-MMLW = 'sdadas/mmlw-retrieval-roberta-base'
-MODEL_NAME = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
+load_dotenv(Path(__file__).resolve().parent / '.env')
 
-klient = Client(
-    host=os.getenv('OLLAMA_HOST', 'http://localhost:11434'),
-    timeout=int(os.getenv('LLM_TIMEOUT', '150')),
+MMLW = 'sdadas/mmlw-retrieval-roberta-base'
+MODEL_11B = 'speakleash/Bielik-11B-v3.0-Instruct'
+MODEL_7B_LOKALNY = 'SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M'
+MODEL_1_5B_LOKALNY = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
+MODEL_NAME = os.getenv('MODEL', MODEL_11B)
+SEDZIA_MODEL = os.getenv('SEDZIA_MODEL', MODEL_NAME)
+MAX_TOKENS = int(os.getenv('MAX_TOKENS', '700'))
+
+klient = InferenceClient(
+    base_url=os.getenv('LLM_BASE_URL', 'http://localhost:11434/v1'),
+    api_key=os.getenv('LLM_API_KEY', 'ollama'),
+    timeout=float(os.getenv('LLM_TIMEOUT', '150')),
 )
 
 SYSTEM_PROMPTY = {
@@ -100,14 +110,16 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
     wiadomosci.append({'role': 'user', 'content': tresc})
 
     pelna = ''
-    for kawalek in klient.chat(
+    for kawalek in klient.chat.completions.create(
         model=nazwa,
         messages=wiadomosci,
         stream=True,
-        keep_alive='30m',
-        options={'stop': ['Pytanie:', '<|start_header_id|>']}
+        max_tokens=MAX_TOKENS,
+        stop=['Pytanie:', '<|start_header_id|>'],
     ):
-        token = kawalek['message']['content']
+        token = kawalek.choices[0].delta.content
+        if not token:
+            continue
         pelna += token
         yield {'typ': 'token', 'tekst': token}
 
@@ -131,15 +143,15 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
             wiadomosci.append({'role': w['role'], 'content': w['content']})
     wiadomosci.append({'role': 'user', 'content': tresc})
 
-    odp = klient.chat(
+    odp = klient.chat.completions.create(
         model=nazwa,
         messages=wiadomosci,
         stream=False,
-        keep_alive='30m',
-        options={'stop': ['Pytanie:', '<|start_header_id|>']}
+        max_tokens=MAX_TOKENS,
+        stop=['Pytanie:', '<|start_header_id|>'],
     )
 
-    pelna = odp['message']['content']
+    pelna = odp.choices[0].message.content
     pelna = re.sub(r'<\|.*?\|>', '', pelna)
     pelna = pelna.removeprefix('Odpowiedź:').strip()
     return verify_answer(pelna, chunks)
@@ -155,17 +167,16 @@ def przepisz_zapytanie(query: str, history: list[dict] | None, bielik_model: str
         'na podstawie rozmowy. Rozwiń odwołania typu „to", „tego", „a jak". '
         'Zwróć wyłącznie samo pytanie, bez komentarza.'
     )
-    odp = klient.chat(
+    odp = klient.chat.completions.create(
         model=bielik_model or MODEL_NAME,
         messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': f'{rozmowa}\nuser: {query}\n\nSamodzielne pytanie:'},
         ],
         stream=False,
-        keep_alive='30m',
-        options={'stop': ['\n', 'Pytanie:']}
+        stop=['\n', 'Pytanie:'],
     )
-    tekst = re.sub(r'<\|.*?\|>', '', odp['message']['content']).strip()
+    tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip()
     return tekst or query
 
 
@@ -180,17 +191,16 @@ def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = 
     
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
-    odp = klient.chat(
-        model=bielik_model or MODEL_NAME,
+    odp = klient.chat.completions.create(
+        model=bielik_model or SEDZIA_MODEL,
         messages=[
             {'role': 'system', 'content': SEDZIA_SYSTEM},
             {'role': 'user', 'content': f'KONTEKST:\n{kontekst}\n\nPYTANIE: {query}\n\nCzy da się odpowiedzieć? (TAK/NIE):'},
         ],
         stream=False,
-        keep_alive='30m',
-        options={'stop': ['\n', 'Pytanie:']},
+        stop=['\n', 'Pytanie:'],
     )
-    tekst = re.sub(r'<\|.*?\|>', '', odp['message']['content']).strip().upper()
+    tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip().upper()
     return tekst.startswith('TAK')
 
 

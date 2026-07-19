@@ -1,9 +1,20 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from contextlib import asynccontextmanager
 from pipeline import run, run_stream
-import httpx
+from rankings import get_reranker
 import json
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+   
+    try:
+        get_reranker().predict([('rozgrzewka', 'rozgrzewka')])
+    except Exception:
+        pass
+    yield
 
 class Wiadomosc(BaseModel):
    role: str
@@ -30,7 +41,7 @@ class ChatResponse(BaseModel):
    citations: list[Cytat]
    doprecyzowanie: str | None = None
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 @app.get('/health')
 def health():
@@ -44,10 +55,9 @@ def chat(request: ChatRequest):
                     agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
                     bez_korekty=request.bez_korekty, sedzia=request.sedzia)
         return wynik
-    except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail="Brak odpowiedzi ze strony Ollamy")
-    except httpx.ReadTimeout:
-        raise HTTPException(status_code=504, detail='Zbyt długi czas generowania odpowiedzi')
+    except Exception as e:
+        print(f'blad /chat: {type(e).__name__}: {e}')
+        raise HTTPException(status_code=503, detail='Model chwilowo niedostępny — spróbuj ponownie za chwilę.')
 
 
 @app.post('/chat/stream')
@@ -59,8 +69,7 @@ def chat_stream(request: ChatRequest):
                                  agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
                                  bez_korekty=request.bez_korekty, sedzia=request.sedzia):
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
-        except httpx.ConnectError:
-            yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': 'Brak odpowiedzi ze strony Ollamy'}, ensure_ascii=False)}\n\n"
-        except httpx.ReadTimeout:
-            yield f"data: {json.dumps({'typ': 'blad', 'kod': 504, 'tekst': 'Zbyt długi czas generowania odpowiedzi'}, ensure_ascii=False)}\n\n"
+        except Exception as e:
+            print(f'blad /chat/stream: {type(e).__name__}: {e}')
+            yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': 'Model chwilowo niedostępny — spróbuj ponownie.'}, ensure_ascii=False)}\n\n"
     return StreamingResponse(gen(), media_type='text/event-stream')

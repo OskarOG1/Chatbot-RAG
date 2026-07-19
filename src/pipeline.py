@@ -9,6 +9,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 import json
 import math
+import os
 import pickle
 import simplemma
 from collections import Counter
@@ -17,11 +18,13 @@ MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 model = SentenceTransformer(MODEL_NAME)
 MARGINES = 2
 OKNO_HISTORII = 3
+SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 BRAK_WIEDZY = ('Nie znalazłem tej informacji w bazie pomocy Allegro. '
                'Sprawdź bezpośrednio w Centrum Pomocy: https://allegro.pl/pomoc')
-PROG_POKRYCIA = 0.65
-PROG_RERANK = 0.05
+PROG_POKRYCIA = 0.10
+PROG_RERANK = -2.0
+# Lokalne rozwiązanie (bge-v2-m3 + Bielik 1.5B): PROG_POKRYCIA = 0.65, PROG_RERANK = 0.05
 ZAIMKI = {'to', 'tego', 'tym', 'tam', 'ten', 'ta', 'te', 'nim', 'niej', 'nich'}
 
 
@@ -185,9 +188,9 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
         return
 
-    if sedzia and chunks:
+    if SEDZIA_ON and chunks:
         yield krok('Sprawdzam, czy kontekst odpowiada na pytanie')
-        if not czy_kontekst_odpowiada(query, chunks, bielik_model):
+        if not czy_kontekst_odpowiada(query, chunks):
             yield wynik({'agent': '', 'answer': BRAK_WIEDZY,
                          'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
             return

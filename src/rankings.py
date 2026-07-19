@@ -8,7 +8,8 @@ import pickle
 from collections import Counter
 import simplemma
 
-RERANKER_NAME = 'BAAI/bge-reranker-v2-m3'
+RERANKER_NAME = 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1'
+# Lokalne rozwiązanie: RERANKER_NAME = 'BAAI/bge-reranker-v2-m3'
 RERANKER = None
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 
