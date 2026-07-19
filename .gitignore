@@ -14,6 +14,7 @@ test_abstain.py
 test_regresja.py
 test_api.py
 measure.py
+measure_*.py
 ZMIANY.md
 trudne.jsonl
 diag_abstain.py

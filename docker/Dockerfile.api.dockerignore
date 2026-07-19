@@ -8,13 +8,13 @@ src/.env
 .pytest_cache/
 **/.pytest_cache/
 docs/
-RAG/docs/
 outputs/
 *.md
 !README.md
 Python.code-workspace
+frontend/
+RAG/
 src/test_HF.py
 src/test_api.py
 src/retriver.py
-RAG/trudne.jsonl
-RAG/measure_cache.pkl
+src/measure.py
