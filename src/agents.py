@@ -117,6 +117,8 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
         max_tokens=MAX_TOKENS,
         stop=['Pytanie:', '<|start_header_id|>'],
     ):
+        if not kawalek.choices:
+            continue
         token = kawalek.choices[0].delta.content
         if not token:
             continue
@@ -181,13 +183,14 @@ def przepisz_zapytanie(query: str, history: list[dict] | None, bielik_model: str
 
 
 SEDZIA_SYSTEM = (
-    'Oceniasz, czy KONTEKST zawiera informacje potrzebne do odpowiedzi na PYTANIE. '
-    'Odpowiedz jednym słowem: TAK albo NIE. Nic więcej.'
+    'Oceniasz, czy KONTEKST jest z tej samej dziedziny co PYTANIE i pozwala choćby częściowo pomóc. '
+    'Odpowiadaj TAK, chyba że pytanie jest wyraźnie z INNEJ dziedziny niż kontekst '
+    '(np. gotowanie, sport, inny sklep). W razie wątpliwości odpowiadaj TAK. '
+    'Jedno słowo: TAK albo NIE.'
 )
 
 
 def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = None) -> bool:
-    """Warstwa (b) — Dodatkowa opcja z LLM jako sędzią czy kontekst pasuję. """
     
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)

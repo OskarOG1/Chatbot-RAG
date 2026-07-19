@@ -122,7 +122,7 @@ pytania = [
 
 def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
                history:list[dict] | None=None, agent_poprzedni:str | None=None,
-               przepisz:bool=False, bez_korekty:bool=False, sedzia:bool=False):
+               przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None):
    
     def krok(t):
         return {'typ': 'krok', 'tekst': t}
@@ -171,7 +171,9 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
         if agent_poprzedni and agent_poprzedni not in agenci:
             agenci = agenci + [agent_poprzedni]
     else:
-        agenci = [agent]
+        agenci = vote(query_emb, top2=True, margines=MARGINES)
+        if agent not in agenci:
+            agenci = agenci + [agent]
 
     yield krok('Przeszukuję bazę wiedzy i porządkuję wyniki')
     chunks = search_reranked_multi(zapytanie_ret, query_emb, agenci, k=5, k_surowe=20)
@@ -188,9 +190,9 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
         return
 
-    if SEDZIA_ON and chunks:
+    if (SEDZIA_ON if sedzia is None else sedzia) and chunks:
         yield krok('Sprawdzam, czy kontekst odpowiada na pytanie')
-        if not czy_kontekst_odpowiada(query, chunks):
+        if not czy_kontekst_odpowiada(zapytanie_ret, chunks):
             yield wynik({'agent': '', 'answer': BRAK_WIEDZY,
                          'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
             return
@@ -218,7 +220,7 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
 
 def run(query:str, agent:str | None=None, bielik_model:str | None=None,
         history:list[dict] | None=None, agent_poprzedni:str | None=None,
-        przepisz:bool=False, bez_korekty:bool=False, sedzia:bool=False) -> dict:
+        przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None) -> dict:
     dane = {}
     for ev in run_stream(query, agent, bielik_model, history,
                          agent_poprzedni, przepisz, bez_korekty, sedzia):
@@ -242,7 +244,7 @@ if __name__ == '__main__':
         print(blok)
         linie.append(blok)
 
-    out = Path(__file__).resolve().parent.parent / 'outputs' / 'eval_1.5b.md'
+    out = Path(__file__).resolve().parent.parent / 'outputs' / 'eval.md'
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, 'w', encoding='utf-8') as f:
         f.write('\n'.join(linie))
