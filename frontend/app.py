@@ -1,8 +1,9 @@
 import streamlit as st
 import httpx
 import json
+import os
 
-API_URL = "http://127.0.0.1:8000/chat/stream"
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/chat/stream")
 
 NEGACJE = {"nie", "nie o to chodziło", "nie o to mi chodziło", "to nie to", "źle"}
 
@@ -70,7 +71,7 @@ if prompt := st.chat_input():
                             holder["blad"] = ev["tekst"]
             except httpx.ConnectError:
                 holder["blad"] = "Backend nie odpowiada — uruchom uvicorn."
-            except httpx.ReadTimeout:
+            except httpx.TimeoutException:
                 holder["blad"] = "Zbyt długi czas odpowiedzi — spróbuj ponownie."
 
         with answer_ph.container():
