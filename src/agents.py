@@ -17,7 +17,7 @@ MODEL_7B_LOKALNY = 'SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M'
 MODEL_1_5B_LOKALNY = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
 MODEL_NAME = os.getenv('MODEL', MODEL_11B)
 SEDZIA_MODEL = os.getenv('SEDZIA_MODEL', MODEL_NAME)
-MAX_TOKENS = int(os.getenv('MAX_TOKENS', '700'))
+MAX_TOKENS = int(os.getenv('MAX_TOKENS', '1500'))
 
 klient = InferenceClient(
     base_url=os.getenv('LLM_BASE_URL', 'http://localhost:11434/v1'),
