@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    env_file: .env
+    volumes:
+      - hf-cache:/models
+    expose:
+      - "8000"
+    restart: unless-stopped
+    networks:
+      - wewnetrzna
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    environment:
+      - API_URL=http://api:8000/chat/stream
+    expose:
+      - "8501"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - wewnetrzna
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+    restart: unless-stopped
+    networks:
+      - wewnetrzna
+
+volumes:
+  hf-cache:
+  caddy-data:
+  caddy-config:
+
+networks:
+  wewnetrzna:
