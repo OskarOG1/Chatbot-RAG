@@ -23,11 +23,11 @@ WYSZUKIWANIE HYBRYDOWE — po słowach (BM25 z lematyzacją i trigramami) + po z
       ▼
 RERANKER (cross-encoder ocenia parę pytanie–fragment, okno 20) → 3 linki
       │
-      ▼  odmowa, jeśli najlepszy wynik rerankera < 0.05 (pytanie spoza bazy, bez generacji)
-AGENT (system prompt sekcji + historia rozmowy + kontekst → Bielik przez Ollamę)
+      ▼  odmowa: wynik rerankera < -3.2 + sędzia LLM (TAK/NIE) na near-domain — przed generacją
+AGENT (system prompt sekcji + historia rozmowy + kontekst → Bielik-11B przez API / lokalnie Ollama)
       │
       ▼  wycięcie URL-i z tekstu, mapowanie cytatów [n] → źródło
-      ▼  odmowa, jeśli pokrycie odpowiedzi kontekstem < 0.65
+      ▼  odmowa, jeśli pokrycie odpowiedzi kontekstem < 0.40 (backstop)
 Odpowiedź + Źródła
 ```
 
@@ -203,23 +203,73 @@ Długa generacja z racji na sprzęt, przez co produkcyjnie system nie będzie w 
 
 Model mmlw ładowany jest raz na moduł — wcześniej `agents.py` trzymał własną kopię używaną tylko w testach, czyli trzy modele w pamięci zamiast dwóch. Wagi IDF cache'owane na dysk z kluczem po czasie modyfikacji korpusu. Pomiary mają własny cache rerankera i embeddingów, zapisywany po każdym wyliczeniu i unieważniany przy zmianie danych, więc przerwany pomiar wznawia się od miejsca przerwania.
 
+## Wersja produkcyjna
+
+Projekt zaczął się w pełni lokalny (Ollama + Bielik 1.5B/7B na CPU). Do publicznego demo trzeba było dwóch rzeczy: szybszego rerankera i mocniejszego modelu bez lokalnego GPU. Lokalny stack został zachowany — w kodzie pod `# Lokalne rozwiązanie` i przez zmienne środowiskowe. Produkcja to ten sam kod z innym `.env`.
+
+**Model przez API.** Generacja idzie na Bielika-11B przez endpoint OpenAI-compatible (Public AI). Klient (`InferenceClient`) czyta `LLM_BASE_URL`, `LLM_API_KEY`, `MODEL` z `.env`; domyślnie celuje w lokalną Ollamę (`/v1`), więc ten sam kod działa lokalnie i produkcyjnie. Retrieval (embeddingi, reranker, FAISS) zostaje lokalny na serwerze — nisza „dane nie wychodzą" dotyczy zdolności do wdrożenia w pełni lokalnego; publiczne demo używa hostowanego Bielika dla dostępności.
+
+**Swap rerankera — 26× szybciej.** `bge-reranker-v2-m3` (568M) na CPU liczył ~43 s na zapytanie, wąskie gardło demo. Zmierzone na golden 31 (agent z etykiety, izolacja od routingu):
+
+| reranker | rozmiar | hit@3 | hit@5 | czas/zap |
+|---|---|---|---|---|
+| bge-reranker-v2-m3 | 568M | 0.933 | 0.967 | 43.5 s |
+| mmarco-mMiniLMv2-L12-H384 | 118M | 0.900 | 0.933 | 1.64 s |
+
+26× szybszy za koszt jednego trafienia na każdej metryce. Baseline bge zostaje jako wariant jakościowy, odrzucony na CPU ze względu na latencję. Rozbicie czasu (mmarco): embed 0.07 s / routing 0.01 s / retrieval 0.19 s / rerank 1.6 s.
+
+**Rekalibracja bramek odmowy.** Trzy zmiany — swap rerankera, model 1.5B→11B i przebudowa promptów (grounding oddzielony od persony, z regułą „trzymaj się słownictwa z kontekstu") — unieważniły progi spod starego stacku. Każdy z trzech sygnałów strojony osobno na golden 30 + 18 OOD; wszystkie trzy rozkłady się nakładają, więc żaden próg nie rozdziela czysto. Ustawiam je tak, by nie kaleczyły trafnych pytań, a rozróżnianie near-domain zrzucam na sędziego:
+
+- Bramka OOD (reranker, przed generacją): `-2.0 → -3.2`. Golden min -3.12 < OOD max -0.70 — brak separacji. Próg -2.0 fałszywie ucinał realne pytanie o bezpieczeństwo „ktoś włamał się na moje konto" (-3.12) jeszcze przed generacją; -3.2 je ratuje i czyni z rerankera zgrubny, tani filtr, który bez wywołania LLM ścina 11/18 oczywistych OOD (matematyka, przepisy, kod), a resztę oddaje sędziemu.
+- Pokrycie (po generacji): `0.10 → 0.40`. Nowy prompt gruntuje mocniej, więc pokrycie wzrosło po obu stronach: golden min 0.239 < OOD max 0.516, dalej bez separacji. 0.40 to backstop minimalizujący fałszywe odmowy — próg 0.52 dałby zero przecieków, ale ubiłby to samo pytanie o włamanie (pokrycie 0.477), które właśnie uratował reranker.
+
+**Sędzia LLM na near-domain OOD.** To, czego reranker i pokrycie nie łapią (OLX, przeziębienie, założenie firmy), odsiewa jedno wywołanie „TAK/NIE" do modelu. Zmierzone na golden 31 + 18 OOD:
+
+| sędzia | fałszywe odmowy | OOD złapane |
+|---|---|---|
+| Bielik-11B | 2/30 | 17/18 |
+| EuroLLM-22B | 5/30 | 18/18 |
+
+Bielik-11B wybrany — balans: 2 fałszywe odmowy za 17/18 OOD. EuroLLM surowszy (pełne OOD, ale krzywdzi 5 poprawnych) — w rezerwie pod klienta compliance, gdzie „nigdy off-topic" waży więcej niż „czasem odmówi trafnego". Tańsze modele ogólne (EuroLLM, apertus) gorzej wyczuwają polską relewancję — sprawdzone na danych. Sędzia to +1 wywołanie (~3 s), włączany przez `SEDZIA_ON`, na darmowym demo wyłączany.
+
+Model sędziego jest odpięty od modelu odpowiadającego. Zmienna `SEDZIA_MODEL` (domyślnie równa `MODEL`) pozwala posadzić w roli sędziego tańszy, mniejszy model niż ten generujący odpowiedzi — decyzja „TAK/NIE, czy kontekst pasuje" jest znacznie lżejsza niż generacja, więc nie wymaga tej samej klasy modelu. Kod jest pod to przygotowany: wystarczy wskazać `SEDZIA_MODEL` w `.env`, żeby ciąć koszt wywołania bramki bez ruszania jakości odpowiedzi.
+
+Bilans całego łańcucha (reranker -3.2 → sędzia → pokrycie 0.40) na bieżącym przebiegu: 2/30 trafnych pytań fałszywie odrzuconych (jedno przez sędziego, jedno przez pokrycie), 1/18 OOD przeciekające przez wszystkie trzy bramki — nieszkodliwe „przetłumacz dzień dobry na angielski", które reranker, sędzia i pokrycie kolejno przepuszczają.
+
+Wniosek metodyczny: żaden pojedynczy sygnał (score rerankera, pokrycie IDF) nie rozdziela near-domain OOD od słabych pytań z domeny — dopiero LLM-sędzia to robi. Każda zmiana rerankera, modelu albo promptu wymusza rekalibrację bramek, bo progi są sprzężone ze stackiem.
+
+**Rate limit i obsługa błędów.** Publiczny endpoint ma globalny limiter (15/min + 200/dzień, env-tunable) chroniący budżet API przed spamem — per-IP niżej, w Caddy, bo za proxy backend widzi tylko localhost. Błędy generacji (API padnie/timeout) łapane są w całości i zwracają komunikat „model chwilowo niedostępny" zamiast tracebacku, z logiem po stronie serwera.
+
 ## Uruchomienie
 
-Wymagana Ollama z pobranym modelem Bielik.
+Odtworzenie danych i indeksów (raz):
 
 ```bash
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 
-ollama pull SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M
-
 python src/links.py
 python src/links_scraping.py
 python src/chunking.py
 python src/embedder.py
 python src/vector.py
+```
 
+Model — dwie ścieżki, wybierane przez `.env` w `src/`:
+
+```bash
+# produkcyjnie: Bielik-11B przez API (OpenAI-compatible)
+LLM_BASE_URL=https://api.publicai.co/v1
+LLM_API_KEY=...
+MODEL=speakleash/Bielik-11B-v3.0-Instruct
+HF_TOKEN=...
+
+# lokalnie: pobierz model do Ollamy, pomiń LLM_* (domyślnie celuje w localhost:11434/v1)
+# ollama pull SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M
+```
+
+```bash
 uvicorn src.api:app --reload
 streamlit run frontend/app.py
 ```

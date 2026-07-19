@@ -22,8 +22,8 @@ SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 BRAK_WIEDZY = ('Nie znalazłem tej informacji w bazie pomocy Allegro. '
                'Sprawdź bezpośrednio w Centrum Pomocy: https://allegro.pl/pomoc')
-PROG_POKRYCIA = 0.10
-PROG_RERANK = -2.0
+PROG_POKRYCIA = 0.40
+PROG_RERANK = -3.2
 # Lokalne rozwiązanie (bge-v2-m3 + Bielik 1.5B): PROG_POKRYCIA = 0.65, PROG_RERANK = 0.05
 ZAIMKI = {'to', 'tego', 'tym', 'tam', 'ten', 'ta', 'te', 'nim', 'niej', 'nich'}
 
