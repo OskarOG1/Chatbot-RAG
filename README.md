@@ -278,7 +278,20 @@ Zero fałszywych odmów, kosztem 8 dodatkowych wywołań sędziego na pełnym pr
 
 **Rozgrzewka indeksów sekcji.** `BM25_CACHE`/`FAISS_CACHE` ładują się leniwie per sekcja — `lifespan` rozgrzewał tylko reranker i embedder, więc pierwsze zapytanie trafiające w każdą sekcję płaciło za wczytanie jej indeksu. Efekt widoczny w pomiarze kontenerowym: pierwsze trzy zapytania (różne sekcje) szły 18.1 s / 17.9 s / 15.2 s zamiast typowych 3–7 s.
 
-**Bramka pokrycia marnowała generację na trafnych pytaniach.** Symulacja 100 pytań w 6 kategoriach (`measure_sim.py`) dała 76/100 odpowiedzi. 17 odmów padło przed generacją (0 tokenów, tanio, poprawnie), ale 7 odmów PO generacji (877 zmarnowanych tokenów łącznie) — w tym dwie na w pełni trafnych pytaniach z domeny: retrieval trafił właściwy artykuł na 1. miejscu, model odpowiedział poprawnie, a `pokrycie_idf < PROG_POKRYCIA (0.40)` odrzuciło już wygenerowaną odpowiedź. Najgorszy możliwy przebieg: koszt generacji poniesiony, użytkownik i tak dostaje „nie znalazłem". Przyczyna: model parafrazuje słowami spoza kontekstu (np. przy pytaniu o odzyskiwanie konta pisze o „weryfikacji", „tożsamości"), więc pokrycie leksykalne spada mimo merytorycznej trafności — ryzyko rośnie przy dłuższych, wieloczłonowych pytaniach, stąd 3/4 fałszywych odmów akurat w kategorii dwuczęściowej.
+**Symulacja 100 pytań — przekrój zachowania systemu.** `measure_sim.py`, tryb `all`, sędzia włączony. Pytania w 6 kategoriach: normalne, z literówkami, niejasne (zaimkowe bez kontekstu), dwuczęściowe, trzyczęściowe, OOD. Wynik: 76/100 odpowiedzi, 24 odmowy.
+
+| kategoria | odpowiedzi | ocena |
+|---|---|---|
+| normalne | 25/26 | dobrze |
+| z literówkami | 19/21 | korektor działa |
+| trzyczęściowe | 12/13 | **lepiej niż dwuczęściowe** |
+| dwuczęściowe | 12/16 | 3 fałszywe odmowy |
+| niejasne | 7/16 | większość odmów słuszna (pytania zaimkowe „jak to zmienić") |
+| OOD | 1/8 | poprawnie odrzucane |
+
+Kontrintuicyjne: trzyczęściowe (92%) biją dwuczęściowe (75%). Dłuższe pytanie daje rerankerowi więcej sygnału leksykalnego — trzy klauzule to trzy szanse na trafienie słownictwa korpusu, efekt odwrotny do pojedynczego cross-encodera na węższej puli, gdzie dwuczłonowość szkodziła. OOD trzymają się dobrze mimo braku partycjonowania: 7/8 odrzuconych, w tym near-domain („ile allegro bierze prowizji", „kto jest właścicielem allegro", „jak założyć sklep"). Jedyny przeciek — „gdzie jest siedziba allegro" — nieszkodliwy. Potwierdza: sędzia niesie bramkę OOD, nie próg.
+
+**Bramka pokrycia marnowała generację na trafnych pytaniach.** Rozbicie tych samych 24 odmów z powyższej symulacji pokazuje: 17 odmów padło przed generacją (0 tokenów, tanio, poprawnie), ale 7 odmów PO generacji (877 zmarnowanych tokenów łącznie) — w tym dwie na w pełni trafnych pytaniach z domeny: retrieval trafił właściwy artykuł na 1. miejscu, model odpowiedział poprawnie, a `pokrycie_idf < PROG_POKRYCIA (0.40)` odrzuciło już wygenerowaną odpowiedź. Najgorszy możliwy przebieg: koszt generacji poniesiony, użytkownik i tak dostaje „nie znalazłem". Przyczyna: model parafrazuje słowami spoza kontekstu (np. przy pytaniu o odzyskiwanie konta pisze o „weryfikacji", „tożsamości"), więc pokrycie leksykalne spada mimo merytorycznej trafności — ryzyko rośnie przy dłuższych, wieloczłonowych pytaniach, stąd 3/4 fałszywych odmów akurat w kategorii dwuczęściowej.
 
 **Rekalibracja PROG_POKRYCIA: 0.40 → 0.20.** `measure_pokrycie.py` policzył rozkład pokrycia tam, gdzie problem realnie żyje: 29 pytań wieloczłonowych z domeny (strefa fałszywych odmów) kontra 29 OOD.
 
