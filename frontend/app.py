@@ -70,9 +70,13 @@ if prompt := st.chat_input():
                         elif typ == "blad":
                             holder["blad"] = ev["tekst"]
             except httpx.ConnectError:
-                holder["blad"] = "Backend nie odpowiada — uruchom uvicorn."
+                holder["blad"] = "Backend nie odpowiada — spróbuj ponownie za chwilę."
             except httpx.TimeoutException:
                 holder["blad"] = "Zbyt długi czas odpowiedzi — spróbuj ponownie."
+            except httpx.HTTPError:
+                holder["blad"] = "Połączenie zostało przerwane — spróbuj ponownie."
+            except (json.JSONDecodeError, KeyError, UnicodeDecodeError):
+                holder["blad"] = "Nieprawidłowa odpowiedź serwera — spróbuj ponownie."
 
         with answer_ph.container():
             st.write_stream(strumien)
@@ -82,7 +86,7 @@ if prompt := st.chat_input():
                       state="complete" if dane else "error")
 
         if dane is None:
-            dane = {"agent": "", "answer": holder["blad"] or "Backend nie odpowiedział — uruchom uvicorn.",
+            dane = {"agent": "", "answer": holder["blad"] or "Backend nie odpowiedział — spróbuj ponownie za chwilę.",
                     "sources": [], "citations": [], "doprecyzowanie": None}
 
         answer = dane["answer"]

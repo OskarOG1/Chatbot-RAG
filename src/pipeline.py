@@ -11,6 +11,7 @@ import json
 import math
 import os
 import pickle
+import re
 import simplemma
 from collections import Counter
 
@@ -20,6 +21,12 @@ MARGINES = 2
 OKNO_HISTORII = 3
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
+PII_WZORCE = (
+    re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+'),
+    re.compile(r'(?:\+\d{1,3}[\s-]?)?(?:\d[\s.-]?){9,}'),
+    re.compile(r'\b(?=[^\W_]*\d)[^\W_]{4,}\b'),
+    re.compile(r'\bhttps?://\S+'),
+)
 BRAK_WIEDZY = ('Nie znalazłem tej informacji w bazie pomocy Allegro. '
                'Sprawdź bezpośrednio w Centrum Pomocy: https://allegro.pl/pomoc')
 PROG_POKRYCIA = 0.40
@@ -94,9 +101,21 @@ def pokrycie_idf(tekst: str, chunks: list) -> float:
     return licznik / mianownik if mianownik else 0.0
 
 
+def skazone_tokeny(query: str) -> set:
+    trafienia = set()
+    for wzorzec in PII_WZORCE:
+        for dopasowanie in wzorzec.finditer(query):
+            trafienia.update(tokenize_words(dopasowanie.group(0)))
+    return trafienia
+
+
 def loguj_trudne(query: str, nieznane: list) -> None:
+    skazone = skazone_tokeny(query)
+    tokeny = sorted({t.lower() for t in nieznane} - skazone)
+    if not tokeny:
+        return
     try:
-        wpis = {'czas': datetime.now(timezone.utc).isoformat(), 'query': query, 'nieznane': nieznane}
+        wpis = {'czas': datetime.now(timezone.utc).isoformat(), 'nieznane': tokeny}
         with open(LOG_TRUDNE, 'a', encoding='utf-8') as w:
             w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
     except OSError:
