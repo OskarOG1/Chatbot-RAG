@@ -58,7 +58,7 @@ def zapisz_md(artykul: dict, docs_dir: Path) -> None:
 async def main():
 
    links_json = RAG_DIR / 'links.json'
-   with open(links._son, encoding='utf-8') as f:
+   with open(links_json, encoding='utf-8') as f:
       links = json.load(f)
 
    docs_dir = RAG_DIR / 'docs'
@@ -75,9 +75,9 @@ async def main():
 
    for artykul in wyniki:
       if isinstance(artykul, Exception):
-         zapisz_md(artykul, docs_dir)
-      elif isinstance(artykul, Exception):
          print(f'problem z {artykul}')
+      else:
+         zapisz_md(artykul, docs_dir)
 
    print(f'zapisano {sum(1 for w in wyniki if isinstance(w, dict))} / {len(wyniki)}')
 

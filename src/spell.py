@@ -9,6 +9,7 @@ from wordfreq import zipf_frequency
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
 SLOWNIK_PLIK = RAG_DIR / 'slownik.pkl'
+CHUNKS_JSON = RAG_DIR / 'chunks.json'
 
 MIN_DLUGOSC = 4
 MIN_CZESTOSC = 1
@@ -56,9 +57,16 @@ def distance(a: str, b: str) -> int:
     return macierz[dl_a][dl_b]
 
 
+def stempel_korpusu() -> int | None:
+    try:
+        return int(CHUNKS_JSON.stat().st_mtime)
+    except OSError:
+        return None
+
+
 def build_dictionary(chunki: list[dict] | None = None) -> Counter:
     if chunki is None:
-        with open(RAG_DIR / 'chunks.json', 'r', encoding='utf-8') as r:
+        with open(CHUNKS_JSON, 'r', encoding='utf-8') as r:
             chunki = json.load(r)
 
     licznik = Counter()
@@ -72,8 +80,11 @@ def build_dictionary(chunki: list[dict] | None = None) -> Counter:
         if len(slowo) >= MIN_DLUGOSC and liczba >= MIN_CZESTOSC
     })
 
-    with open(SLOWNIK_PLIK, 'wb') as w:
-        pickle.dump(slownik, w)
+    try:
+        with open(SLOWNIK_PLIK, 'wb') as w:
+            pickle.dump({'stamp': stempel_korpusu(), 'slownik': slownik}, w)
+    except OSError:
+        pass
 
     global FOLDED_CACHE
     FOLDED_CACHE = None
@@ -83,13 +94,20 @@ def build_dictionary(chunki: list[dict] | None = None) -> Counter:
 SLOWNIK_CACHE = None
 def load_dictionary() -> Counter:
     global SLOWNIK_CACHE
-    if SLOWNIK_CACHE is None:
-        if SLOWNIK_PLIK.exists():
-            with open(SLOWNIK_PLIK, 'rb') as r:
-                SLOWNIK_CACHE = pickle.load(r)
-        else:
-            SLOWNIK_CACHE = build_dictionary()
+    if SLOWNIK_CACHE is not None:
+        return SLOWNIK_CACHE
 
+    if SLOWNIK_PLIK.exists():
+        try:
+            with open(SLOWNIK_PLIK, 'rb') as r:
+                zapis = pickle.load(r)
+            if isinstance(zapis, dict) and zapis.get('stamp') == stempel_korpusu():
+                SLOWNIK_CACHE = zapis['slownik']
+                return SLOWNIK_CACHE
+        except (OSError, pickle.UnpicklingError, KeyError):
+            pass
+
+    SLOWNIK_CACHE = build_dictionary()
     return SLOWNIK_CACHE
 
 

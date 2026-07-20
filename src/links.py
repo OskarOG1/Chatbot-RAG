@@ -57,7 +57,7 @@ PODSLUG_DO_AGENTA = {
     "podstawowe-informacje": "konto",
     "aktywacja-konta": "konto",
     "konto-junior": "konto",
-    "bezpieczne-zakupy": "konto",
+    "bezpieczne-zakupy": "zakupy",
 
     "wyszukiwanie-i-ulubione": "zakupy",
     "sposoby-zakupow": "zakupy",

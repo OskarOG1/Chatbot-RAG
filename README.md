@@ -201,7 +201,7 @@ Margines 3 domyka praktycznie całą stratę routingu. Wybrałem 2, bo 3 urucham
 
 Długa generacja z racji na sprzęt, przez co produkcyjnie system nie będzie w pełni lokalny. 
 
-Model mmlw ładowany jest raz na moduł — wcześniej `agents.py` trzymał własną kopię używaną tylko w testach, czyli trzy modele w pamięci zamiast dwóch. Wagi IDF cache'owane na dysk z kluczem po czasie modyfikacji korpusu. Pomiary mają własny cache rerankera i embeddingów, zapisywany po każdym wyliczeniu i unieważniany przy zmianie danych, więc przerwany pomiar wznawia się od miejsca przerwania.
+Model mmlw ładowany jest raz na moduł — wcześniej `agents.py` trzymał własną kopię używaną tylko w testach, czyli trzy modele w pamięci zamiast dwóch. Wagi IDF cache'owane na dysk z kluczem po czasie modyfikacji korpusu.
 
 ## Wersja produkcyjna
 
@@ -217,6 +217,15 @@ Projekt zaczął się w pełni lokalny (Ollama + Bielik 1.5B/7B na CPU). Do publ
 | mmarco-mMiniLMv2-L12-H384 | 118M | 0.900 | 0.933 | 1.64 s |
 
 26× szybszy za koszt jednego trafienia na każdej metryce. Baseline bge zostaje jako wariant jakościowy, odrzucony na CPU ze względu na latencję. Rozbicie czasu (mmarco): embed 0.07 s / routing 0.01 s / retrieval 0.19 s / rerank 1.6 s.
+
+**Okno kandydatów rerankera.** Szybszy reranker kupił budżet na szersze okno — przy 43 s/zap ta rozmowa nie miałaby sensu:
+
+| `k_surowe` | hit@3 | hit@5 | czas/zap |
+|---|---|---|---|
+| 10 | 0.833 | 0.867 | 1.01 s |
+| 20 (produkcja) | 0.900 | 0.933 | 2.39 s |
+
+Zostaje 20: +2 trafienia z 30 za +1.38 s. Przy tym rozmiarze golden setu jedno trafienie to 0.033, więc różnica jest sugestywna, nie rozstrzygająca — spójność na hit@3 i hit@5 jej nie potwierdza niezależnie, bo miary są skorelowane.
 
 **Rekalibracja bramek odmowy.** Trzy zmiany — swap rerankera, model 1.5B→11B i przebudowa promptów (grounding oddzielony od persony, z regułą „trzymaj się słownictwa z kontekstu") — unieważniły progi spod starego stacku. Każdy z trzech sygnałów strojony osobno na golden 30 + 18 OOD; wszystkie trzy rozkłady się nakładają, więc żaden próg nie rozdziela czysto. Ustawiam je tak, by nie kaleczyły trafnych pytań, a rozróżnianie near-domain zrzucam na sędziego:
 
@@ -238,7 +247,43 @@ Bilans całego łańcucha (reranker -3.2 → sędzia → pokrycie 0.40) na bież
 
 Wniosek metodyczny: żaden pojedynczy sygnał (score rerankera, pokrycie IDF) nie rozdziela near-domain OOD od słabych pytań z domeny — dopiero LLM-sędzia to robi. Każda zmiana rerankera, modelu albo promptu wymusza rekalibrację bramek, bo progi są sprzężone ze stackiem.
 
-**Rate limit i obsługa błędów.** Publiczny endpoint ma globalny limiter (15/min + 200/dzień, env-tunable) chroniący budżet API przed spamem — per-IP niżej, w Caddy, bo za proxy backend widzi tylko localhost. Błędy generacji (API padnie/timeout) łapane są w całości i zwracają komunikat „model chwilowo niedostępny" zamiast tracebacku, z logiem po stronie serwera.
+**Rate limit i obsługa błędów.** Publiczny endpoint ma globalny limiter (15/min + 200/dzień, env-tunable) chroniący budżet API przed spamem. Limit jest globalny, nie per-IP: łańcuch to Caddy → frontend → api, więc `X-Forwarded-For` od Caddy'ego dociera do Streamlita, a żądanie do API wychodzi już z kontenera frontendu — dla backendu każdy klient wygląda tak samo. Per-IP wymagałby albo wtyczki `caddy-ratelimit` (własny obraz przez `xcaddy`), albo przekazania adresu z `st.context.headers` własnym nagłówkiem. Globalny limit domyka koszt; per-IP domykałby dostępność — dziś jeden nadużywający wyczerpuje dzienną pulę dla wszystkich. Błędy generacji (API padnie/timeout) łapane są w całości i zwracają komunikat „model chwilowo niedostępny" zamiast tracebacku, z logiem po stronie serwera. Frontend łapie dodatkowo zerwanie strumienia (`httpx.HTTPError`) i niepoprawny SSE (`JSONDecodeError`/`KeyError`); Streamlit startuje z `--client.showErrorDetails=none`, więc nieprzewidziany wyjątek nie pokaże ścieżek kontenera ani kodu w przeglądarce.
+
+**Limit długości odpowiedzi.** `MAX_TOKENS` 700 → 1500. Przy 700 najdłuższa odpowiedź w pomiarze miała 691 tokenów — ucinana w pół zdania. Obcięcie było niewidoczne, bo pętla streamująca ignoruje `finish_reason`: odpowiedź urwana na limicie (`length`) wygląda w logach identycznie jak zakończona normalnie (`stop`). Bez limitu nie idziemy: koszt i czas generacji przestałyby mieć górną granicę, a rozwlekła odpowiedź oddala się od kontekstu i zbija pokrycie IDF, więc bramka odrzucałaby własną poprawną odpowiedź.
+
+**Log trudnych pytań bez treści.** `trudne.jsonl` zapisuje wyłącznie nierozpoznane tokeny, nie treść pytania. Tokeny pochodzące z maili, telefonów, numerów zamówień i URL-i są odsiewane przez dopasowanie wzorców do oryginalnego pytania — filtrowanie po samym tokenie nic by nie dało, bo tokenizer (`[^\W\d_]+`) przepuszcza tylko litery, więc `jan.kowalski@example.com` trafia do logu jako niewinne `jan`, `kowalski`, `example`. Zmierzone na 7 przypadkach: fragmenty PII znikają, literówki (`kotno`, `smrtem`, `blikeim`) zostają.
+
+## Wdrożenie
+
+Demo: [ogflow.pl](https://ogflow.pl). VPS Hetzner, Ubuntu 24.04 LTS, 4 vCPU / 7.6 GB RAM / 75 GB.
+
+| kontener | obraz | port | rola |
+|---|---|---|---|
+| `caddy` | caddy:2 | 80, 443 | reverse proxy, HTTPS z Let's Encrypt |
+| `frontend` | python:3.13-slim | 8501 (wewn.) | Streamlit |
+| `api` | python:3.13-slim | 8000 (wewn.) | FastAPI + retrieval |
+
+API nie ma publicznego portu — frontend łączy się po sieci Dockera. Oba kontenery jako uid 1000. Cache modeli HF na named volume, ściągany raz przy pierwszym starcie. `RAG/` montowane jako volume, nie kopiowane do obrazu: indeksy są w `.gitignore`, więc `COPY RAG/` dałby obraz, który buduje się poprawnie i pada dopiero w runtime.
+
+**Latencja w kontenerze.** 5 pytań × 3 powtórzenia, Bielik-11B przez API:
+
+| metryka | wartość |
+|---|---|
+| TTFT mediana | 5.61 s |
+| total mediana | 6.31 s |
+| total max | 16.57 s (pierwszy przebieg) |
+
+Konteneryzacja nic nie dołożyła — 6.31 s zgadza się z rozbiciem etapów (~1.9 s pipeline + ~4.4 s generacja). Pierwsze wywołanie każdego pytania jest 2–3× wolniejsze: `lifespan` rozgrzewa reranker, ale embedder mmlw ładuje się dopiero przy pierwszym realnym zapytaniu. TTFT ≈ total (6.24 vs 6.32 s) — odpowiedź przychodzi paczką, nie strumieniem, więc streaming w UI daje mniej niż mógłby.
+
+**Wersja Pythona w obrazie musi zgadzać się z dev.** `requirements.txt` z `pip freeze` odbija środowisko deweloperskie (3.13); na `python:3.11-slim` build padał na `numpy==2.5.1` komunikatem „from versions: …, 2.4.6", wyglądającym na nieistniejącą wersję. W rzeczywistości numpy 2.5 wymaga ≥3.12, a pip listuje tylko wydania zgodne z bieżącym Pythonem. `torch` przypięty do 2.13.0 — bez tego dwa buildy w odstępie tygodnia dają różne środowiska.
+
+```bash
+cd docker
+cp .env.example .env        # LLM_API_KEY, HF_TOKEN, DOMAIN
+docker compose up -d --build
+```
+
+`RAG/` i skrypty `measure_*.py` są poza repo — na serwer trafiają przez `scp`, przed buildem.
 
 ## Uruchomienie
 

@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
-from pipeline import run, run_stream
+from pipeline import run, run_stream, model
 from rankings import get_reranker
 from collections import deque
 import os
@@ -30,6 +30,10 @@ async def lifespan(app: FastAPI):
    
     try:
         get_reranker().predict([('rozgrzewka', 'rozgrzewka')])
+    except Exception:
+        pass
+    try:
+        model.encode(['zapytanie: rozgrzewka'])
     except Exception:
         pass
     yield
