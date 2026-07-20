@@ -78,7 +78,7 @@ Przy oknie 20 pytanie „jak spłacić allegro pay" wypadło z top 3 (reranker w
 
 ## Literówki
 
-Zestaw testowy pisany poprawną polszczyzną, realne zapytania nie zawsze. Na pytaniach z błędami top 3 spadło do 0.700, najsłabszy punkt systemu.
+Dawna ścieżka dochodzenia do korektora (starszy, niecommitowany zestaw pytań, sprzed obecnego rerankera): na pytaniach z błędami top 3 spadało do 0.700, najsłabszy punkt systemu.
 
 | metoda | top 3 | top 5 |
 |---|---|---|
@@ -91,7 +91,16 @@ Trigramy znakowe (dopasowanie po trójkach liter, tolerancyjne na literówki) po
 
 Próg częstości słowa (wordfreq) chroni poprawne wyrazy przed manglowaniem („Puść"→„push" bez tego progu). Efekt uboczny: literówki bez polskich znaków (np. „haslo") są też chronione i nie korygowane. Minimalna długość korygowanego słowa: 4 znaki.
 
-Najmocniejszy efekt korektora był w wyborze sekcji, nie w wyszukiwaniu: trafność na pytaniach z błędami z 0.467 do 0.833. Wybór sekcji stoi wyłącznie na embeddingu, a literówka rozbija embedding całego pytania.
+**Aktualny pomiar, zestawy `GOLDEN` i `GOLDEN_LITEROWKI` z `measure.py`** — te same 50 pytań, jedna wersja bez błędów, druga z jedną literówką na pytanie, obecny reranker, okno 20 kandydatów. Pytania trafiają do wyszukiwania surowe, bez przejścia przez korektor (ten w produkcji działa wcześniej) — mierzę samą odporność warstwy wyszukiwania i rerankera:
+
+| zestaw | top 3 | top 5 | czas/zapytanie |
+|---|---|---|---|
+| **GOLDEN, bez błędów** | **0.860** | **0.940** | 3.24 s |
+| GOLDEN_LITEROWKI, z literówkami | 0.720 | 0.840 | 4.44 s |
+
+Literówka bez korektora kosztuje 0.140 na top 3 i 0.100 na top 5, na dokładnie tych samych 50 pytaniach. BM25 na trigramach łagodzi część błędów sam z siebie, ale nie wszystkie — korektor przed wyszukiwaniem wciąż ma sens, nie jest zbędnym krokiem. Czas rośnie o ~1.2 s/zapytanie, głównie przez trudniejsze, mniej jednoznaczne dopasowania w BM25 i rerankerze.
+
+Najmocniejszy efekt korektora był kiedyś w wyborze sekcji, nie w wyszukiwaniu: trafność na pytaniach z błędami z 0.467 do 0.833. Nieaktualne od usunięcia routingu — patrz „Zrezygnowano z dzielenia bazy na sekcje" w sekcji „Wersja produkcyjna".
 
 ## Odporność wejścia
 
