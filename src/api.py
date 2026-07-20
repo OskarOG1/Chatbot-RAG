@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 from pipeline import run, run_stream, model
-from rankings import get_reranker
+from rankings import get_reranker, get_bm25, get_faiss
 from collections import deque
 import os
 import time
@@ -36,6 +36,12 @@ async def lifespan(app: FastAPI):
         model.encode(['zapytanie: rozgrzewka'])
     except Exception:
         pass
+    for sekcja in ('konto', 'zakupy', 'platnosci', 'all'):
+        try:
+            get_faiss(sekcja)
+            get_bm25(sekcja)
+        except Exception:
+            pass
     yield
 
 class Wiadomosc(BaseModel):
