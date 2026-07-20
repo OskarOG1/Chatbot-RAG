@@ -1,6 +1,5 @@
 from sentence_transformers import SentenceTransformer
 import faiss
-from classify import vote
 from rankings import search_reranked_multi
 from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada
 from guards import sprawdz
@@ -184,24 +183,14 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
     query_emb = model.encode(['zapytanie: ' + zapytanie_ret]).astype('float32')
     faiss.normalize_L2(query_emb)
 
-    yield krok('Rozpoznaję sekcję (konto / zakupy / płatności)')
-    if agent is None:
-        agenci = vote(query_emb, top2=True, margines=MARGINES)
-        if agent_poprzedni and agent_poprzedni not in agenci:
-            agenci = agenci + [agent_poprzedni]
-    else:
-        agenci = vote(query_emb, top2=True, margines=MARGINES)
-        if agent not in agenci:
-            agenci = agenci + [agent]
-
     yield krok('Przeszukuję bazę wiedzy i porządkuję wyniki')
-    chunks = search_reranked_multi(zapytanie_ret, query_emb, agenci, k=5, k_surowe=20)
+    chunks = search_reranked_multi(zapytanie_ret, query_emb, ['all'], k=5, k_surowe=20)
 
     agenci_chunkow = [c['agent'] for c, _ in chunks]
     if agent is None and agent_poprzedni and agent_poprzedni in agenci_chunkow:
         agent_odp = agent_poprzedni
     else:
-        agent_odp = chunks[0][0]['agent'] if chunks else agenci[0]
+        agent_odp = chunks[0][0]['agent'] if chunks else ''
 
     if not chunks or chunks[0][1] < PROG_RERANK:
         yield krok('Poza zakresem bazy pomocy — odmawiam')
