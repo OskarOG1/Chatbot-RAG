@@ -14,20 +14,19 @@ Pytanie użytkownika
       ▼  filtry wejścia: puste / za krótkie / za długie / obcy alfabet / wzorce injection
       ▼  korektor literówek (Damerau-Levenshtein + próg częstości słowa)
       ▼  embedding (mmlw, prefiks "zapytanie: ", wymagany przy tym modelu)
-ROUTER (głosowanie po 5 fragmentach, dwie sekcje przy remisie, margines=2)
       │
       ▼
-WYSZUKIWANIE HYBRYDOWE — po słowach (BM25 z lematyzacją i trigramami) + po znaczeniu
-(FAISS), rankingi łączone po pozycji (RRF), duplikaty wycinane po URL → 20 kandydatów
+WYSZUKIWANIE HYBRYDOWE, cały korpus — po słowach (BM25 z lematyzacją i trigramami) +
+po znaczeniu (FAISS), rankingi łączone po pozycji (RRF), duplikaty wycinane po URL → 20 kandydatów
       │
       ▼
 RERANKER (cross-encoder ocenia parę pytanie–fragment, okno 20) → 3 linki
       │
-      ▼  odmowa: wynik rerankera < -3.2 + sędzia LLM (TAK/NIE) na near-domain — przed generacją
-AGENT (system prompt sekcji + historia rozmowy + kontekst → Bielik-11B przez API / lokalnie Ollama)
+      ▼  odmowa: wynik rerankera < -4.3 + sędzia LLM (TAK/NIE) na near-domain — przed generacją
+AGENT (system prompt sekcji z etykiety najlepszego fragmentu + historia rozmowy + kontekst → Bielik-11B przez API / lokalnie Ollama)
       │
       ▼  wycięcie URL-i z tekstu, mapowanie cytatów [n] → źródło
-      ▼  odmowa, jeśli pokrycie odpowiedzi kontekstem < 0.40 (backstop)
+      ▼  odmowa, jeśli pokrycie odpowiedzi kontekstem < 0.20 (backstop)
 Odpowiedź + Źródła
 ```
 
@@ -190,6 +189,8 @@ Na zaszumionych pytaniach doszedł routing warunkowy na dwie sekcje: gdy lider w
 
 Margines 3 domyka praktycznie całą stratę routingu. Wybrałem 2, bo 3 uruchamia podwójne wyszukiwanie i reranking na 70% ruchu, co na CPU jest za drogie. Świadoma wymiana jakości na czas, nie najlepszy wynik w tabeli.
 
+**Ten routing został później całkowicie usunięty** — patrz „Partycjonowanie na sekcje usunięte" w sekcji Wersja produkcyjna. Powyższe zostaje jako zapis decyzji trafnej na zestawie n=20/30; rozszerzenie pomiaru do n=61 pokazało, że koszt błędów routingu przewyższa jego korzyść.
+
 ## Pomiary czasowe
 
 | krok | czas |
@@ -252,6 +253,49 @@ Wniosek metodyczny: żaden pojedynczy sygnał (score rerankera, pokrycie IDF) ni
 **Limit długości odpowiedzi.** `MAX_TOKENS` 700 → 1500. Przy 700 najdłuższa odpowiedź w pomiarze miała 691 tokenów — ucinana w pół zdania. Obcięcie było niewidoczne, bo pętla streamująca ignoruje `finish_reason`: odpowiedź urwana na limicie (`length`) wygląda w logach identycznie jak zakończona normalnie (`stop`). Bez limitu nie idziemy: koszt i czas generacji przestałyby mieć górną granicę, a rozwlekła odpowiedź oddala się od kontekstu i zbija pokrycie IDF, więc bramka odrzucałaby własną poprawną odpowiedź.
 
 **Log trudnych pytań bez treści.** `trudne.jsonl` zapisuje wyłącznie nierozpoznane tokeny, nie treść pytania. Tokeny pochodzące z maili, telefonów, numerów zamówień i URL-i są odsiewane przez dopasowanie wzorców do oryginalnego pytania — filtrowanie po samym tokenie nic by nie dało, bo tokenizer (`[^\W\d_]+`) przepuszcza tylko litery, więc `jan.kowalski@example.com` trafia do logu jako niewinne `jan`, `kowalski`, `example`. Zmierzone na 7 przypadkach: fragmenty PII znikają, literówki (`kotno`, `smrtem`, `blikeim`) zostają.
+
+**Błąd etykiety w korpusie — zlokalizowany przez czas odmowy.** Pytanie „Sprzedawca chce, żebym zapłacił poza Allegro — czy to bezpieczne?" odrzucane stabilnie, mimo że jest z domeny. Czas odmowy rozróżnia bramkę bez zaglądania w kod: < 1 s to filtr wejścia, ~2.9 s to próg rerankera (bez LLM), ~6.3 s to sędzia (+1 wywołanie). To pytanie padało po ~6.3 s — sędzia, nie próg. Diagnoza: właściwy artykuł miał etykietę `konto` zamiast `zakupy` (kategoria `bezpieczne-zakupy` źle zmapowana), więc nigdy nie trafiał do puli kandydatów rerankera — sędzia dostawał kontekst o Allegro Pay i słusznie odmawiał. Naprawa: jedna linia mapowania + przeniesienie 3 artykułów, przebudowa indeksów. Kontrola regresji: hit@3/hit@5 na golden bez zmian (0.900/0.933).
+
+**Zbiory pomiarowe rozszerzone: 30→61 golden, 18→29 OOD.** Przy 30 pytaniach jedno trafienie ważyło 0.033 — każda dotychczasowa różnica mieściła się w dwóch pytaniach, a golden pokrywał 29 ze 141 artykułów. Nowe OOD to głównie near-domain: pytania o Allegro poza korpusem dla kupujących (prowizja sprzedawcy, infolinia, notowania giełdowe) — stary zestaw był zdominowany przez oczywiste przypadki (matematyka, przepisy), które ucina już sam próg rerankera, więc zawyżał odporność systemu.
+
+**Partycjonowanie na sekcje usunięte.** Rozszerzony golden pokazał, że router (opisany wyżej w „Dopasowanie sekcji") przegrywa z prostym przeszukaniem całego korpusu na każdej mierzonej osi:
+
+| tryb | hit@5 (n=61) | czas/zap | OOD ucięte progiem (bez LLM) |
+|---|---|---|---|
+| router (top-2, margines 2) | 0.852 | 4.41 s | 5/29 |
+| **całość, bez partycjonowania** | **0.918** | **3.33 s** | **7/29** |
+
+Router zwykle rerankuje 40 par (po 20 z dwóch zgadywanych sekcji), przeszukanie całości — 20 z korpusu: mniej kandydatów, ale lepiej wycelowanych. Sędzia bez zmian (27/29 w obu trybach) — brak partycjonowania nie osłabia bramki odmowy. Fallback do pełnego korpusu tylko przy odmowie (próba pośrednia, przed pełnym usunięciem) nie dał nic: przecieki OOD bez zmian (2/29 z fallbackiem i bez), bo pudła routingu nie powodują odmowy, tylko pewną siebie złą odpowiedź — żadna bramka nie reaguje, więc fallback wyzwalany przez odmowę nigdy nie dostawał szansy tam, gdzie był potrzebny. Selektor sekcji w panelu bocznym zostaje w interfejsie, ale przestaje wpływać na wynik — świadomie zostawione jako punkt do ewentualnego dociągnięcia (twardy filtr wyników zamiast rozszerzania puli kandydatów).
+
+**Rekalibracja PROG_RERANK: −3.2 → −4.3.** Rozkłady golden i OOD się nakładają (23 z 29 OOD punktuje wyżej niż najsłabsze pytanie z domeny) — żaden próg nie rozdziela ich czysto, więc jedyna sensowna rola progu to tanie odcięcie skrajności przed wywołaniem LLM, reszta należy do sędziego.
+
+| próg | fałsz. odmowy (golden) | OOD ucięte za darmo | wywołań sędziego (golden+OOD) |
+|---|---|---|---|
+| −3.2 (było) | 2/61 | 11/29 | 77 |
+| **−4.3 (jest)** | **0/61** | **5/29** | **85** |
+
+Zero fałszywych odmów, kosztem 8 dodatkowych wywołań sędziego na pełnym przebiegu — tanio, bo sędzia i tak łapał te pytania (sekcja niżej), więc próg tylko przestał robić za nie robotę za darmo.
+
+**Rozgrzewka indeksów sekcji.** `BM25_CACHE`/`FAISS_CACHE` ładują się leniwie per sekcja — `lifespan` rozgrzewał tylko reranker i embedder, więc pierwsze zapytanie trafiające w każdą sekcję płaciło za wczytanie jej indeksu. Efekt widoczny w pomiarze kontenerowym: pierwsze trzy zapytania (różne sekcje) szły 18.1 s / 17.9 s / 15.2 s zamiast typowych 3–7 s.
+
+**Bramka pokrycia marnowała generację na trafnych pytaniach.** Symulacja 100 pytań w 6 kategoriach (`measure_sim.py`) dała 76/100 odpowiedzi. 17 odmów padło przed generacją (0 tokenów, tanio, poprawnie), ale 7 odmów PO generacji (877 zmarnowanych tokenów łącznie) — w tym dwie na w pełni trafnych pytaniach z domeny: retrieval trafił właściwy artykuł na 1. miejscu, model odpowiedział poprawnie, a `pokrycie_idf < PROG_POKRYCIA (0.40)` odrzuciło już wygenerowaną odpowiedź. Najgorszy możliwy przebieg: koszt generacji poniesiony, użytkownik i tak dostaje „nie znalazłem". Przyczyna: model parafrazuje słowami spoza kontekstu (np. przy pytaniu o odzyskiwanie konta pisze o „weryfikacji", „tożsamości"), więc pokrycie leksykalne spada mimo merytorycznej trafności — ryzyko rośnie przy dłuższych, wieloczłonowych pytaniach, stąd 3/4 fałszywych odmów akurat w kategorii dwuczęściowej.
+
+**Rekalibracja PROG_POKRYCIA: 0.40 → 0.20.** `measure_pokrycie.py` policzył rozkład pokrycia tam, gdzie problem realnie żyje: 29 pytań wieloczłonowych z domeny (strefa fałszywych odmów) kontra 29 OOD.
+
+| | min | p5 | mediana | max |
+|---|---|---|---|---|
+| legit z domeny | 0.253 | 0.259 | 0.690 | 0.885 |
+| OOD | 0.042 | 0.042 | 0.228 | 0.651 |
+
+Rozkłady się nakładają (OOD max 0.651 > legit min 0.253) — pokrycie nie jest klasyfikatorem domeny. Nieistotne w praktyce: OOD nie dociera do tej bramki, jest cięte piętro wyżej przez reranker (−4.3) i sędziego (27/29) — pokrycie to czysty backstop antyhalucynacyjny, nie obrona przed OOD, więc kolumna „OOD złapane" niżej jest redundantna.
+
+| próg | fałsz. odmowy (legit) | OOD złapane (redundantnie) |
+|---|---|---|
+| 0.40 (było) | 4/29 | 25/29 |
+| 0.25 | 0/29 | 15/29 |
+| **0.20 (jest)** | **0/29** | **11/29** |
+
+Wybrany 0.20, nie 0.25, mimo że oba dają 0/29 fałszywych odmów na tej próbce: najniższy legit = 0.253, a generacja jest stochastyczna (rozrzut ~0.01–0.03 na to samo pytanie), więc 0.25 zostawiłby margines zaledwie 0.003 — jeden pech w losowaniu i pytanie znów pada. 0.20 daje margines 0.05 poniżej obserwowanego minimum, wciąż odpalając się na tekście naprawdę nieopartym w kontekście (min OOD 0.042). Efekt na symulacji 100 pytań: obie fałszywe odmowy po generacji (pokrycie 0.253 i 0.380) przechodzą przy 0.20 — bramka staje się czystym zabezpieczeniem przed halucynacją, nie źródłem strat na trafnych pytaniach.
 
 ## Wdrożenie
 
