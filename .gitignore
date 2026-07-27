@@ -18,6 +18,7 @@ classify.py
 ZMIANY.md
 trudne.jsonl
 diag_*.py
+translate_chunks.py
 
 test_HF.py
 *.md
