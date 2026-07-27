@@ -30,9 +30,9 @@ AGENT (system prompt sekcji z etykiety najlepszego fragmentu + historia rozmowy 
 Odpowiedź + Źródła
 ```
 
-Pierwotnym planem było zwracanie głównego linka, jednak trafny artykuł znajdował się często w top 3, a nie na pierwszym miejscu. Stąd zmiana na pokazywanie w odpowiedzi 3 linków, celność 56/60 vs 47/60 dla pojedynczego linka.
+Pierwotnym planem było zwracanie głównego linka, jednak trafny artykuł znajdował się często w top 3, a nie na pierwszym miejscu. Stąd zmiana na pokazywanie w odpowiedzi 5 linków, celność 56/60 vs 47/60 dla pojedynczego linka.
 
-mmlw jako embedder, bo to model retrieval trenowany pod polski język, więc polski embedder łapie znaczenie lepiej niż wielojęzyczny. FAISS do wektorów, bo lokalny, szybki i wystarcza na tej skali. BM25 dołożony obok, bo sam embedding gubił pytania ze słowami-kluczami. Hybryda łączy znaczenie z dosłownym trafieniem.
+mmlw jako embedder, bo to model  trenowany pod polski język, więc polski embedder łapie znaczenie lepiej niż wielojęzyczny. FAISS do wektorów, bo lokalny, szybki i wystarcza na tej skali. BM25 dołożony obok, bo sam embedding gubił pytania ze słowami-kluczami. Hybryda łączy znaczenie z dosłownym trafieniem.
 
 Bielik jako model odpowiadający, bo polski model do polskich treści. Dwie wersje do różnych zadań: minitron 7B do jakości odpowiedzi, 1.5B do testów.
 
@@ -172,7 +172,7 @@ Sweep wariantów routingu wymusiło pierwsze żywe żądanie przez API: „jak z
 | **głosowanie po 5 fragmentach** | **18/20 (wybrane)** |
 | głosowanie hybrydowe (RRF) po 5 | 18/20 (równy, odrzucone) |
 
-Centroid przegrywa przez zbyt spójną sekcję konto: wąska tematyka (logowanie, hasło, dane) daje „ostry" centroid, który przyciąga wszystkie niejednoznaczne pytania — wszystkie jego pudła wpadły w konto. Wynik wariantu top-1 wzrósł z 14/20 do 17/20, gdy naprawiłem błąd w skrypcie pomiarowym: embedding zapytania bez prefiksu „zapytanie: ", którego wymaga mmlw. W samym chatbocie prefiks był od początku, więc to poprawa pomiaru, nie routera.
+Centroid przegrywa przez zbyt spójną sekcję konto: wąska tematyka (logowanie, hasło, dane) daje „ostry" centroid, który przyciąga wszystkie niejednoznaczne pytania, wszystkie jego pudła wpadły w konto. Wynik wariantu top-1 wzrósł z 14/20 do 17/20, gdy naprawiłem błąd w skrypcie pomiarowym: embedding zapytania bez prefiksu „zapytanie: ", którego wymaga mmlw. W samym chatbocie prefiks był od początku, więc to poprawa pomiaru, nie routera.
 
 Maksimum zamiast średniej premiuje pojedynczy przypadkowy fragment, przy płaskich wynikach jeden dobrze dopasowany kawałek w złej sekcji przeważa całą decyzję. Średnia wymaga zgody kilku fragmentów.
 
@@ -252,11 +252,11 @@ Wniosek metodyczny: żaden pojedynczy sygnał (score rerankera, pokrycie IDF) ni
 
 **Limit długości odpowiedzi.** `MAX_TOKENS` 700 → 1500. Przy 700 najdłuższa odpowiedź w pomiarze miała 691 tokenów — ucinana w pół zdania. Obcięcie było niewidoczne, bo pętla streamująca ignoruje `finish_reason`: odpowiedź urwana na limicie (`length`) wygląda w logach identycznie jak zakończona normalnie (`stop`). Bez limitu nie idziemy: koszt i czas generacji przestałyby mieć górną granicę, a rozwlekła odpowiedź oddala się od kontekstu i zbija pokrycie IDF, więc bramka odrzucałaby własną poprawną odpowiedź.
 
-**Log trudnych pytań bez treści.** `trudne.jsonl` zapisuje wyłącznie nierozpoznane tokeny, nie treść pytania. Tokeny pochodzące z maili, telefonów, numerów zamówień i URL-i są odsiewane przez dopasowanie wzorców do oryginalnego pytania — filtrowanie po samym tokenie nic by nie dało, bo tokenizer (`[^\W\d_]+`) przepuszcza tylko litery, więc `jan.kowalski@example.com` trafia do logu jako niewinne `jan`, `kowalski`, `example`. Zmierzone na 7 przypadkach: fragmenty PII znikają, literówki (`kotno`, `smrtem`, `blikeim`) zostają.
+**Log trudnych pytań bez treści.** `trudne.jsonl` zapisuje wyłącznie nierozpoznane tokeny, nie treść pytania. Tokeny pochodzące z maili, telefonów, numerów zamówień i URL-i są odsiewane przez dopasowanie wzorców do oryginalnego pytania. filtrowanie po samym tokenie nic by nie dało, bo tokenizer (`[^\W\d_]+`) przepuszcza tylko litery, więc `jan.kowalski@example.com` trafia do logu jako niewinne `jan`, `kowalski`, `example`. Zmierzone na 7 przypadkach: fragmenty PII znikają, literówki (`kotno`, `smrtem`, `blikeim`) zostają.
 
-**Błąd etykiety w korpusie — zlokalizowany przez czas odmowy.** Pytanie „Sprzedawca chce, żebym zapłacił poza Allegro — czy to bezpieczne?" odrzucane stabilnie, mimo że jest z domeny. Czas odmowy rozróżnia bramkę bez zaglądania w kod: < 1 s to filtr wejścia, ~2.9 s to próg rerankera (bez LLM), ~6.3 s to sędzia (+1 wywołanie). To pytanie padało po ~6.3 s — sędzia, nie próg. Diagnoza: właściwy artykuł miał etykietę `konto` zamiast `zakupy` (kategoria `bezpieczne-zakupy` źle zmapowana), więc nigdy nie trafiał do puli kandydatów rerankera — sędzia dostawał kontekst o Allegro Pay i słusznie odmawiał. Naprawa: jedna linia mapowania + przeniesienie 3 artykułów, przebudowa indeksów. Kontrola regresji: hit@3/hit@5 na golden bez zmian (0.900/0.933).
+**Błąd etykiety w korpusie — zlokalizowany przez czas odmowy.** Pytanie „Sprzedawca chce, żebym zapłacił poza Allegro — czy to bezpieczne?" odrzucane stabilnie, mimo że jest z domeny. Czas odmowy rozróżnia bramkę bez zaglądania w kod: < 1 s to filtr wejścia, ~2.9 s to próg rerankera (bez LLM), ~6.3 s to sędzia (+1 wywołanie). To pytanie padało po ~6.3 s, sędzia, nie próg. Diagnoza: właściwy artykuł miał etykietę `konto` zamiast `zakupy` (kategoria `bezpieczne-zakupy` źle zmapowana), więc nigdy nie trafiał do puli kandydatów rerankera, sędzia dostawał kontekst o Allegro Pay i słusznie odmawiał. Naprawa: jedna linia mapowania + przeniesienie 3 artykułów, przebudowa indeksów. Kontrola regresji: hit@3/hit@5 na golden bez zmian (0.900/0.933).
 
-**Zbiory pomiarowe rozszerzone: 30→61 golden, 18→29 OOD.** Przy 30 pytaniach jedno trafienie ważyło 0.033 — każda dotychczasowa różnica mieściła się w dwóch pytaniach, a golden pokrywał 29 ze 141 artykułów. Nowe OOD to głównie near-domain: pytania o Allegro poza korpusem dla kupujących (prowizja sprzedawcy, infolinia, notowania giełdowe) — stary zestaw był zdominowany przez oczywiste przypadki (matematyka, przepisy), które ucina już sam próg rerankera, więc zawyżał odporność systemu.
+**Zbiory pomiarowe rozszerzone: 30→61 golden, 18→29 OOD.** Przy 30 pytaniach jedno trafienie ważyło 0.033. każda dotychczasowa różnica mieściła się w dwóch pytaniach, a golden pokrywał 29 ze 141 artykułów. Nowe OOD to głównie near-domain: pytania o Allegro poza korpusem dla kupujących (prowizja sprzedawcy, infolinia, notowania giełdowe), stary zestaw był zdominowany przez oczywiste przypadki (matematyka, przepisy), które ucina już sam próg rerankera, więc zawyżał odporność systemu.
 
 **Partycjonowanie na sekcje usunięte.** Rozszerzony golden pokazał, że router (opisany wyżej w „Dopasowanie sekcji") przegrywa z prostym przeszukaniem całego korpusu na każdej mierzonej osi:
 
@@ -265,7 +265,7 @@ Wniosek metodyczny: żaden pojedynczy sygnał (score rerankera, pokrycie IDF) ni
 | router (top-2, margines 2) | 0.852 | 4.41 s | 5/29 |
 | **całość, bez partycjonowania** | **0.918** | **3.33 s** | **7/29** |
 
-Router zwykle rerankuje 40 par (po 20 z dwóch zgadywanych sekcji), przeszukanie całości — 20 z korpusu: mniej kandydatów, ale lepiej wycelowanych. Sędzia bez zmian (27/29 w obu trybach) — brak partycjonowania nie osłabia bramki odmowy. Fallback do pełnego korpusu tylko przy odmowie (próba pośrednia, przed pełnym usunięciem) nie dał nic: przecieki OOD bez zmian (2/29 z fallbackiem i bez), bo pudła routingu nie powodują odmowy, tylko pewną siebie złą odpowiedź — żadna bramka nie reaguje, więc fallback wyzwalany przez odmowę nigdy nie dostawał szansy tam, gdzie był potrzebny. Selektor sekcji w panelu bocznym zostaje w interfejsie, ale przestaje wpływać na wynik — świadomie zostawione jako punkt do ewentualnego dociągnięcia (twardy filtr wyników zamiast rozszerzania puli kandydatów).
+Router zwykle rerankuje 40 par (po 20 z dwóch zgadywanych sekcji), przeszukanie całości — 20 z korpusu: mniej kandydatów, ale lepiej wycelowanych. Sędzia bez zmian (27/29 w obu trybach), brak partycjonowania nie osłabia bramki odmowy. Fallback do pełnego korpusu tylko przy odmowie (próba pośrednia, przed pełnym usunięciem) nie dał nic: przecieki OOD bez zmian (2/29 z fallbackiem i bez), bo pudła routingu nie powodują odmowy, tylko pewną siebie złą odpowiedź. żadna bramka nie reaguje, więc fallback wyzwalany przez odmowę nigdy nie dostawał szansy tam, gdzie był potrzebny. Selektor sekcji w panelu bocznym zostaje w interfejsie, ale przestaje wpływać na wynik — świadomie zostawione jako punkt do ewentualnego dociągnięcia (twardy filtr wyników zamiast rozszerzania puli kandydatów).
 
 **Rekalibracja PROG_RERANK: −3.2 → −4.3.** Rozkłady golden i OOD się nakładają (23 z 29 OOD punktuje wyżej niż najsłabsze pytanie z domeny) — żaden próg nie rozdziela ich czysto, więc jedyna sensowna rola progu to tanie odcięcie skrajności przed wywołaniem LLM, reszta należy do sędziego.
 
@@ -291,7 +291,7 @@ Zero fałszywych odmów, kosztem 8 dodatkowych wywołań sędziego na pełnym pr
 
 Kontrintuicyjne: trzyczęściowe (92%) biją dwuczęściowe (75%). Dłuższe pytanie daje rerankerowi więcej sygnału leksykalnego — trzy klauzule to trzy szanse na trafienie słownictwa korpusu, efekt odwrotny do pojedynczego cross-encodera na węższej puli, gdzie dwuczłonowość szkodziła. OOD trzymają się dobrze mimo braku partycjonowania: 7/8 odrzuconych, w tym near-domain („ile allegro bierze prowizji", „kto jest właścicielem allegro", „jak założyć sklep"). Jedyny przeciek — „gdzie jest siedziba allegro" — nieszkodliwy. Potwierdza: sędzia niesie bramkę OOD, nie próg.
 
-**Bramka pokrycia marnowała generację na trafnych pytaniach.** Rozbicie tych samych 24 odmów z powyższej symulacji pokazuje: 17 odmów padło przed generacją (0 tokenów, tanio, poprawnie), ale 7 odmów PO generacji (877 zmarnowanych tokenów łącznie) — w tym dwie na w pełni trafnych pytaniach z domeny: retrieval trafił właściwy artykuł na 1. miejscu, model odpowiedział poprawnie, a `pokrycie_idf < PROG_POKRYCIA (0.40)` odrzuciło już wygenerowaną odpowiedź. Najgorszy możliwy przebieg: koszt generacji poniesiony, użytkownik i tak dostaje „nie znalazłem". Przyczyna: model parafrazuje słowami spoza kontekstu (np. przy pytaniu o odzyskiwanie konta pisze o „weryfikacji", „tożsamości"), więc pokrycie leksykalne spada mimo merytorycznej trafności — ryzyko rośnie przy dłuższych, wieloczłonowych pytaniach, stąd 3/4 fałszywych odmów akurat w kategorii dwuczęściowej.
+**Bramka pokrycia marnowała generację na trafnych pytaniach.** Rozbicie tych samych 24 odmów z powyższej symulacji pokazuje: 17 odmów padło przed generacją (0 tokenów, tanio, poprawnie), ale 7 odmów PO generacji (877 zmarnowanych tokenów łącznie), w tym dwie na w pełni trafnych pytaniach z domeny: retrieval trafił właściwy artykuł na 1. miejscu, model odpowiedział poprawnie, a `pokrycie_idf < PROG_POKRYCIA (0.40)` odrzuciło już wygenerowaną odpowiedź. Najgorszy możliwy przebieg: koszt generacji poniesiony, użytkownik i tak dostaje „nie znalazłem". Przyczyna: model parafrazuje słowami spoza kontekstu (np. przy pytaniu o odzyskiwanie konta pisze o „weryfikacji", „tożsamości"), więc pokrycie leksykalne spada mimo merytorycznej trafności. ryzyko rośnie przy dłuższych, wieloczłonowych pytaniach, stąd 3/4 fałszywych odmów akurat w kategorii dwuczęściowej.
 
 **Rekalibracja PROG_POKRYCIA: 0.40 → 0.20.** `measure_pokrycie.py` policzył rozkład pokrycia tam, gdzie problem realnie żyje: 29 pytań wieloczłonowych z domeny (strefa fałszywych odmów) kontra 29 OOD.
 
@@ -300,7 +300,7 @@ Kontrintuicyjne: trzyczęściowe (92%) biją dwuczęściowe (75%). Dłuższe pyt
 | legit z domeny | 0.253 | 0.259 | 0.690 | 0.885 |
 | OOD | 0.042 | 0.042 | 0.228 | 0.651 |
 
-Rozkłady się nakładają (OOD max 0.651 > legit min 0.253) — pokrycie nie jest klasyfikatorem domeny. Nieistotne w praktyce: OOD nie dociera do tej bramki, jest cięte piętro wyżej przez reranker (−4.3) i sędziego (27/29) — pokrycie to czysty backstop antyhalucynacyjny, nie obrona przed OOD, więc kolumna „OOD złapane" niżej jest redundantna.
+Rozkłady się nakładają (OOD max 0.651 > legit min 0.253) — pokrycie nie jest klasyfikatorem domeny. Nieistotne w praktyce: OOD nie dociera do tej bramki, jest cięte piętro wyżej przez reranker (−4.3) i sędziego (27/29), pokrycie to czysty backstop antyhalucynacyjny
 
 | próg | fałsz. odmowy (legit) | OOD złapane (redundantnie) |
 |---|---|---|
@@ -308,71 +308,7 @@ Rozkłady się nakładają (OOD max 0.651 > legit min 0.253) — pokrycie nie je
 | 0.25 | 0/29 | 15/29 |
 | **0.20 (jest)** | **0/29** | **11/29** |
 
-Wybrany 0.20, nie 0.25, mimo że oba dają 0/29 fałszywych odmów na tej próbce: najniższy legit = 0.253, a generacja jest stochastyczna (rozrzut ~0.01–0.03 na to samo pytanie), więc 0.25 zostawiłby margines zaledwie 0.003 — jeden pech w losowaniu i pytanie znów pada. 0.20 daje margines 0.05 poniżej obserwowanego minimum, wciąż odpalając się na tekście naprawdę nieopartym w kontekście (min OOD 0.042). Efekt na symulacji 100 pytań: obie fałszywe odmowy po generacji (pokrycie 0.253 i 0.380) przechodzą przy 0.20 — bramka staje się czystym zabezpieczeniem przed halucynacją, nie źródłem strat na trafnych pytaniach.
+Wybrany 0.20, nie 0.25, mimo że oba dają 0/29 fałszywych odmów na tej próbce: najniższy legit = 0.253, (rozrzut ~0.01–0.03 na to samo pytanie), więc 0.25 zostawiłby margines zaledwie 0.003. 0.20 daje margines 0.05 poniżej obserwowanego minimum, wciąż odpalając się na tekście naprawdę nieopartym w kontekście. Efekt na symulacji 100 pytań: obie fałszywe odmowy po generacji (pokrycie 0.253 i 0.380) przechodzą przy 0.20. Bramka staje się czystym zabezpieczeniem przed halucynacją, nie źródłem strat na trafnych pytaniach.
 
-## Wdrożenie
 
-Demo: [ogflow.pl](https://ogflow.pl). VPS Hetzner, Ubuntu 24.04 LTS, 4 vCPU / 7.6 GB RAM / 75 GB.
-
-| kontener | obraz | port | rola |
-|---|---|---|---|
-| `caddy` | caddy:2 | 80, 443 | reverse proxy, HTTPS z Let's Encrypt |
-| `frontend` | python:3.13-slim | 8501 (wewn.) | Streamlit |
-| `api` | python:3.13-slim | 8000 (wewn.) | FastAPI + retrieval |
-
-API nie ma publicznego portu — frontend łączy się po sieci Dockera. Oba kontenery jako uid 1000. Cache modeli HF na named volume, ściągany raz przy pierwszym starcie. `RAG/` montowane jako volume, nie kopiowane do obrazu: indeksy są w `.gitignore`, więc `COPY RAG/` dałby obraz, który buduje się poprawnie i pada dopiero w runtime.
-
-**Latencja w kontenerze.** 5 pytań × 3 powtórzenia, Bielik-11B przez API:
-
-| metryka | wartość |
-|---|---|
-| TTFT mediana | 5.61 s |
-| total mediana | 6.31 s |
-| total max | 16.57 s (pierwszy przebieg) |
-
-Konteneryzacja nic nie dołożyła — 6.31 s zgadza się z rozbiciem etapów (~1.9 s pipeline + ~4.4 s generacja). Pierwsze wywołanie każdego pytania jest 2–3× wolniejsze: `lifespan` rozgrzewa reranker, ale embedder mmlw ładuje się dopiero przy pierwszym realnym zapytaniu. TTFT ≈ total (6.24 vs 6.32 s) — odpowiedź przychodzi paczką, nie strumieniem, więc streaming w UI daje mniej niż mógłby.
-
-**Wersja Pythona w obrazie musi zgadzać się z dev.** `requirements.txt` z `pip freeze` odbija środowisko deweloperskie (3.13); na `python:3.11-slim` build padał na `numpy==2.5.1` komunikatem „from versions: …, 2.4.6", wyglądającym na nieistniejącą wersję. W rzeczywistości numpy 2.5 wymaga ≥3.12, a pip listuje tylko wydania zgodne z bieżącym Pythonem. `torch` przypięty do 2.13.0 — bez tego dwa buildy w odstępie tygodnia dają różne środowiska.
-
-```bash
-cd docker
-cp .env.example .env        # LLM_API_KEY, HF_TOKEN, DOMAIN
-docker compose up -d --build
-```
-
-`RAG/` i skrypty `measure_*.py` są poza repo — na serwer trafiają przez `scp`, przed buildem.
-
-## Uruchomienie
-
-Odtworzenie danych i indeksów (raz):
-
-```bash
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-
-python src/links.py
-python src/links_scraping.py
-python src/chunking.py
-python src/embedder.py
-python src/vector.py
-```
-
-Model — dwie ścieżki, wybierane przez `.env` w `src/`:
-
-```bash
-# produkcyjnie: Bielik-11B przez API (OpenAI-compatible)
-LLM_BASE_URL=https://api.publicai.co/v1
-LLM_API_KEY=...
-MODEL=speakleash/Bielik-11B-v3.0-Instruct
-HF_TOKEN=...
-
-# lokalnie: pobierz model do Ollamy, pomiń LLM_* (domyślnie celuje w localhost:11434/v1)
-# ollama pull SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M
-```
-
-```bash
-uvicorn src.api:app --reload
-streamlit run frontend/app.py
-```
 
