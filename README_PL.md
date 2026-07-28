@@ -196,6 +196,14 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Wynik.** Właściwy artykuł miał etykietę `konto` zamiast `zakupy`, więc nigdy nie trafiał do puli kandydatów. Naprawa: jedna linia mapowania + przeniesienie 3 artykułów. Kontrola regresji: trafność bez zmian (0.900/0.933).
 
+### 9. Reguła z jednej kategorii podana jako uniwersalna
+
+**Problem.** Na ogólne pytanie o zwrot paczki (bez słowa „alkohol") bot podawał progi wagowe 20 kg / 31,5 kg jako ogólną zasadę zwrotów. W rzeczywistości progi pochodzą z artykułu o kategorii Alkohol i dotyczą tylko jej. Przyczyna: prompt dostawał samą treść chunku, bez tytułu artykułu, z którego pochodzi, więc model nie miał jak rozpoznać, że reguła jest zawężona do jednej kategorii.
+
+**Rozwiązanie.** Każdy blok źródła w kontekście dostaje teraz nagłówek z tytułem artykułu (`[1] Jakie są zasady zakupów i dostawy w kategorii Alkohol\n...`), a prompt grounding wprost zabrania przenoszenia reguł z konkretnej kategorii na sytuację ogólną. Zmiana wspólna dla ścieżki PL i EN.
+
+**Wynik.** Na pytaniu odtwarzającym incydent („chcę zwrócić zamówienie, ale nie wiem ile waży moja paczka") system przestał podawać progi jako uniwersalne (`True → False`) i zamiast tego trafnie odmawia, bo dostępny kontekst dotyczy tylko innej kategorii. Kontrola regresji na 50 pytaniach golden + 29 OOD (sędzia) i 12 pytaniach z `pipeline.pytania` (cytaty `[n]`): bez regresji. Pełny log: `src/POMIAR_ROUTING.md`, sekcja 17.
+
 ---
 
 ## Bezpieczeństwo i odporność

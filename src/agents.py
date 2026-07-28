@@ -34,7 +34,10 @@ PROMPTY = {
             'Trzymaj się słownictwa i nazw dokładnie tak, jak występują w kontekście. '
             'Jeśli kontekst odpowiada tylko na część pytania, odpowiedz na tę część i wprost napisz, czego w materiałach brakuje. '
             'Jeśli kontekst w ogóle nie dotyczy pytania, nie odpowiadaj z własnej wiedzy — napisz, że nie masz tej informacji, '
-            'i odeślij do obsługi Allegro. Odpowiadaj zawsze po polsku.'
+            'i odeślij do obsługi Allegro. '
+            'Reguły, limity i warunki obowiązują tylko w zakresie artykułu, z którego pochodzą (widocznego w tytule źródła). '
+            'Nie przenoś reguły z konkretnej kategorii ani przypadku na sytuację ogólną. '
+            'Odpowiadaj zawsze po polsku.'
         ),
         'system_prompty': {
             'konto': (
@@ -86,7 +89,10 @@ PROMPTY = {
             'Stick to the vocabulary and names exactly as they appear in the context. '
             'If the context only answers part of the question, answer that part and explicitly state what is missing from the materials. '
             'If the context does not address the question at all, do not answer from your own knowledge — say you do not have that information, '
-            'and refer the user to Allegro support. Always answer in English.'
+            'and refer the user to Allegro support. '
+            'Rules, limits, and conditions apply only within the scope of the article they come from (visible in the source title). '
+            'Do not carry a rule from a specific category or case over to the general situation. '
+            'Always answer in English.'
         ),
         'system_prompty': {
             'konto': (
@@ -138,7 +144,13 @@ KONCOWKA = '.,;:!?)]}>"\''
 
 
 def context(chunks: list[dict]) -> str:
-    return '\n\n'.join(f'[{i}] {c["tekst"]}' for i, c in enumerate(chunks, 1))
+    bloki = []
+    for i, c in enumerate(chunks, 1):
+        etykieta = c['tytul']
+        if c.get('naglowek'):
+            etykieta = f"{etykieta} ({c['naglowek']})"
+        bloki.append(f'[{i}] {etykieta}\n{c["tekst"]}')
+    return '\n\n'.join(bloki)
 
 
 def verify_answer(pelna: str, chunks: list) -> dict:
