@@ -5,16 +5,47 @@ import os
 
 API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/chat/stream")
 
-NEGACJE = {"nie", "nie o to chodziło", "nie o to mi chodziło", "to nie to", "źle"}
+TEKSTY = {
+    "pl": {
+        "ustawienia": "Ustawienia",
+        "mysle": "Myślę…",
+        "gotowe": "Gotowe",
+        "blad_status": "Błąd",
+        "sekcja": "Sekcja: {agent}",
+        "zrodla": "Źródła:",
+        "connect_error": "Backend nie odpowiada, spróbuj ponownie za chwilę.",
+        "timeout_error": "Zbyt długi czas odpowiedzi, spróbuj ponownie.",
+        "http_error": "Połączenie zostało przerwane, spróbuj ponownie.",
+        "parse_error": "Nieprawidłowa odpowiedź serwera, spróbuj ponownie.",
+        "no_response": "Backend nie odpowiedział, spróbuj ponownie za chwilę.",
+        "negacje": {"nie", "nie o to chodziło", "nie o to mi chodziło", "to nie to", "źle"},
+    },
+    "en": {
+        "ustawienia": "Settings",
+        "mysle": "Thinking…",
+        "gotowe": "Done",
+        "blad_status": "Error",
+        "sekcja": "Section: {agent}",
+        "zrodla": "Sources:",
+        "connect_error": "Backend isn't responding, try again in a moment.",
+        "timeout_error": "Response took too long, try again.",
+        "http_error": "Connection was interrupted, try again.",
+        "parse_error": "Invalid server response, try again.",
+        "no_response": "Backend didn't respond, try again in a moment.",
+        "negacje": {"no", "that's not it", "wrong"},
+    },
+}
 
 
-def jest_negacja(tekst: str) -> bool:
-    return tekst.strip().lower() in NEGACJE
+def jest_negacja(tekst: str, jezyk: str) -> bool:
+    return tekst.strip().lower() in TEKSTY[jezyk]["negacje"]
 
 
 with st.sidebar:
-    st.header("Ustawienia")
     jezyk = st.selectbox("Język / Language", ["pl", "en"])
+    st.header(TEKSTY[jezyk]["ustawienia"])
+
+t = TEKSTY[jezyk]
 
 if 'messages' not in st.session_state:
     st.session_state.messages = []
@@ -26,7 +57,7 @@ for msg in st.session_state.messages:
         st.markdown(msg['content'])
 
 if prompt := st.chat_input():
-    if jest_negacja(prompt) and st.session_state.get("ostatnia_korekta"):
+    if jest_negacja(prompt, jezyk) and st.session_state.get("ostatnia_korekta"):
         wiadomosc = st.session_state.ostatnia_korekta
         bez_korekty = True
         st.session_state.ostatnia_korekta = None
@@ -41,7 +72,7 @@ if prompt := st.chat_input():
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        status = st.status("Myślę…", expanded=True)
+        status = st.status(t["mysle"], expanded=True)
         caption_ph = st.empty()
         info_ph = st.empty()
         answer_ph = st.empty()
@@ -69,28 +100,28 @@ if prompt := st.chat_input():
                         elif typ == "blad":
                             holder["blad"] = ev["tekst"]
             except httpx.ConnectError:
-                holder["blad"] = "Backend nie odpowiada — spróbuj ponownie za chwilę."
+                holder["blad"] = t["connect_error"]
             except httpx.TimeoutException:
-                holder["blad"] = "Zbyt długi czas odpowiedzi — spróbuj ponownie."
+                holder["blad"] = t["timeout_error"]
             except httpx.HTTPError:
-                holder["blad"] = "Połączenie zostało przerwane — spróbuj ponownie."
+                holder["blad"] = t["http_error"]
             except (json.JSONDecodeError, KeyError, UnicodeDecodeError):
-                holder["blad"] = "Nieprawidłowa odpowiedź serwera — spróbuj ponownie."
+                holder["blad"] = t["parse_error"]
 
         with answer_ph.container():
             st.write_stream(strumien)
 
         dane = holder["dane"]
-        status.update(label="Gotowe" if dane else "Błąd",
+        status.update(label=t["gotowe"] if dane else t["blad_status"],
                       state="complete" if dane else "error")
 
         if dane is None:
-            dane = {"agent": "", "answer": holder["blad"] or "Backend nie odpowiedział — spróbuj ponownie za chwilę.",
+            dane = {"agent": "", "answer": holder["blad"] or t["no_response"],
                     "sources": [], "citations": [], "doprecyzowanie": None}
 
         answer = dane["answer"]
         if dane["agent"]:
-            caption_ph.caption(f"Sekcja: {dane['agent']}")
+            caption_ph.caption(t["sekcja"].format(agent=dane["agent"]))
         if dane.get("doprecyzowanie"):
             info_ph.info(dane["doprecyzowanie"])
         answer_ph.markdown(answer)
@@ -109,6 +140,6 @@ if prompt := st.chat_input():
 
     zrodla = dane.get("sources", [])
     if zrodla:
-        st.caption("Źródła:")
+        st.caption(t["zrodla"])
         for url in zrodla:
             st.markdown(f"- [{url}]({url})")

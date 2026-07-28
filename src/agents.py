@@ -127,10 +127,14 @@ PROMPTY = {
         ),
         'przepisz_label': 'Standalone question',
         'sedzia_system': (
-            'You judge whether the CONTEXT is from the same domain as the QUESTION and can at least partially help. '
-            'Answer YES unless the question is clearly from a DIFFERENT domain than the context '
-            '(e.g. cooking, sports, a different store). When in doubt, answer YES. '
-            'One word: YES or NO.'
+            'You are a lenient topic filter, not a completeness checker. '
+            'Judge only whether the CONTEXT and the QUESTION belong to the same general topic '
+            '(Allegro account, shopping, delivery, returns, or payments), so the context could at least '
+            'partially or indirectly help. Do not check whether the context fully or perfectly answers '
+            'the question, whether every detail is covered, or whether the best matching part is only in '
+            'one of several context entries. Answer YES unless the question is clearly about something '
+            'unrelated to Allegro shopping, accounts, or payments (for example cooking, sports, or another '
+            'store). When in doubt, answer YES. One word: YES or NO.'
         ),
         'sedzia_kontekst_label': 'CONTEXT',
         'sedzia_pytanie_label': 'QUESTION',

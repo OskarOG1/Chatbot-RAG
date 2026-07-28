@@ -259,6 +259,8 @@ Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe": krót
 
 **Regresja polskiej ścieżki.** Brak.
 
+**Dopracowanie pod demo dla klienta (`src/PLAN_EN.md`).** Jawny `MODEL_EN` i `SEDZIA_MODEL_EN` w `.env`, zamiast polegania na hardkodzie w `lang_config.py`. Detekcja języka utwardzona pomiarem: 0 błędów PL→EN na golden PL, z ogonkami i bez, oraz 10/10 poprawnie na krótkich pytaniach brandowych, ryzyko odwrotne z planu nie wystąpiło. Po drodze znaleziony i naprawiony poważniejszy problem, niż plan zakładał: sędzia EN odrzucał zbyt dużo trafnych pytań, tylko 62% golden EN dostawało odpowiedź przez pełny pipeline, a dominującą przyczyną był nadmiernie surowy prompt sędziego, nie próg rerankera ani pokrycia. Po wzmocnieniu promptu: 90% (45/50), zero błędnych cytatów, zero polskich wtrętów. Follow-up po angielsku dodany przez `LANG[lang]['zaimki']` i `followup_prefiksy`, polska ścieżka bez zmian. Pełna lokalizacja interfejsu Streamlit (etykiety, statusy, komunikaty błędów, negacje) pod przełącznikiem języka, zweryfikowana ręcznie w przeglądarce. Pełny log pomiarów: `src/POMIAR_ROUTING.md`, sekcja 18.
+
 ---
 
 **Czas odpowiedzi w kontenerze** (5 pytań × 3 powtórzenia):

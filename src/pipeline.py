@@ -29,14 +29,14 @@ PII_WZORCE = (
 PROG_POKRYCIA = LANG['pl']['prog_pokrycia']
 PROG_RERANK = LANG['pl']['prog_rerank']
 # Lokalne rozwiązanie (bge-v2-m3 + Bielik 1.5B): PROG_POKRYCIA = 0.65, PROG_RERANK = 0.05
-ZAIMKI = {'to', 'tego', 'tym', 'tam', 'ten', 'ta', 'te', 'nim', 'niej', 'nich'}
 
 
-def _followup(query: str) -> bool:
+def _followup(query: str, lang: str = 'pl') -> bool:
+    cfg = LANG[lang]
     low = query.lower().strip()
-    if low.startswith('a '):
+    if low.startswith(cfg['followup_prefiksy']):
         return True
-    return bool(set(tokenize_words(low)) & ZAIMKI)
+    return bool(set(tokenize_words(low)) & cfg['zaimki'])
 
 
 def _lematy(tekst: str, lang: str = 'pl') -> set:
@@ -171,7 +171,7 @@ def run_stream(query:str, bielik_model:str | None=None,
     if przepisz and history:
         yield krok('Przepisuję pytanie z kontekstu rozmowy')
         zapytanie_ret = przepisz_zapytanie(query, history, bielik_model, lang)
-    elif history and _followup(query):
+    elif history and _followup(query, lang):
         poprzedni_user = [w['content'] for w in history if w['role'] == 'user'][-1:]
         zapytanie_ret = ' '.join(poprzedni_user + [query])
     else:

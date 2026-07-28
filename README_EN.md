@@ -251,6 +251,8 @@ At `COVERAGE_THRESHOLD=0.35`: 1/50 false refusal ("Is Allegro Pay safe": a short
 
 **Regression on the Polish path.** None.
 
+**Demo readiness polish (`src/PLAN_EN.md`).** `MODEL_EN` and `SEDZIA_MODEL_EN` now set explicitly in `.env`, instead of relying on the hardcoded default in `lang_config.py`. Language detection hardened with measurement: 0 PL→EN errors on golden PL, with and without Polish diacritics, and 10/10 correct on short brand-heavy questions, the reverse risk the plan flagged never showed up. Along the way, a bigger problem than the plan anticipated turned up and got fixed: the EN judge was rejecting far too many valid questions, only 62% of golden EN got an answer through the full pipeline, and the dominant cause was an overly strict judge prompt, not the reranker threshold or the coverage gate. After strengthening the prompt: 90% (45/50), zero bad citations, zero Polish leakage. English follow-up questions added through `LANG[lang]['zaimki']` and `followup_prefiksy`, the Polish path untouched. Full Streamlit UI localization (labels, statuses, error messages, negation phrases) driven by the language toggle, verified by hand in the browser. Full measurement log: `src/POMIAR_ROUTING.md`, section 18.
+
 ---
 
 **Response time in the container** (5 questions × 3 repetitions):

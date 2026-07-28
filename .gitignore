@@ -15,7 +15,6 @@ test_*.py
 measure.py
 measure_*.py
 classify.py
-ZMIANY.md
 trudne.jsonl
 diag_*.py
 translate_chunks.py
