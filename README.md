@@ -245,7 +245,7 @@ Druga, równoległa ścieżka dla klienta anglojęzycznego Wszystko sterowane pa
 | golden EN (n=50) | 0,000 | 0,744 | 1,000 |
 | OOD EN (n=29) | 0,000 | 0,368 | 1,000 |
 
-Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe" — krótka odpowiedź bez pokrycia leksykalnego z kontekstem), 13/29 OOD złapanych samym pokryciem. Pozostałe 16/29 OOD miałyby wystarczające pokrycie, by przejść tę bramkę samodzielnie — ten sam wzorzec co w PL (sekcja 7): pokrycie łapie halucynację, nie odróżnia domeny. Bez znaczenia w produkcji, bo reranker+sędzia łapią 29/29 wcześniej — ale gdyby coś kiedyś przeciekło, pokrycie złapałoby część, nie całość.
+Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe" — krótka odpowiedź bez pokrycia leksykalnego z kontekstem), 13/29 OOD złapanych samym pokryciem. Pozostałe 16/29 OOD miałyby wystarczające pokrycie, by przejść tę bramkę samodzielnie, ten sam wzorzec co w PL (sekcja 7): pokrycie łapie halucynację, nie odróżnia domeny. Bez znaczenia w produkcji, bo reranker+sędzia łapią 29/29 wcześniej — ale gdyby coś kiedyś przeciekło, pokrycie złapałoby część, nie całość.
 
 **Wybór języka odpowiedzi.** Detekcja (suma częstości słów PL vs EN) wygrywa nad przełącznikiem w panelu, pytanie po polsku zawsze dostaje odpowiedź po polsku, niezależnie od ustawienia przełącznika. Zmierzone: 0 błędnych routingów PL→EN na 100 przypadkach (z i bez polskich znaków diakrytycznych).
 
