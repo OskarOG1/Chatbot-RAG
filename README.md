@@ -231,6 +231,22 @@ Frontend: **Streamlit**. Czat, klikalne źródła, podgląd kroków na żywo.
 
 ---
 
+## Wersja dwujęzyczna (PL/EN)
+
+Druga, równoległa ścieżka dla klienta anglojęzycznego Wszystko sterowane parametrem `lang` (domyślnie `'pl'`), własny embedder, własny indeks, własny model odpowiadający, własne progi odmowy. Pełny log pomiarów: `src/POMIAR_DWUJEZYCZNOSC.md`.
+
+**Korpus.** 641 fragmentów przetłumaczonych na angielski (model `Bielik-11B` mimo że polski, tłumaczenie wyszło czystsze i szybsze niż u kandydatów wyspecjalizowanych w EN). Spot-check 10 fragmentów: sens i terminologia (`Allegro Pay`, `Allegro Smart!`, `BLIK`) zachowane.
+
+**Wyszukiwanie.** Embedder `multilingual-e5-base` (768-wym., jak polski), własny indeks FAISS/BM25. Hit@5 na angielskim zestawie golden: 0,920 — porównywalne z polskim 0,940.
+
+**Odpowiadanie.** Model `Olmo-3-7B-Instruct` — jedyny z czterech testowanych, który nie fałszywie odmawiał na pytaniach z jednoznaczną odpowiedzią w kontekście (problem modeli PL-owych i przeciążonych endpointów). Progi odmowy skalibrowane osobno dla EN (inny rozkład score'ów): `PROG_RERANK=-3,6`, `PROG_POKRYCIA=0,35`. Test reranker→sędzia na 29 pytaniach spoza tematu: 29/29 złapanych.
+
+**Wybór języka odpowiedzi.** Detekcja (suma częstości słów PL vs EN) wygrywa nad przełącznikiem w panelu, pytanie po polsku zawsze dostaje odpowiedź po polsku, niezależnie od ustawienia przełącznika. Zmierzone: 0 błędnych routingów PL→EN na 100 przypadkach (z i bez polskich znaków diakrytycznych).
+
+**Regresja polskiej ścieżki.** Zmierzona trzykrotnie w trakcie wdrażania zmiany względem baseline sprzed pierwszej linijki kodu — identyczne liczby (Hit@3/Hit@5, rozkłady score'ów golden i spoza tematu) za każdym razem.
+
+---
+
 ## Wdrożenie
 
 Demo: [ogflow.pl](https://ogflow.pl). VPS Hetzner, Ubuntu 24.04 LTS, 4 vCPU / 7.6 GB RAM.
@@ -240,6 +256,8 @@ Demo: [ogflow.pl](https://ogflow.pl). VPS Hetzner, Ubuntu 24.04 LTS, 4 vCPU / 7.
 | `caddy` | caddy:2 | reverse proxy, HTTPS z Let's Encrypt |
 | `frontend` | python:3.13-slim | Streamlit |
 | `api` | python:3.13-slim | FastAPI + wyszukiwanie |
+
+**Pliki poza repo.** `RAG/*` (indeksy, embeddingi, korpusy PL i EN) oraz `src/lang_config.py` są w `.gitignore` celowo — nie trafiają do `git clone`, kopiowane na serwer osobno (np. `scp`) razem z resztą `RAG/`.
 
 **Czas odpowiedzi w kontenerze** (5 pytań × 3 powtórzenia):
 
@@ -251,7 +269,7 @@ Demo: [ogflow.pl](https://ogflow.pl). VPS Hetzner, Ubuntu 24.04 LTS, 4 vCPU / 7.
 
 
 
-## Załącznik: co sprawdziłem i odrzuciłem
+## co sprawdziłem i odrzuciłem
 
 
 **Pojedynczy główny link zamiast trzech.** Wybór jednego źródła z domieszką słów z tytułu (waga λ). Najlepszy wynik 47/60 przy λ=1,0; wyższe λ wciągały leksykalnie podobne, ale złe artykuły. Trzy linki dawały 56/60 bez żadnego parametru do strojenia.

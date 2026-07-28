@@ -15,6 +15,7 @@ MIN_DLUGOSC = 4
 MIN_CZESTOSC = 1
 MAX_ODLEGLOSC = 2
 PROG_PL = 2.0
+MIN_TOKENY_DETEKCJI = 2
 
 WZORZEC = re.compile(r'[^\W\d_]+', re.UNICODE)
 
@@ -25,6 +26,24 @@ def polish_word(slowo: str) -> bool:
 
 def tokenize_words(tekst: str) -> list[str]:
     return WZORZEC.findall(tekst.lower())
+
+
+def detect_lang(query: str) -> str | None:
+    """Sumuje zipf_frequency tokenow w 'pl' vs 'en', zwraca jezyk z wyzsza suma.
+    None przy remisie (w tym 0=0) albo za krotkim zapytaniu - wtedy wywolujacy
+    ma uzyc przelacznika z UI jako fallbacku. Odporne na polski bez ogonkow, bo
+    liczy sie suma po calym zapytaniu - jedno-dwa mocno polskie slowo (np. "jak")
+    przewazaja nad pojedynczym niejednoznacznym tokenem bez diakrytykow."""
+    tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]
+    if len(tokeny) < MIN_TOKENY_DETEKCJI:
+        return None
+
+    pl_suma = sum(zipf_frequency(t, 'pl') for t in tokeny)
+    en_suma = sum(zipf_frequency(t, 'en') for t in tokeny)
+
+    if pl_suma == en_suma:
+        return None
+    return 'pl' if pl_suma > en_suma else 'en'
 
 
 def fold(tekst: str) -> str:

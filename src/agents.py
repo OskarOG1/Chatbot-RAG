@@ -5,6 +5,7 @@ from links import ARTYKUL_REGEX
 from sentence_transformers import SentenceTransformer
 from pathlib import Path
 from dotenv import load_dotenv
+from lang_config import LANG
 import time
 import re
 import os
@@ -25,40 +26,112 @@ klient = InferenceClient(
     timeout=float(os.getenv('LLM_TIMEOUT', '150')),
 )
 
-GROUNDING = (
-    ' Opieraj każde zdanie wyłącznie na treści z sekcji „kontekst". '
-    'Nie dodawaj informacji spoza kontekstu — żadnych kwot, terminów, nazw opcji ani kroków, których tam nie ma. '
-    'Trzymaj się słownictwa i nazw dokładnie tak, jak występują w kontekście. '
-    'Jeśli kontekst odpowiada tylko na część pytania, odpowiedz na tę część i wprost napisz, czego w materiałach brakuje. '
-    'Jeśli kontekst w ogóle nie dotyczy pytania, nie odpowiadaj z własnej wiedzy — napisz, że nie masz tej informacji, '
-    'i odeślij do obsługi Allegro. Odpowiadaj zawsze po polsku.'
-)
-
-SYSTEM_PROMPTY = {
-    'konto': (
-        'Jesteś specjalistą Allegro od konta i bezpieczeństwa. '
-        'Mówisz rzeczowo i formalnie, pełnymi zdaniami, bez potocznych zwrotów. '
-        'Gdy pytanie dotyczy haseł, logowania lub danych osobowych, zaczynasz odpowiedź od aspektu bezpieczeństwa '
-        'i wyraźnie sygnalizujesz ryzyko, zanim podasz kroki.'
-    ),
-    'zakupy': (
-        'Jesteś życzliwym doradcą zakupowym Allegro. '
-        'Zwracasz się do kupującego bezpośrednio i ciepło, prostym językiem. '
-        'Instrukcje rozpisujesz jako kolejne kroki i kończysz krótkim zdaniem, które uspokaja albo zachęca do działania.'
-    ),
-    'platnosci': (
-        'Jesteś technicznym specjalistą Allegro od płatności. '
-        'Odpowiadasz krótko i konkretnie: dokładne kroki w kolejności, bez wstępów i bez lania wody. '
-        'Podajesz precyzyjne nazwy przycisków i opcji dokładnie tak, jak brzmią w kontekście.'
-    ),
+PROMPTY = {
+    'pl': {
+        'grounding': (
+            ' Opieraj każde zdanie wyłącznie na treści z sekcji „kontekst". '
+            'Nie dodawaj informacji spoza kontekstu — żadnych kwot, terminów, nazw opcji ani kroków, których tam nie ma. '
+            'Trzymaj się słownictwa i nazw dokładnie tak, jak występują w kontekście. '
+            'Jeśli kontekst odpowiada tylko na część pytania, odpowiedz na tę część i wprost napisz, czego w materiałach brakuje. '
+            'Jeśli kontekst w ogóle nie dotyczy pytania, nie odpowiadaj z własnej wiedzy — napisz, że nie masz tej informacji, '
+            'i odeślij do obsługi Allegro. Odpowiadaj zawsze po polsku.'
+        ),
+        'system_prompty': {
+            'konto': (
+                'Jesteś specjalistą Allegro od konta i bezpieczeństwa. '
+                'Mówisz rzeczowo i formalnie, pełnymi zdaniami, bez potocznych zwrotów. '
+                'Gdy pytanie dotyczy haseł, logowania lub danych osobowych, zaczynasz odpowiedź od aspektu bezpieczeństwa '
+                'i wyraźnie sygnalizujesz ryzyko, zanim podasz kroki.'
+            ),
+            'zakupy': (
+                'Jesteś życzliwym doradcą zakupowym Allegro. '
+                'Zwracasz się do kupującego bezpośrednio i ciepło, prostym językiem. '
+                'Instrukcje rozpisujesz jako kolejne kroki i kończysz krótkim zdaniem, które uspokaja albo zachęca do działania.'
+            ),
+            'platnosci': (
+                'Jesteś technicznym specjalistą Allegro od płatności. '
+                'Odpowiadasz krótko i konkretnie: dokładne kroki w kolejności, bez wstępów i bez lania wody. '
+                'Podajesz precyzyjne nazwy przycisków i opcji dokładnie tak, jak brzmią w kontekście.'
+            ),
+        },
+        'cytaty_instrukcja': (
+            ' Po każdej informacji z kontekstu podaj w nawiasie kwadratowym numer źródła, '
+            'np. [1] lub [2]. Używaj wyłącznie numerów źródeł z podanego kontekstu. '
+            'Nie podawaj żadnych adresów URL — linki zostaną dołączone automatycznie.'
+        ),
+        'kontekst_label': 'kontekst',
+        'pytanie_label': 'Pytanie',
+        'odpowiedz_prefix': 'Odpowiedź:',
+        'przepisz_system': (
+            'Przepisz OSTATNIE pytanie użytkownika jako samodzielne, pełne pytanie po polsku '
+            'na podstawie rozmowy. Rozwiń odwołania typu „to", „tego", „a jak". '
+            'Zwróć wyłącznie samo pytanie, bez komentarza.'
+        ),
+        'przepisz_label': 'Samodzielne pytanie',
+        'sedzia_system': (
+            'Oceniasz, czy KONTEKST jest z tej samej dziedziny co PYTANIE i pozwala choćby częściowo pomóc. '
+            'Odpowiadaj TAK, chyba że pytanie jest wyraźnie z INNEJ dziedziny niż kontekst '
+            '(np. gotowanie, sport, inny sklep). W razie wątpliwości odpowiadaj TAK. '
+            'Jedno słowo: TAK albo NIE.'
+        ),
+        'sedzia_kontekst_label': 'KONTEKST',
+        'sedzia_pytanie_label': 'PYTANIE',
+        'sedzia_pytanie': 'Czy da się odpowiedzieć? (TAK/NIE):',
+        'tak_marker': 'TAK',
+    },
+    'en': {
+        'grounding': (
+            ' Base every sentence exclusively on the content in the "context" section. '
+            'Do not add information beyond the context — no amounts, deadlines, option names, or steps that aren\'t there. '
+            'Stick to the vocabulary and names exactly as they appear in the context. '
+            'If the context only answers part of the question, answer that part and explicitly state what is missing from the materials. '
+            'If the context does not address the question at all, do not answer from your own knowledge — say you do not have that information, '
+            'and refer the user to Allegro support. Always answer in English.'
+        ),
+        'system_prompty': {
+            'konto': (
+                'You are an Allegro specialist in accounts and security. '
+                'You speak factually and formally, in complete sentences, without colloquial phrasing. '
+                'When a question involves passwords, logging in, or personal data, you open your answer by addressing '
+                'the security aspect and clearly flag the risk before giving the steps.'
+            ),
+            'zakupy': (
+                'You are a friendly Allegro shopping advisor. '
+                'You address the buyer directly and warmly, in plain language. '
+                'You break instructions into clear steps and end with a short reassuring or encouraging sentence.'
+            ),
+            'platnosci': (
+                'You are a technical Allegro specialist in payments. '
+                'You answer briefly and precisely: exact steps in order, no preamble, no filler. '
+                'You give precise button and option names exactly as they appear in the context.'
+            ),
+        },
+        'cytaty_instrukcja': (
+            ' After each piece of information from the context, give the source number in square brackets, '
+            'e.g. [1] or [2]. Use only source numbers from the given context. '
+            'Do not include any URLs — links will be added automatically.'
+        ),
+        'kontekst_label': 'context',
+        'pytanie_label': 'Question',
+        'odpowiedz_prefix': 'Answer:',
+        'przepisz_system': (
+            'Rewrite the user\'s LAST question as a standalone, complete question in English, '
+            'based on the conversation. Expand references like "it", "that", "what about". '
+            'Return only the question itself, with no commentary.'
+        ),
+        'przepisz_label': 'Standalone question',
+        'sedzia_system': (
+            'You judge whether the CONTEXT is from the same domain as the QUESTION and can at least partially help. '
+            'Answer YES unless the question is clearly from a DIFFERENT domain than the context '
+            '(e.g. cooking, sports, a different store). When in doubt, answer YES. '
+            'One word: YES or NO.'
+        ),
+        'sedzia_kontekst_label': 'CONTEXT',
+        'sedzia_pytanie_label': 'QUESTION',
+        'sedzia_pytanie': 'Can this be answered? (YES/NO):',
+        'tak_marker': 'YES',
+    },
 }
-
-
-CYTATY_INSTRUKCJA = (
-    ' Po każdej informacji z kontekstu podaj w nawiasie kwadratowym numer źródła, '
-    'np. [1] lub [2]. Używaj wyłącznie numerów źródeł z podanego kontekstu. '
-    'Nie podawaj żadnych adresów URL — linki zostaną dołączone automatycznie.'
-)
 
 URL_REGEX = re.compile(r'https?://\S+|\bwww\.\S+', re.IGNORECASE)
 KONCOWKA = '.,;:!?)]}>"\''
@@ -78,8 +151,10 @@ def verify_answer(pelna: str, chunks: list) -> dict:
         rdzen = surowy.rstrip(KONCOWKA)
         if not ARTYKUL_REGEX.match(rdzen):
             obce.append(surowy)
-        return '' 
+        return ''
     tekst = URL_REGEX.sub(strip_url, pelna)
+    tekst = re.sub(r'\[(?:Security|Note|Disclaimer|Warning)[^\[\]]*:[^\[\]]*\]\s*', '',
+                    tekst, flags=re.IGNORECASE).lstrip()
 
     numery = []
     for m in re.findall(r'\[(\d+)\]', tekst):
@@ -96,13 +171,14 @@ def verify_answer(pelna: str, chunks: list) -> dict:
 
 
 def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
-                  history:list[dict] | None=None):
-    system_prompt = SYSTEM_PROMPTY[agent] + GROUNDING + CYTATY_INSTRUKCJA
+                  history:list[dict] | None=None, lang:str='pl'):
+    p = PROMPTY[lang]
+    system_prompt = p['system_prompty'][agent] + p['grounding'] + p['cytaty_instrukcja']
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
 
-    tresc = f'kontekst:\n{kontekst}\n\nPytanie: {query}'
-    nazwa = bielik_model or MODEL_NAME
+    tresc = f"{p['kontekst_label']}:\n{kontekst}\n\n{p['pytanie_label']}: {query}"
+    nazwa = bielik_model or LANG[lang]['model']
 
     wiadomosci = [{'role': 'system', 'content': system_prompt}]
     for w in (history or []):
@@ -116,7 +192,7 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
         messages=wiadomosci,
         stream=True,
         max_tokens=MAX_TOKENS,
-        stop=['Pytanie:', '<|start_header_id|>'],
+        stop=[f"{p['pytanie_label']}:", '<|start_header_id|>'],
     ):
         if not kawalek.choices:
             continue
@@ -127,18 +203,19 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
         yield {'typ': 'token', 'tekst': token}
 
     pelna = re.sub(r'<\|.*?\|>', '', pelna)
-    pelna = pelna.removeprefix('Odpowiedź:').strip()
+    pelna = pelna.removeprefix(p['odpowiedz_prefix']).strip()
     yield {'typ': 'koniec', 'dane': verify_answer(pelna, chunks)}
 
 
 def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
-           history:list[dict] | None=None) -> dict:
-    system_prompt = SYSTEM_PROMPTY[agent] + GROUNDING + CYTATY_INSTRUKCJA
+           history:list[dict] | None=None, lang:str='pl') -> dict:
+    p = PROMPTY[lang]
+    system_prompt = p['system_prompty'][agent] + p['grounding'] + p['cytaty_instrukcja']
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
 
-    tresc = f'kontekst:\n{kontekst}\n\nPytanie: {query}'
-    nazwa = bielik_model or MODEL_NAME
+    tresc = f"{p['kontekst_label']}:\n{kontekst}\n\n{p['pytanie_label']}: {query}"
+    nazwa = bielik_model or LANG[lang]['model']
 
     wiadomosci = [{'role': 'system', 'content': system_prompt}]
     for w in (history or []):
@@ -151,61 +228,54 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
         messages=wiadomosci,
         stream=False,
         max_tokens=MAX_TOKENS,
-        stop=['Pytanie:', '<|start_header_id|>'],
+        stop=[f"{p['pytanie_label']}:", '<|start_header_id|>'],
     )
 
     pelna = odp.choices[0].message.content
     pelna = re.sub(r'<\|.*?\|>', '', pelna)
-    pelna = pelna.removeprefix('Odpowiedź:').strip()
+    pelna = pelna.removeprefix(p['odpowiedz_prefix']).strip()
     return verify_answer(pelna, chunks)
-   
 
-def przepisz_zapytanie(query: str, history: list[dict] | None, bielik_model: str | None = None) -> str:
+
+def przepisz_zapytanie(query: str, history: list[dict] | None, bielik_model: str | None = None,
+                        lang: str = 'pl') -> str:
     if not history:
         return query
+    p = PROMPTY[lang]
     rozmowa = '\n'.join(f"{w['role']}: {w['content']}" for w in history
                         if w.get('role') in ('user', 'assistant') and w.get('content'))
-    system_prompt = (
-        'Przepisz OSTATNIE pytanie użytkownika jako samodzielne, pełne pytanie po polsku '
-        'na podstawie rozmowy. Rozwiń odwołania typu „to", „tego", „a jak". '
-        'Zwróć wyłącznie samo pytanie, bez komentarza.'
-    )
     odp = klient.chat.completions.create(
-        model=bielik_model or MODEL_NAME,
+        model=bielik_model or LANG[lang]['model'],
         messages=[
-            {'role': 'system', 'content': system_prompt},
-            {'role': 'user', 'content': f'{rozmowa}\nuser: {query}\n\nSamodzielne pytanie:'},
+            {'role': 'system', 'content': p['przepisz_system']},
+            {'role': 'user', 'content': f"{rozmowa}\nuser: {query}\n\n{p['przepisz_label']}:"},
         ],
         stream=False,
-        stop=['\n', 'Pytanie:'],
+        stop=['\n', f"{p['pytanie_label']}:"],
     )
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip()
     return tekst or query
 
 
-SEDZIA_SYSTEM = (
-    'Oceniasz, czy KONTEKST jest z tej samej dziedziny co PYTANIE i pozwala choćby częściowo pomóc. '
-    'Odpowiadaj TAK, chyba że pytanie jest wyraźnie z INNEJ dziedziny niż kontekst '
-    '(np. gotowanie, sport, inny sklep). W razie wątpliwości odpowiadaj TAK. '
-    'Jedno słowo: TAK albo NIE.'
-)
-
-
-def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = None) -> bool:
-    
+def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = None,
+                            lang: str = 'pl') -> bool:
+    p = PROMPTY[lang]
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
     odp = klient.chat.completions.create(
-        model=bielik_model or SEDZIA_MODEL,
+        model=bielik_model or LANG[lang]['sedzia_model'],
         messages=[
-            {'role': 'system', 'content': SEDZIA_SYSTEM},
-            {'role': 'user', 'content': f'KONTEKST:\n{kontekst}\n\nPYTANIE: {query}\n\nCzy da się odpowiedzieć? (TAK/NIE):'},
+            {'role': 'system', 'content': p['sedzia_system']},
+            {'role': 'user', 'content': (
+                f"{p['sedzia_kontekst_label']}:\n{kontekst}\n\n"
+                f"{p['sedzia_pytanie_label']}: {query}\n\n{p['sedzia_pytanie']}"
+            )},
         ],
         stream=False,
-        stop=['\n', 'Pytanie:'],
+        stop=['\n', f"{p['pytanie_label']}:"],
     )
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip().upper()
-    return tekst.startswith('TAK')
+    return tekst.startswith(p['tak_marker'])
 
 
 def zapytaj(query, agent, chunks, etykieta):

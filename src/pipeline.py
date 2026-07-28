@@ -4,6 +4,7 @@ from rankings import search_reranked_multi
 from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada
 from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
+from lang_config import LANG
 from pathlib import Path
 from datetime import datetime, timezone
 import json
@@ -14,8 +15,8 @@ import re
 import simplemma
 from collections import Counter
 
-MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
-model = SentenceTransformer(MODEL_NAME)
+MODELE = {lang: SentenceTransformer(cfg['embedder']) for lang, cfg in LANG.items()}
+model = MODELE['pl']
 MARGINES = 2
 OKNO_HISTORII = 3
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
@@ -26,10 +27,8 @@ PII_WZORCE = (
     re.compile(r'\b(?=[^\W_]*\d)[^\W_]{4,}\b'),
     re.compile(r'\bhttps?://\S+'),
 )
-BRAK_WIEDZY = ('Nie znalazłem tej informacji w bazie pomocy Allegro. '
-               'Sprawdź bezpośrednio w Centrum Pomocy: https://allegro.pl/pomoc')
-PROG_POKRYCIA = 0.20
-PROG_RERANK = -4.3
+PROG_POKRYCIA = LANG['pl']['prog_pokrycia']
+PROG_RERANK = LANG['pl']['prog_rerank']
 # Lokalne rozwiązanie (bge-v2-m3 + Bielik 1.5B): PROG_POKRYCIA = 0.65, PROG_RERANK = 0.05
 ZAIMKI = {'to', 'tego', 'tym', 'tam', 'ten', 'ta', 'te', 'nim', 'niej', 'nich'}
 
@@ -41,13 +40,14 @@ def _followup(query: str) -> bool:
     return bool(set(tokenize_words(low)) & ZAIMKI)
 
 
-def _lematy(tekst: str) -> set:
-    return {simplemma.lemmatize(t, lang='pl')
+def _lematy(tekst: str, lang: str = 'pl') -> set:
+    lemma_lang = LANG[lang]['lemma_lang']
+    return {simplemma.lemmatize(t, lang=lemma_lang)
             for t in tokenize_words(tekst) if len(t) >= MIN_DLUGOSC}
 
 
 def pokrycie_leksykalne(tekst: str, chunks: list) -> float:
-    
+
     odp = _lematy(tekst)
     if not odp:
         return 0.0
@@ -57,46 +57,52 @@ def pokrycie_leksykalne(tekst: str, chunks: list) -> float:
     return len(odp & kontekst) / len(odp)
 
 
-CHUNKS_JSON = Path(__file__).resolve().parent.parent / 'RAG' / 'chunks.json'
-IDF_CACHE = CHUNKS_JSON.parent / 'idf.pkl'
-IDF = {}
-IDF_MAX = 1.0
-try:
-    _stamp = int(CHUNKS_JSON.stat().st_mtime)
-    _zapis = None
-    if IDF_CACHE.exists():
-        with open(IDF_CACHE, 'rb') as _plik:
-            _kandydat = pickle.load(_plik)
-        if _kandydat.get('stamp') == _stamp:
-            _zapis = _kandydat
-    if _zapis is None:
-        with open(CHUNKS_JSON, encoding='utf-8') as _plik:
-            _chunki = json.load(_plik)
-        _n = len(_chunki) or 1
-        _df = Counter()
-        for _chunk in _chunki:
-            for _lemat in _lematy(_chunk.get('tekst', '')):
-                _df[_lemat] += 1
-        IDF = {_lemat: math.log((1 + _n) / (1 + _liczba)) for _lemat, _liczba in _df.items()}
-        IDF_MAX = math.log(1 + _n)
-        with open(IDF_CACHE, 'wb') as _plik:
-            pickle.dump({'stamp': _stamp, 'idf': IDF, 'idf_max': IDF_MAX}, _plik)
-    else:
-        IDF = _zapis['idf']
-        IDF_MAX = _zapis['idf_max']
-except Exception:
-    pass
+def _zaladuj_idf(lang: str) -> tuple[dict, float]:
+    suffix = LANG[lang]['suffix']
+    chunks_json = Path(__file__).resolve().parent.parent / 'RAG' / f'chunks{suffix}.json'
+    idf_cache = chunks_json.parent / f'idf{suffix}.pkl'
+    idf, idf_max = {}, 1.0
+    try:
+        stamp = int(chunks_json.stat().st_mtime)
+        zapis = None
+        if idf_cache.exists():
+            with open(idf_cache, 'rb') as plik:
+                kandydat = pickle.load(plik)
+            if kandydat.get('stamp') == stamp:
+                zapis = kandydat
+        if zapis is None:
+            with open(chunks_json, encoding='utf-8') as plik:
+                chunki = json.load(plik)
+            n = len(chunki) or 1
+            df = Counter()
+            for chunk in chunki:
+                for lemat in _lematy(chunk.get('tekst', ''), lang):
+                    df[lemat] += 1
+            idf = {lemat: math.log((1 + n) / (1 + liczba)) for lemat, liczba in df.items()}
+            idf_max = math.log(1 + n)
+            with open(idf_cache, 'wb') as plik:
+                pickle.dump({'stamp': stamp, 'idf': idf, 'idf_max': idf_max}, plik)
+        else:
+            idf = zapis['idf']
+            idf_max = zapis['idf_max']
+    except Exception:
+        pass
+    return idf, idf_max
 
 
-def pokrycie_idf(tekst: str, chunks: list) -> float:
-    odp = _lematy(tekst)
+IDF_DANE = {lang: _zaladuj_idf(lang) for lang in LANG}
+
+
+def pokrycie_idf(tekst: str, chunks: list, lang: str = 'pl') -> float:
+    odp = _lematy(tekst, lang)
     if not odp:
         return 0.0
+    idf, idf_max = IDF_DANE[lang]
     kontekst = set()
     for c, _ in chunks:
-        kontekst |= _lematy(c['tekst'])
-    licznik = sum(IDF.get(w, IDF_MAX) for w in odp & kontekst)
-    mianownik = sum(IDF.get(w, IDF_MAX) for w in odp)
+        kontekst |= _lematy(c['tekst'], lang)
+    licznik = sum(idf.get(w, idf_max) for w in odp & kontekst)
+    mianownik = sum(idf.get(w, idf_max) for w in odp)
     return licznik / mianownik if mianownik else 0.0
 
 
@@ -121,14 +127,14 @@ def loguj_trudne(query: str, nieznane: list) -> None:
         pass
 
 pytania = [
-   
+
     "Jak sprawdzić, gdzie jest moja przesyłka?",
     "Kupiłem coś przez pomyłkę, da się anulować zamówienie?",
     "Czy mogę odebrać zamówienie w automacie paczkowym?",
     "Towar przyszedł uszkodzony, co mi przysługuje?",
     "Jak długo mam na zwrot po odebraniu paczki?",
     "Sprzedawca chce, żebym zapłacił poza Allegro - czy to bezpieczne?",
-    
+
     "Jak rozłożyć zakup na raty?",
     "Płatność się nie powiodła, a pieniądze zniknęły z konta.",
     "Gdzie znajdę fakturę za zakupy?",
@@ -140,8 +146,11 @@ pytania = [
 
 def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
                history:list[dict] | None=None, agent_poprzedni:str | None=None,
-               przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None):
-   
+               przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
+               lang:str='pl'):
+
+    cfg = LANG[lang]
+
     def krok(t):
         return {'typ': 'krok', 'tekst': t}
     def wynik(d):
@@ -153,8 +162,9 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
         yield wynik({'agent': '', 'answer': powod, 'sources': [], 'citations': [], 'doprecyzowanie': None})
         return
     history = (history or [])[-OKNO_HISTORII:]
+    bez_korekty = bez_korekty or lang != 'pl'
     if bez_korekty:
-       
+
         doprecyzowanie = None
     else:
         yield krok('Poprawiam literówki')
@@ -163,16 +173,16 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
         if korekta['nieznane']:
             loguj_trudne(query, korekta['nieznane'])
             tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]
-           
+
             if tokeny and len(korekta['nieznane']) >= len(tokeny):
-                yield wynik({'agent': '', 'answer': 'Przepraszam, nie zrozumiałem pytania — czy możesz napisać je inaczej?',
+                yield wynik({'agent': '', 'answer': cfg['nie_zrozumialem'],
                              'sources': [], 'citations': [], 'doprecyzowanie': None})
                 return
         doprecyzowanie = f'Szukam dla: „{query}" — czy o to chodziło?' if korekta['zmieniono'] else None
 
     if przepisz and history:
         yield krok('Przepisuję pytanie z kontekstu rozmowy')
-        zapytanie_ret = przepisz_zapytanie(query, history, bielik_model)
+        zapytanie_ret = przepisz_zapytanie(query, history, bielik_model, lang)
     elif history and _followup(query):
         poprzedni_user = [w['content'] for w in history if w['role'] == 'user'][-1:]
         zapytanie_ret = ' '.join(poprzedni_user + [query])
@@ -180,11 +190,11 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
         zapytanie_ret = query
 
     yield krok('Zamieniam pytanie na wektor')
-    query_emb = model.encode(['zapytanie: ' + zapytanie_ret]).astype('float32')
+    query_emb = MODELE[lang].encode([cfg['query_prefix'] + zapytanie_ret]).astype('float32')
     faiss.normalize_L2(query_emb)
 
     yield krok('Przeszukuję bazę wiedzy i porządkuję wyniki')
-    chunks = search_reranked_multi(zapytanie_ret, query_emb, ['all'], k=5, k_surowe=20)
+    chunks = search_reranked_multi(zapytanie_ret, query_emb, ['all'], k=5, k_surowe=20, lang=lang)
 
     agenci_chunkow = [c['agent'] for c, _ in chunks]
     if agent is None and agent_poprzedni and agent_poprzedni in agenci_chunkow:
@@ -192,29 +202,29 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
     else:
         agent_odp = chunks[0][0]['agent'] if chunks else ''
 
-    if not chunks or chunks[0][1] < PROG_RERANK:
+    if not chunks or chunks[0][1] < cfg['prog_rerank']:
         yield krok('Poza zakresem bazy pomocy — odmawiam')
-        yield wynik({'agent': '', 'answer': BRAK_WIEDZY,
+        yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
         return
 
     if (SEDZIA_ON if sedzia is None else sedzia) and chunks:
         yield krok('Sprawdzam, czy kontekst odpowiada na pytanie')
-        if not czy_kontekst_odpowiada(zapytanie_ret, chunks):
-            yield wynik({'agent': '', 'answer': BRAK_WIEDZY,
+        if not czy_kontekst_odpowiada(zapytanie_ret, chunks, lang=lang):
+            yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
                          'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
             return
 
     yield krok(f'Generuję odpowiedź (sekcja: {agent_odp})')
     odpowiedz = None
-    for ev in answer_stream(query, agent_odp, chunks, bielik_model, history):
+    for ev in answer_stream(query, agent_odp, chunks, bielik_model, history, lang):
         if ev['typ'] == 'token':
             yield ev
         elif ev['typ'] == 'koniec':
             odpowiedz = ev['dane']
 
-    if odpowiedz is None or pokrycie_idf(odpowiedz['tekst'], chunks) < PROG_POKRYCIA:
-        yield wynik({'agent': '', 'answer': BRAK_WIEDZY,
+    if odpowiedz is None or pokrycie_idf(odpowiedz['tekst'], chunks, lang) < cfg['prog_pokrycia']:
+        yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
         return
 
@@ -228,10 +238,11 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
 
 def run(query:str, agent:str | None=None, bielik_model:str | None=None,
         history:list[dict] | None=None, agent_poprzedni:str | None=None,
-        przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None) -> dict:
+        przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
+        lang:str='pl') -> dict:
     dane = {}
     for ev in run_stream(query, agent, bielik_model, history,
-                         agent_poprzedni, przepisz, bez_korekty, sedzia):
+                         agent_poprzedni, przepisz, bez_korekty, sedzia, lang):
         if ev['typ'] == 'wynik':
             dane = ev['dane']
     return dane

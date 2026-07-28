@@ -7,6 +7,7 @@ import unicodedata
 import pickle
 from collections import Counter
 import simplemma
+from lang_config import LANG
 
 RERANKER_NAME = 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1'
 # Lokalne rozwiązanie: RERANKER_NAME = 'BAAI/bge-reranker-v2-m3'
@@ -23,23 +24,23 @@ def get_reranker():
         RERANKER = CrossEncoder(RERANKER_NAME, max_length=512)
     return RERANKER
 
-def NO_dedup(query, query_emb, agent, k_surowe):
+def NO_dedup(query, query_emb, agent, k_surowe, lang='pl'):
 
-    chunki = wczytaj_chunki(agent)
-    r_faiss = ranking_faiss(query_emb, agent, chunki)
-    r_bm25 = ranking_bm25(query, agent)
+    chunki = wczytaj_chunki(agent, lang)
+    r_faiss = ranking_faiss(query_emb, agent, chunki, lang)
+    r_bm25 = ranking_bm25(query, agent, lang)
     punkty = rrf([r_faiss, r_bm25])
     posortowane = sorted(punkty, key=punkty.get, reverse=True)
-    
+
     return [(chunki[idx], punkty[idx]) for idx in posortowane][:k_surowe]
 
-def search_reranked(query, query_emb, agent, k=3, k_surowe=20):
-    return search_reranked_multi(query, query_emb, [agent], k, k_surowe)
+def search_reranked(query, query_emb, agent, k=3, k_surowe=20, lang='pl'):
+    return search_reranked_multi(query, query_emb, [agent], k, k_surowe, lang)
 
-def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20):
+def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl'):
     linki = []
     for agent in agenci:
-        linki.extend(NO_dedup(query, query_emb, agent, k_surowe))
+        linki.extend(NO_dedup(query, query_emb, agent, k_surowe, lang))
 
     if not linki:
         return []
@@ -59,47 +60,51 @@ def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20):
     return [(chunk, score) for score, chunk in posortowane][:k]
     
 BM25_CACHE = {}
-def get_bm25(agent:str):
-    if agent not in BM25_CACHE:
-        
-        with open(RAG_DIR / f'{agent}.bm25', 'rb') as r:
-         BM25_CACHE[agent] = pickle.load(r)
+def get_bm25(agent:str, lang:str='pl'):
+    klucz = (lang, agent)
+    if klucz not in BM25_CACHE:
+        suffix = LANG[lang]['suffix']
+        with open(RAG_DIR / f'{agent}{suffix}.bm25', 'rb') as r:
+         BM25_CACHE[klucz] = pickle.load(r)
 
-    return BM25_CACHE[agent]
+    return BM25_CACHE[klucz]
 
 FAISS_CACHE = {}
-def get_faiss(agent:str):
-   
-    if agent not in FAISS_CACHE:
-        FAISS_CACHE[agent] = faiss.read_index(str(RAG_DIR / f'{agent}.faiss'))
-   
-    return FAISS_CACHE[agent]
+def get_faiss(agent:str, lang:str='pl'):
+    klucz = (lang, agent)
+    if klucz not in FAISS_CACHE:
+        suffix = LANG[lang]['suffix']
+        FAISS_CACHE[klucz] = faiss.read_index(str(RAG_DIR / f'{agent}{suffix}.faiss'))
 
-def wczytaj_chunki(agent:str) -> list[dict]:
-    nazwa = 'chunks.json' if agent == 'all' else f'chunks_{agent}.json'
+    return FAISS_CACHE[klucz]
+
+def wczytaj_chunki(agent:str, lang:str='pl') -> list[dict]:
+    suffix = LANG[lang]['suffix']
+    nazwa = f'chunks{suffix}.json' if agent == 'all' else f'chunks_{agent}{suffix}.json'
     sciezka_chunki = RAG_DIR / nazwa
 
     with open(sciezka_chunki, 'r', encoding='utf-8' ) as r:
-       
+
         return json.load(r)
 
-def ranking_faiss(query_emb, agent:str, chunki: list[dict]) -> list[int]:
-  
-  index = get_faiss(agent)
+def ranking_faiss(query_emb, agent:str, chunki: list[dict], lang:str='pl') -> list[int]:
+
+  index = get_faiss(agent, lang)
   D, I = index.search(query_emb, len(chunki))
-  
+
   return list(I[0])
 
 def ortografia(token, n=3):
     t = f'#{token}'
     return [t[i:i+n] for i in range(len(t) - n + 1)] if len(t) >= n else [t]
 
-def tokenizacja(tekst:str) -> list[str]:
+def tokenizacja(tekst:str, lang:str='pl') -> list[str]:
     wynik = []
+    lemma_lang = LANG[lang]['lemma_lang']
 
     for slowo in tekst.split():
-     
-        lemantyzacja = simplemma.lemmatize(slowo, lang='pl')
+
+        lemantyzacja = simplemma.lemmatize(slowo, lang=lemma_lang)
 
         wynik.append(normalizacja(lemantyzacja))
         wynik.extend(ortografia(lemantyzacja, 3))
@@ -112,10 +117,10 @@ def normalizacja(tekst:str) -> str:
     tekst = ''.join(c for c in tekst if not unicodedata.combining(c))
     return tekst.lower()
 
-def ranking_bm25(query:str, agent:str) -> list[int]:
+def ranking_bm25(query:str, agent:str, lang:str='pl') -> list[int]:
 
-    bm25 = get_bm25(agent)
-    wyniki = bm25.get_scores(tokenizacja(query))
+    bm25 = get_bm25(agent, lang)
+    wyniki = bm25.get_scores(tokenizacja(query, lang))
 
     return list(np.argsort(wyniki)[::-1])
 
@@ -160,11 +165,11 @@ def search_route(query:str, query_emb, k:int=5) -> tuple[str, list[tuple]]:
 
     return agent,wyniki
 
-def search_hybrid(query: str, query_emb, agent: str, k:int= 5) -> list[tuple]:
+def search_hybrid(query: str, query_emb, agent: str, k:int= 5, lang:str='pl') -> list[tuple]:
 
-    chunki = wczytaj_chunki(agent)
-    r_faiss = ranking_faiss(query_emb, agent, chunki)
-    r_bm25 = ranking_bm25(query, agent)
+    chunki = wczytaj_chunki(agent, lang)
+    r_faiss = ranking_faiss(query_emb, agent, chunki, lang)
+    r_bm25 = ranking_bm25(query, agent, lang)
     punkty = rrf([r_faiss, r_bm25])
 
     posortowane = sorted(punkty, key=punkty.get, reverse=True)
