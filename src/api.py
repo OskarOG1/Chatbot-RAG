@@ -6,6 +6,7 @@ from typing import Literal
 from pipeline import run, run_stream, MODELE
 from rankings import get_reranker, get_bm25, get_faiss
 from spell import detect_lang
+from guards import MAX_ZNAKI
 from lang_config import LANG, DOMYSLNY_JEZYK
 from collections import deque
 import os
@@ -44,28 +45,25 @@ async def lifespan(app: FastAPI):
             MODELE[lang].encode([cfg['query_prefix'] + 'rozgrzewka'])
         except Exception:
             pass
-    for sekcja in ('konto', 'zakupy', 'platnosci', 'all'):
+    for lang in LANG:
         try:
-            get_faiss(sekcja)
-            get_bm25(sekcja)
+            get_faiss('all', lang)
+            get_bm25('all', lang)
         except Exception:
             pass
-    try:
-        get_faiss('all', 'en')
-        get_bm25('all', 'en')
-    except Exception:
-        pass
     yield
 
+MAX_ZNAKI_WPISU = int(os.getenv('MAX_ZNAKI_WPISU', '8000'))
+MAX_WPISOW_HISTORII = int(os.getenv('MAX_WPISOW_HISTORII', '100'))
+
 class Wiadomosc(BaseModel):
-   role: str
-   content: str
+   role: Literal['user', 'assistant']
+   content: str = Field(min_length=1, max_length=MAX_ZNAKI_WPISU)
 
 class ChatRequest(BaseModel):
-    message: str = Field(min_length=1)
-    agent:str | None = None
+    message: str = Field(min_length=1, max_length=MAX_ZNAKI)
     bielik_model: str |None = None
-    history: list[Wiadomosc] = []
+    history: list[Wiadomosc] = Field(default=[], max_length=MAX_WPISOW_HISTORII)
     agent_poprzedni: str | None = None
     przepisz: bool = False
     bez_korekty: bool = False
@@ -95,7 +93,7 @@ def chat(request: ChatRequest):
         raise HTTPException(status_code=429, detail='Limit zapytań demo osiągnięty — spróbuj później.')
     try:
         lang = efektywny_jezyk(request.message, request.lang)
-        wynik = run(request.message, agent=request.agent, bielik_model=request.bielik_model,
+        wynik = run(request.message, bielik_model=request.bielik_model,
                     history=[w.model_dump() for w in request.history],
                     agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
                     bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang)
@@ -113,7 +111,7 @@ def chat_stream(request: ChatRequest):
             return
         try:
             lang = efektywny_jezyk(request.message, request.lang)
-            for ev in run_stream(request.message, agent=request.agent, bielik_model=request.bielik_model,
+            for ev in run_stream(request.message, bielik_model=request.bielik_model,
                                  history=[w.model_dump() for w in request.history],
                                  agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
                                  bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang):

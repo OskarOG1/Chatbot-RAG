@@ -14,9 +14,7 @@ def jest_negacja(tekst: str) -> bool:
 
 with st.sidebar:
     st.header("Ustawienia")
-    wybor = st.selectbox("Sekcja (agent)", ["auto", "konto", "zakupy", "platnosci"])
     jezyk = st.selectbox("Język / Language", ["pl", "en"])
-agent_param = None if wybor == "auto" else wybor
 
 if 'messages' not in st.session_state:
     st.session_state.messages = []
@@ -52,7 +50,7 @@ if prompt := st.chat_input():
         def strumien():
             try:
                 with httpx.stream("POST", API_URL,
-                                  json={"message": wiadomosc, "agent": agent_param,
+                                  json={"message": wiadomosc,
                                         "history": historia,
                                         "agent_poprzedni": st.session_state.get("ostatni_agent"),
                                         "bez_korekty": bez_korekty, "lang": jezyk},

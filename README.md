@@ -128,9 +128,6 @@ Aktualny pomiar odporności samej warstwy wyszukiwania:
 | bez błędów | **0.860** | **0.940** | 3.24 s |
 | z jedną literówką na pytanie | 0.720 | 0.840 | 4.44 s |
 
-Literówka bez korektora kosztuje 0.140 trafności. Korektor przed wyszukiwaniem nie jest zbędnym krokiem.
-
-
 
 ### 5. Dzielenie bazy na sekcje szkodziło
 
@@ -149,7 +146,7 @@ Router rankował 40 par (2×20 ze zgadywanych sekcji). Przeszukanie całości da
 
 ### 6. Żaden pojedynczy próg nie odróżnia pytań granicznych
 
-**Problem.** „Ile Allegro bierze prowizji", „kto jest właścicielem Allegro", „jak założyć sklep" — pytania blisko tematu, ale spoza bazy. Rozkłady wyników dla pytań trafnych i nietrafnych nakładają się: 23 z 29 pytań spoza bazy punktuje wyżej niż najsłabsze pytanie z domeny.
+**Problem.** „Ile Allegro bierze prowizji", „kto jest właścicielem Allegro", „jak założyć sklep". pytania blisko tematu, ale spoza bazy. Rozkłady wyników dla pytań trafnych i nietrafnych nakładają się: 23 z 29 pytań spoza bazy punktuje wyżej niż najsłabsze pytanie z domeny.
 
 **Rozwiązanie.** Próg rerankera przestaje udawać klasyfikator. Jego jedyna rola to tanie odcięcie skrajności przed wywołaniem modelu. Rozróżnianie pytań granicznych przejmuje osobne wywołanie LLM („TAK/NIE, czy da się odpowiedzieć z tego kontekstu").
 
@@ -169,7 +166,7 @@ Wybór sędziego:
 | **Bielik-11B** | **2/30** | **17/18** |
 | EuroLLM-22B | 5/30 | 18/18 |
 
-Bielik jako kompromis. EuroLLM w rezerwie pod klienta, gdzie „nigdy nie odpowiadaj nie na temat" waży więcej niż okazjonalna fałszywa odmowa. Model sędziego jest odpięty od modelu odpowiadającego — decyzja TAK/NIE jest lżejsza niż generacja, więc może na niej siedzieć tańszy model.
+Bielik jako kompromis. EuroLLM w rezerwie pod klienta, gdzie „nigdy nie odpowiadaj nie na temat" waży więcej niż okazjonalna fałszywa odmowa. Model sędziego jest odpięty od modelu odpowiadającego, decyzja TAK/NIE jest lżejsza niż generacja, więc może na niej siedzieć tańszy model.
 
 ### 7. Bramka antyhalucynacyjna wyrzucała dobre odpowiedzi
 
@@ -193,7 +190,7 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 ### 8. Błąd w danych zdiagnozowany po czasie odmowy
 
-**Problem.** Pytanie „Sprzedawca chce, żebym zapłacił poza Allegro — czy to bezpieczne?" było stabilnie odrzucane, mimo że jest z domeny.
+**Problem.** Pytanie „Sprzedawca chce, żebym zapłacił poza Allegro, czy to bezpieczne?" było stabilnie odrzucane, mimo że jest z domeny.
 
 **Rozwiązanie.** Czas odmowy wskazuje bramkę bez zaglądania w kod: <1 s to filtr wejścia, ~2.9 s to próg rerankera, ~6.3 s to sędzia. To pytanie padało po ~6.3 s — czyli sędzia dostawał zły kontekst.
 
@@ -207,7 +204,7 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Logi bez danych osobowych.** Zapisywane są wyłącznie nierozpoznane pojedyncze słowa, nigdy treść pytania. Maile, telefony, numery zamówień i URL-e odsiewane dopasowaniem wzorców do oryginału. Sprawdzone na 7 przypadkach: dane osobowe znikają, literówki (`kotno`, `smrtem`, `blikeim`) zostają jako materiał na rozbudowę słownika.
 
-**Limit zapytań.** Globalny limiter, domyślnie 15/min i 200/dzień, konfigurowalny. Chroni budżet API. Limit jest globalny, nie per-IP. Przy takim projekcie i koncie zasilonym na 2$ - niepotrzebne per-IP.
+**Limit zapytań.** Globalny limiter, domyślnie 15/min i 200/dzień, konfigurowalny. Chroni budżet API. Limit jest globalny, nie per-IP. Przy takim projekcie i koncie zasilonym na 2$, niepotrzebne per-IP.
 
 **Obsługa błędów.** Awaria API zwraca „model chwilowo niedostępny" zamiast tracebacku, z logiem po stronie serwera. Streamlit startuje z wyłączonymi szczegółami błędów, więc nieprzewidziany wyjątek nie pokaże ścieżek kontenera w przeglądarce.
 
@@ -225,7 +222,7 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 ## API i frontend
 
-Backend: **FastAPI**. `POST /chat` zwraca JSON (odpowiedź, źródła, cytaty). `POST /chat/stream` — ten sam proces przez SSE, kolejne kroki na bieżąco.
+Backend: **FastAPI**. `POST /chat` zwraca JSON (odpowiedź, źródła, cytaty). `POST /chat/stream`, ten sam proces przez SSE, kolejne kroki na bieżąco.
 
 Frontend: **Streamlit**. Czat, klikalne źródła, podgląd kroków na żywo.
 
@@ -243,26 +240,13 @@ Druga, równoległa ścieżka dla klienta anglojęzycznego Wszystko sterowane pa
 
 **Wybór języka odpowiedzi.** Detekcja (suma częstości słów PL vs EN) wygrywa nad przełącznikiem w panelu, pytanie po polsku zawsze dostaje odpowiedź po polsku, niezależnie od ustawienia przełącznika. Zmierzone: 0 błędnych routingów PL→EN na 100 przypadkach (z i bez polskich znaków diakrytycznych).
 
-**Regresja polskiej ścieżki.** Zmierzona trzykrotnie w trakcie wdrażania zmiany względem baseline sprzed pierwszej linijki kodu — identyczne liczby (Hit@3/Hit@5, rozkłady score'ów golden i spoza tematu) za każdym razem.
+**Regresja polskiej ścieżki.** Brak.
 
 ---
 
-## Wdrożenie
-
-Demo: [ogflow.pl](https://ogflow.pl). VPS Hetzner, Ubuntu 24.04 LTS, 4 vCPU / 7.6 GB RAM.
-
-| Kontener | Obraz | Rola |
-|---|---|---|
-| `caddy` | caddy:2 | reverse proxy, HTTPS z Let's Encrypt |
-| `frontend` | python:3.13-slim | Streamlit |
-| `api` | python:3.13-slim | FastAPI + wyszukiwanie |
-
-**Pliki poza repo.** `RAG/*` (indeksy, embeddingi, korpusy PL i EN) oraz `src/lang_config.py` są w `.gitignore` celowo — nie trafiają do `git clone`, kopiowane na serwer osobno (np. `scp`) razem z resztą `RAG/`.
-
 **Czas odpowiedzi w kontenerze** (5 pytań × 3 powtórzenia):
 
-| Metryka | Wartość |
-|---|---|
+
 | mediana do pierwszego fragmentu | 5.61 s |
 | mediana całkowita | 6.31 s |
 | maksimum (pierwszy przebieg) | 16.57 s |
@@ -280,7 +264,7 @@ Demo: [ogflow.pl](https://ogflow.pl). VPS Hetzner, Ubuntu 24.04 LTS, 4 vCPU / 7.
 
 **Wymuszona instrukcja cytowania.** Najgorszy regres w projekcie. Po dodaniu „odpowiedź MUSI zawierać [n]" model zdegenerował odpowiedzi do spamu cytatów, czyszczenie wycinało je do pustego stringa, pokrycie spadało do zera i system odmawiał na wszystko. Również na 1,5B, większy model nie potrzebował dodatkowych instrukcji. 
 
-**Pokrycie IDF jako sygnał pytania spoza bazy.** Niestabilne między uruchomieniami — „ile to 2+2" raz dawało 0.0, raz 0.89.
+**Pokrycie IDF jako sygnał pytania spoza bazy.** Niestabilne między uruchomieniami: „ile to 2+2" raz dawało 0.0, raz 0.89.
 
 **Filtr spisów treści.** Diagnostyka złapała 86 z 576 fragmentów jako podejrzane. Po sprawdzeniu na źródle: normalna treść, nie spisy. Wróciło później jako element cięcia po sekcjach, sterowany strukturą dokumentu zamiast progiem na długość linii.
 

@@ -17,7 +17,6 @@ from collections import Counter
 
 MODELE = {lang: SentenceTransformer(cfg['embedder']) for lang, cfg in LANG.items()}
 model = MODELE['pl']
-MARGINES = 2
 OKNO_HISTORII = 3
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
@@ -44,17 +43,6 @@ def _lematy(tekst: str, lang: str = 'pl') -> set:
     lemma_lang = LANG[lang]['lemma_lang']
     return {simplemma.lemmatize(t, lang=lemma_lang)
             for t in tokenize_words(tekst) if len(t) >= MIN_DLUGOSC}
-
-
-def pokrycie_leksykalne(tekst: str, chunks: list) -> float:
-
-    odp = _lematy(tekst)
-    if not odp:
-        return 0.0
-    kontekst = set()
-    for c, _ in chunks:
-        kontekst |= _lematy(c['tekst'])
-    return len(odp & kontekst) / len(odp)
 
 
 def _zaladuj_idf(lang: str) -> tuple[dict, float]:
@@ -144,7 +132,7 @@ pytania = [
 ]
 
 
-def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
+def run_stream(query:str, bielik_model:str | None=None,
                history:list[dict] | None=None, agent_poprzedni:str | None=None,
                przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
                lang:str='pl'):
@@ -197,7 +185,7 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
     chunks = search_reranked_multi(zapytanie_ret, query_emb, ['all'], k=5, k_surowe=20, lang=lang)
 
     agenci_chunkow = [c['agent'] for c, _ in chunks]
-    if agent is None and agent_poprzedni and agent_poprzedni in agenci_chunkow:
+    if agent_poprzedni and agent_poprzedni in agenci_chunkow:
         agent_odp = agent_poprzedni
     else:
         agent_odp = chunks[0][0]['agent'] if chunks else ''
@@ -236,12 +224,12 @@ def run_stream(query:str, agent:str | None=None, bielik_model:str | None=None,
                  'doprecyzowanie': doprecyzowanie})
 
 
-def run(query:str, agent:str | None=None, bielik_model:str | None=None,
+def run(query:str, bielik_model:str | None=None,
         history:list[dict] | None=None, agent_poprzedni:str | None=None,
         przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
         lang:str='pl') -> dict:
     dane = {}
-    for ev in run_stream(query, agent, bielik_model, history,
+    for ev in run_stream(query, bielik_model, history,
                          agent_poprzedni, przepisz, bez_korekty, sedzia, lang):
         if ev['typ'] == 'wynik':
             dane = ev['dane']
