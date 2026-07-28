@@ -238,6 +238,15 @@ Druga, równoległa ścieżka dla klienta anglojęzycznego Wszystko sterowane pa
 
 **Odpowiadanie.** Model `Olmo-3-7B-Instruct` — jedyny z czterech testowanych, który nie fałszywie odmawiał na pytaniach z jednoznaczną odpowiedzią w kontekście (problem modeli PL-owych i przeciążonych endpointów). Progi odmowy skalibrowane osobno dla EN (inny rozkład score'ów): `PROG_RERANK=-3,6`, `PROG_POKRYCIA=0,35`. Test reranker→sędzia na 29 pytaniach spoza tematu: 29/29 złapanych.
 
+**Bramka antyhalucynacyjna (pokrycie), strona OOD.** Pierwsza kalibracja mierzyła próg tylko na trafnych pytaniach — żadne z 29 OOD nie dotarło wtedy do bramki pokrycia (reranker i sędzia łapali je wcześniej), więc nie było wiadomo, jak zachowałaby się sama bramka pokrycia w izolacji. Domknięcie: wymuszona generacja na wszystkich 79 pytaniach (50 golden + 29 OOD), z pominięciem obu wcześniejszych bramek.
+
+| | min | mediana | max |
+|---|---|---|---|
+| golden EN (n=50) | 0,000 | 0,744 | 1,000 |
+| OOD EN (n=29) | 0,000 | 0,368 | 1,000 |
+
+Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe" — krótka odpowiedź bez pokrycia leksykalnego z kontekstem), 13/29 OOD złapanych samym pokryciem. Pozostałe 16/29 OOD miałyby wystarczające pokrycie, by przejść tę bramkę samodzielnie — ten sam wzorzec co w PL (sekcja 7): pokrycie łapie halucynację, nie odróżnia domeny. Bez znaczenia w produkcji, bo reranker+sędzia łapią 29/29 wcześniej — ale gdyby coś kiedyś przeciekło, pokrycie złapałoby część, nie całość.
+
 **Wybór języka odpowiedzi.** Detekcja (suma częstości słów PL vs EN) wygrywa nad przełącznikiem w panelu, pytanie po polsku zawsze dostaje odpowiedź po polsku, niezależnie od ustawienia przełącznika. Zmierzone: 0 błędnych routingów PL→EN na 100 przypadkach (z i bez polskich znaków diakrytycznych).
 
 **Regresja polskiej ścieżki.** Brak.
