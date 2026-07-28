@@ -19,6 +19,7 @@ ZMIANY.md
 trudne.jsonl
 diag_*.py
 translate_chunks.py
+lang_config.py
 
 test_HF.py
 *.md
