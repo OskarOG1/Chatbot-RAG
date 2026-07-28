@@ -1,4 +1,4 @@
-# Chatbot RAG — odpowiedzi wyłącznie z bazy dokumentów
+# Chatbot RAG: odpowiedzi wyłącznie z bazy dokumentów
 
 Chatbot, który odpowiada na pytania **tylko na podstawie dostarczonych artykułów**, nigdy z ogólnej wiedzy modelu. Każda odpowiedź ma odnośniki do źródeł. Gdy odpowiedzi nie ma w bazie  system odmawia zamiast zmyślać.
 
@@ -14,7 +14,7 @@ Baza testowa: 141 artykułów Allegro Pomoc, 641 fragmentów. Projekt edukacyjny
 |---|---|
 | Właściwy artykuł w top 5 wyników | **0.918** (61 pytań) |
 | Właściwy artykuł w top 5, zestaw z literówkami | 0.840 (50 pytań) |
-| Fałszywe odmowy — odrzucone pytania, na które system umiał odpowiedzieć | **0/61** |
+| Fałszywe odmowy (odrzucone pytania, na które system umiał odpowiedzieć) | **0/61** |
 | Pytania nie na temat, poprawnie odrzucone | **7/8** |
 | Mediana czasu odpowiedzi (produkcja, Docker) | 6.31 s |
 
@@ -38,11 +38,11 @@ Przekrój na 100 pytaniach w 6 kategoriach: 76 odpowiedzi, 24 odmowy.
 **Jak to jest rozwiązane.** Zanim model cokolwiek napisze, system wyszukuje właściwe fragmenty dokumentów i podaje mu je jako jedyne dopuszczalne źródło. Po wygenerowaniu odpowiedzi sprawdza, czy faktycznie się na nich opiera. Jeśli nie, odmawia odpowiedzi. 
 **Trzy niezależne bramki odmowy:**
 
-1. **Przed wyszukiwaniem** — filtry odrzucają puste, za krótkie, za długie zapytania i podstawowe próby manipulacji promptem.
+1. **Przed wyszukiwaniem.** Filtry odrzucają puste, za krótkie, za długie zapytania i podstawowe próby manipulacji promptem.
 
-2. **Przed generacją** — jeśli żaden fragment nie pasuje wystarczająco, model w ogóle nie jest wołany (oszczędza najdroższy krok). Pytania graniczne ocenia osobne wywołanie modelu: „czy da się na to odpowiedzieć z tego kontekstu, TAK/NIE"
+2. **Przed generacją.** Jeśli żaden fragment nie pasuje wystarczająco, model w ogóle nie jest wołany (oszczędza najdroższy krok). Pytania graniczne ocenia osobne wywołanie modelu: „czy da się na to odpowiedzieć z tego kontekstu, TAK/NIE"
 
-3. **Po generacji** — sprawdzenie, ile ważnych słów odpowiedzi faktycznie występuje w źródłach. Odpowiedź oderwana od kontekstu jest odrzucana
+3. **Po generacji.** Sprawdzenie, ile ważnych słów odpowiedzi faktycznie występuje w źródłach. Odpowiedź oderwana od kontekstu jest odrzucana
 
 **Dane mogą nie opuszczać serwera.** Wyszukiwanie, embeddingi i reranking działają lokalnie. Model generujący też może być lokalny, u mnie tak nie jest ze względu na ograniczenia sprzętowe.
 
@@ -82,7 +82,7 @@ Odpowiedź + Źródła
 
 | Element | Wybór | Dlaczego |
 |---|---|---|
-| Embeddingi | mmlw | Trenowany pod polski — łapie znaczenie lepiej niż model wielojęzyczny |
+| Embeddingi | mmlw | Trenowany pod polski, łapie znaczenie lepiej niż model wielojęzyczny |
 | Baza wektorowa | FAISS | Lokalna, szybka, wystarcza na tej skali |
 | Wyszukiwanie po słowach | BM25 + lematyzacja + trigramy | Sam embedding gubił pytania zbudowane wokół konkretnych słów |
 | Reranker | mmarco-mMiniLMv2 (118M) | 26× szybszy od bge-v2-m3 przy stracie jednego trafienia |
@@ -106,7 +106,7 @@ Odpowiedź + Źródła
 
 **Rozwiązanie.** Cięcie po sekcjach, nagłówek doklejany do treści fragmentu (wchodzi do embeddingu, BM25 i rerankera). Wykryty spis treści wycinany. 641 fragmentów zamiast 576, z czego 236 z nagłówkiem.
 
-**Wynik.** Myliłem się — różnica była wyraźna.
+**Wynik.** Myliłem się: różnica była wyraźna.
 
 | Zestaw | top 3 przed | top 3 po | top 5 przed | top 5 po |
 |---|---|---|---|---|
@@ -115,7 +115,7 @@ Odpowiedź + Źródła
 
 ### 3. Literówki rozwalały wyszukiwanie
 
-**Problem.** Zestaw testowy pisany poprawną polszczyzną, realne pytania nie. Na pytaniach z błędami trafność spadała do 0.700 — najsłabszy punkt systemu.
+**Problem.** Zestaw testowy pisany poprawną polszczyzną, realne pytania nie. Na pytaniach z błędami trafność spadała do 0.700: najsłabszy punkt systemu.
 
 **Rozwiązanie.** Trigramy znakowe w BM25 (dopasowanie po trójkach liter, tolerancyjne na błędy) + korektor Damerau-Levenshtein na słowniku zbudowanym z treści artykułów. Nad korektorem próg częstości słowa: poprawny polski wyraz nie jest ruszany.
 
@@ -157,7 +157,7 @@ Router rankował 40 par (2×20 ze zgadywanych sekcji). Przeszukanie całości da
 | −3.2 | 2/61 | 11/29 | 77 |
 | **−4.3** | **0/61** | 5/29 | 85 |
 
-Zero fałszywych odmów kosztem 8 dodatkowych wywołań — tanio, bo sędzia i tak te pytania łapał.
+Zero fałszywych odmów kosztem 8 dodatkowych wywołań. Tanio, bo sędzia i tak te pytania łapał.
 
 Wybór sędziego:
 
@@ -192,7 +192,7 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Problem.** Pytanie „Sprzedawca chce, żebym zapłacił poza Allegro, czy to bezpieczne?" było stabilnie odrzucane, mimo że jest z domeny.
 
-**Rozwiązanie.** Czas odmowy wskazuje bramkę bez zaglądania w kod: <1 s to filtr wejścia, ~2.9 s to próg rerankera, ~6.3 s to sędzia. To pytanie padało po ~6.3 s — czyli sędzia dostawał zły kontekst.
+**Rozwiązanie.** Czas odmowy wskazuje bramkę bez zaglądania w kod: <1 s to filtr wejścia, ~2.9 s to próg rerankera, ~6.3 s to sędzia. To pytanie padało po ~6.3 s, czyli sędzia dostawał zły kontekst.
 
 **Wynik.** Właściwy artykuł miał etykietę `konto` zamiast `zakupy`, więc nigdy nie trafiał do puli kandydatów. Naprawa: jedna linia mapowania + przeniesienie 3 artykułów. Kontrola regresji: trafność bez zmian (0.900/0.933).
 
@@ -234,18 +234,18 @@ Druga, równoległa ścieżka dla klienta anglojęzycznego Wszystko sterowane pa
 
 **Korpus.** 641 fragmentów przetłumaczonych na angielski (model `Bielik-11B` mimo że polski, tłumaczenie wyszło czystsze i szybsze niż u kandydatów wyspecjalizowanych w EN). Spot-check 10 fragmentów: sens i terminologia (`Allegro Pay`, `Allegro Smart!`, `BLIK`) zachowane.
 
-**Wyszukiwanie.** Embedder `multilingual-e5-base` (768-wym., jak polski), własny indeks FAISS/BM25. Hit@5 na angielskim zestawie golden: 0,920 — porównywalne z polskim 0,940.
+**Wyszukiwanie.** Embedder `multilingual-e5-base` (768-wym., jak polski), własny indeks FAISS/BM25. Hit@5 na angielskim zestawie golden: 0,920, porównywalne z polskim 0,940.
 
-**Odpowiadanie.** Model `Olmo-3-7B-Instruct` — jedyny z czterech testowanych, który nie fałszywie odmawiał na pytaniach z jednoznaczną odpowiedzią w kontekście (problem modeli PL-owych i przeciążonych endpointów). Progi odmowy skalibrowane osobno dla EN (inny rozkład score'ów): `PROG_RERANK=-3,6`, `PROG_POKRYCIA=0,35`. Test reranker→sędzia na 29 pytaniach spoza tematu: 29/29 złapanych.
+**Odpowiadanie.** Model `Olmo-3-7B-Instruct`, jedyny z czterech testowanych, który nie fałszywie odmawiał na pytaniach z jednoznaczną odpowiedzią w kontekście (problem modeli PL-owych i przeciążonych endpointów). Progi odmowy skalibrowane osobno dla EN (inny rozkład score'ów): `PROG_RERANK=-3,6`, `PROG_POKRYCIA=0,35`. Test reranker→sędzia na 29 pytaniach spoza tematu: 29/29 złapanych.
 
-**Bramka antyhalucynacyjna (pokrycie), strona OOD.** Pierwsza kalibracja mierzyła próg tylko na trafnych pytaniach — żadne z 29 OOD nie dotarło wtedy do bramki pokrycia (reranker i sędzia łapali je wcześniej), więc nie było wiadomo, jak zachowałaby się sama bramka pokrycia w izolacji. Domknięcie: wymuszona generacja na wszystkich 79 pytaniach (50 golden + 29 OOD), z pominięciem obu wcześniejszych bramek.
+**Bramka antyhalucynacyjna (pokrycie), strona OOD.** Pierwsza kalibracja mierzyła próg tylko na trafnych pytaniach: żadne z 29 OOD nie dotarło wtedy do bramki pokrycia (reranker i sędzia łapali je wcześniej), więc nie było wiadomo, jak zachowałaby się sama bramka pokrycia w izolacji. Domknięcie: wymuszona generacja na wszystkich 79 pytaniach (50 golden + 29 OOD), z pominięciem obu wcześniejszych bramek.
 
 | | min | mediana | max |
 |---|---|---|---|
 | golden EN (n=50) | 0,000 | 0,744 | 1,000 |
 | OOD EN (n=29) | 0,000 | 0,368 | 1,000 |
 
-Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe" — krótka odpowiedź bez pokrycia leksykalnego z kontekstem), 13/29 OOD złapanych samym pokryciem. Pozostałe 16/29 OOD miałyby wystarczające pokrycie, by przejść tę bramkę samodzielnie, ten sam wzorzec co w PL (sekcja 7): pokrycie łapie halucynację, nie odróżnia domeny. Bez znaczenia w produkcji, bo reranker+sędzia łapią 29/29 wcześniej — ale gdyby coś kiedyś przeciekło, pokrycie złapałoby część, nie całość.
+Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe": krótka odpowiedź bez pokrycia leksykalnego z kontekstem), 13/29 OOD złapanych samym pokryciem. Pozostałe 16/29 OOD miałyby wystarczające pokrycie, by przejść tę bramkę samodzielnie, ten sam wzorzec co w PL (sekcja 7): pokrycie łapie halucynację, nie odróżnia domeny. Bez znaczenia w produkcji, bo reranker+sędzia łapią 29/29 wcześniej, ale gdyby coś kiedyś przeciekło, pokrycie złapałoby część, nie całość.
 
 **Wybór języka odpowiedzi.** Detekcja (suma częstości słów PL vs EN) wygrywa nad przełącznikiem w panelu, pytanie po polsku zawsze dostaje odpowiedź po polsku, niezależnie od ustawienia przełącznika. Zmierzone: 0 błędnych routingów PL→EN na 100 przypadkach (z i bez polskich znaków diakrytycznych).
 
@@ -257,6 +257,7 @@ Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe" — kr
 
 
 | mediana do pierwszego fragmentu | 5.61 s |
+|---|---|
 | mediana całkowita | 6.31 s |
 | maksimum (pierwszy przebieg) | 16.57 s |
 
@@ -277,9 +278,9 @@ Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe" — kr
 
 **Filtr spisów treści.** Diagnostyka złapała 86 z 576 fragmentów jako podejrzane. Po sprawdzeniu na źródle: normalna treść, nie spisy. Wróciło później jako element cięcia po sekcjach, sterowany strukturą dokumentu zamiast progiem na długość linii.
 
-**Multi-query.** Model generuje 2–3 parafrazy pytania, wyniki sklejane przez RRF. Naprawiło jedno trudne pytanie, zepsuło kilka łatwych — parafrazy przegłosowywały oryginał: 28/30 → 24/30 przy trzech parafrazach. Parafrazy również generował 1,5B, nie sprawdzałem na lepszym modelu. 
+**Multi-query.** Model generuje 2–3 parafrazy pytania, wyniki sklejane przez RRF. Naprawiło jedno trudne pytanie, zepsuło kilka łatwych: parafrazy przegłosowywały oryginał: 28/30 → 24/30 przy trzech parafrazach. Parafrazy również generował 1,5B, nie sprawdzałem na lepszym modelu. 
 
-**Normalizacja zapytania przed embeddingiem.** „Jak usunac konto" (bez ogonków) trafiało do płatności zamiast konta. Pojedynczy graniczny przypadek. Próba naprawy przez dopisywanie znaku zapytania: 18/20 → 15/20. Normalizacja została tylko po stronie BM25 — mmlw wymaga polskich znaków.
+**Normalizacja zapytania przed embeddingiem.** „Jak usunac konto" (bez ogonków) trafiało do płatności zamiast konta. Pojedynczy graniczny przypadek. Próba naprawy przez dopisywanie znaku zapytania: 18/20 → 15/20. Normalizacja została tylko po stronie BM25, bo mmlw wymaga polskich znaków.
 
 **Przepisywanie pytania przez model.** Zaimplementowane, domyślnie wyłączone. Sklejenie ostatniej tury załatwia większość przypadków bez kosztu kolejnego wywołania.
 
@@ -287,7 +288,7 @@ Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe" — kr
 
 ## Załącznik: historia kalibracji progów
 
-Progi są sprzężone ze stackiem. Każda zmiana rerankera, modelu albo promptu wymusza rekalibrację wszystkich naraz — poniżej zapis, jak przebiegała.
+Progi są sprzężone ze stackiem. Każda zmiana rerankera, modelu albo promptu wymusza rekalibrację wszystkich naraz. Poniżej zapis, jak przebiegała.
 
 **Pierwsza kalibracja** (reranker bge, model 1,5B): próg rerankera 0.05, pokrycie 0.65. Wtedy rozkłady rozdzielały się czysto, najniższy wynik na pytaniu testowym 0.945, najwyższy na pytaniu spoza tematu 0.005.
 
@@ -295,7 +296,7 @@ Progi są sprzężone ze stackiem. Każda zmiana rerankera, modelu albo promptu 
 
 **Po usunięciu podziału na sekcje i rozszerzeniu zestawów** (30→61 trafnych, 18→29 spoza tematu): próg rerankera −3.2 → −4.3, pokrycie 0.40 → 0.20. Stan obecny.
 
-Nowe pytania spoza tematu są głównie graniczne (prowizja sprzedawcy, infolinia, notowania giełdowe). Stary zestaw był zdominowany oczywistymi przypadkami — matematyka, przepisy, kod — które ucina już sam próg. Zawyżał wrażenie odporności systemu.
+Nowe pytania spoza tematu są głównie graniczne (prowizja sprzedawcy, infolinia, notowania giełdowe). Stary zestaw był zdominowany oczywistymi przypadkami (matematyka, przepisy, kod), które ucina już sam próg. Zawyżał wrażenie odporności systemu.
 
 **Pomiary czasowe pipeline'u:**
 

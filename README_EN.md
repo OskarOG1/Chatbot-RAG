@@ -1,4 +1,4 @@
-# RAG Chatbot — answers drawn exclusively from a document base
+# RAG Chatbot: answers drawn exclusively from a document base
 
 A chatbot that answers questions **only on the basis of the supplied articles**, never from the model's general knowledge. Every answer links to its sources. When the answer isn't in the base, the system refuses instead of making things up.
 
@@ -14,7 +14,7 @@ Test corpus: 141 Allegro Help articles, 641 chunks. An educational project, not 
 |---|---|
 | Correct article in top 5 results | **0.918** (61 questions) |
 | Correct article in top 5, typo set | 0.840 (50 questions) |
-| False refusals — rejected questions the system could actually answer | **0/61** |
+| False refusals (rejected questions the system could actually answer) | **0/61** |
 | Off-topic questions correctly rejected | **7/8** |
 | Median response time (production, Docker) | 6.31 s |
 
@@ -39,13 +39,13 @@ Cross-section over 100 questions in 6 categories: 76 answers, 24 refusals.
 
 **Three independent refusal gates:**
 
-1. **Before retrieval** — filters reject empty, too short, and too long queries, plus basic prompt-injection attempts.
+1. **Before retrieval.** Filters reject empty, too short, and too long queries, plus basic prompt-injection attempts.
 
-2. **Before generation** — if no chunk matches well enough, the model is never called at all (saving the most expensive step). Borderline questions are judged by a separate model call: "can this be answered from this context, YES/NO?"
+2. **Before generation.** If no chunk matches well enough, the model is never called at all (saving the most expensive step). Borderline questions are judged by a separate model call: "can this be answered from this context, YES/NO?"
 
-3. **After generation** — a check of how many meaningful words of the answer actually occur in the sources. An answer detached from the context is rejected.
+3. **After generation.** A check of how many meaningful words of the answer actually occur in the sources. An answer detached from the context is rejected.
 
-**Data need never leave the server.** Retrieval, embeddings and reranking all run locally. The generating model can be local too — in my setup it isn't, due to hardware constraints.
+**Data need never leave the server.** Retrieval, embeddings and reranking all run locally. The generating model can be local too, though in my setup it isn't, due to hardware constraints.
 
 ---
 
@@ -83,7 +83,7 @@ Answer + Sources
 
 | Component | Choice | Why |
 |---|---|---|
-| Embeddings | mmlw | Trained for Polish — captures meaning better than a multilingual model |
+| Embeddings | mmlw | Trained for Polish, captures meaning better than a multilingual model |
 | Vector store | FAISS | Local, fast, sufficient at this scale |
 | Lexical retrieval | BM25 + lemmatisation + trigrams | Embeddings alone missed questions built around specific words |
 | Reranker | mmarco-mMiniLMv2 (118M) | 26× faster than bge-v2-m3 at the cost of one hit |
@@ -107,7 +107,7 @@ Answer + Sources
 
 **Solution.** Section-based chunking, with the heading appended to the chunk body (so it enters the embedding, BM25 and the reranker). Detected tables of contents are stripped. 641 chunks instead of 576, of which 236 carry a heading.
 
-**Result.** I was wrong — the difference was clear.
+**Result.** I was wrong: the difference was clear.
 
 | Set | top 3 before | top 3 after | top 5 before | top 5 after |
 |---|---|---|---|---|
@@ -116,7 +116,7 @@ Answer + Sources
 
 ### 3. Typos wrecked retrieval
 
-**Problem.** The test set was written in correct Polish; real questions aren't. On misspelled questions accuracy dropped to 0.700 — the system's weakest point.
+**Problem.** The test set was written in correct Polish; real questions aren't. On misspelled questions accuracy dropped to 0.700, the system's weakest point.
 
 **Solution.** Character trigrams in BM25 (matching on letter triples, tolerant of errors) + a Damerau-Levenshtein corrector over a dictionary built from the article text. Above the corrector sits a word-frequency threshold: a correct Polish word is left untouched.
 
@@ -146,7 +146,7 @@ The router reranked 40 pairs (2×20 from the guessed sections). Searching everyt
 
 ### 6. No single threshold separates borderline questions
 
-**Problem.** "What commission does Allegro take", "who owns Allegro", "how do I open a shop" — questions close to the topic but outside the base. The score distributions for in-domain and out-of-domain questions overlap: 23 of 29 out-of-base questions score higher than the weakest in-domain question.
+**Problem.** "What commission does Allegro take", "who owns Allegro", "how do I open a shop": questions close to the topic but outside the base. The score distributions for in-domain and out-of-domain questions overlap: 23 of 29 out-of-base questions score higher than the weakest in-domain question.
 
 **Solution.** The reranker threshold stops pretending to be a classifier. Its only role is a cheap cut-off of extremes before the model is called. Distinguishing borderline questions is taken over by a separate LLM call ("YES/NO, can this be answered from this context?").
 
@@ -157,7 +157,7 @@ The router reranked 40 pairs (2×20 from the guessed sections). Searching everyt
 | −3.2 | 2/61 | 11/29 | 77 |
 | **−4.3** | **0/61** | 5/29 | 85 |
 
-Zero false refusals at the cost of 8 extra calls — cheap, since the judge caught those questions anyway.
+Zero false refusals at the cost of 8 extra calls. Cheap, since the judge caught those questions anyway.
 
 Judge selection:
 
@@ -192,7 +192,7 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 **Problem.** The question "The seller wants me to pay outside Allegro, is that safe?" was consistently rejected, despite being in-domain.
 
-**Solution.** Refusal latency identifies the gate without reading any code: <1 s is the input filter, ~2.9 s is the reranker threshold, ~6.3 s is the judge. This question failed at ~6.3 s — so the judge was getting the wrong context.
+**Solution.** Refusal latency identifies the gate without reading any code: <1 s is the input filter, ~2.9 s is the reranker threshold, ~6.3 s is the judge. This question failed at ~6.3 s, so the judge was getting the wrong context.
 
 **Result.** The right article was labelled `konto` (account) instead of `zakupy` (purchases), so it never entered the candidate pool. Fix: one line of mapping plus moving 3 articles. Regression check: accuracy unchanged (0.900/0.933).
 
@@ -204,17 +204,17 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 **Logs without personal data.** Only unrecognised single words are stored, never the question text. Emails, phone numbers, order numbers and URLs are filtered out by pattern-matching against the original. Verified on 7 cases: personal data disappears, typos (`kotno`, `smrtem`, `blikeim`) remain as material for extending the dictionary.
 
-**Rate limiting.** A global limiter, 15/min and 200/day by default, configurable. Protects the API budget. The limit is global, not per-IP — with a project this size and an account topped up with $2, per-IP is unnecessary.
+**Rate limiting.** A global limiter, 15/min and 200/day by default, configurable. Protects the API budget. The limit is global, not per-IP: with a project this size and an account topped up with $2, per-IP is unnecessary.
 
 **Error handling.** An API failure returns "model temporarily unavailable" instead of a traceback, with a server-side log entry. Streamlit starts with error details disabled, so an unforeseen exception won't expose container paths in the browser.
 
-**Handling unintelligible questions.** Two levels, driven by the corrector. When the corrector changed something, a confirmation prompt appears — "Searching for: … is that what you meant?"; "no" reverts to the original. "I didn't understand" only fires when every word of 4+ characters is unknown. Confirmation turns don't enter the history or the retrieval.
+**Handling unintelligible questions.** Two levels, driven by the corrector. When the corrector changed something, a confirmation prompt appears: "Searching for: … is that what you meant?"; "no" reverts to the original. "I didn't understand" only fires when every word of 4+ characters is unknown. Confirmation turns don't enter the history or the retrieval.
 
 ---
 
 ## Citations, sources and conversation memory
 
-**Citations.** The prompt requires `[n]` markers and forbids bare URLs. A function strips links from the text and maps `[n]` to its source. The reason is in the data: all 141 articles contain links in their own body, so the smaller model would copy them out as a list and duplicate the "Sources" section. Citations serve display only — refusal uses coverage, not the presence of `[n]`.
+**Citations.** The prompt requires `[n]` markers and forbids bare URLs. A function strips links from the text and maps `[n]` to its source. The reason is in the data: all 141 articles contain links in their own body, so the smaller model would copy them out as a list and duplicate the "Sources" section. Citations serve display only: refusal uses coverage, not the presence of `[n]`.
 
 **Conversation memory.** A 3-turn window. Retrieval runs on the concatenation of the last utterance and the current question, so "and how about from a phone?" after a password question lands correctly. No extra model call.
 
@@ -232,13 +232,22 @@ Frontend: **Streamlit**. Chat, clickable sources, live step preview.
 
 A second, parallel path for English-speaking clients. Everything is driven by the `lang` parameter (default `'pl'`): its own embedder, its own index, its own answering model, its own refusal thresholds. Full measurement log: `src/POMIAR_DWUJEZYCZNOSC.md`.
 
-**Corpus.** 641 chunks translated into English (using `Bielik-11B` — despite being a Polish model, the translation came out cleaner and faster than with EN-specialised candidates). Spot-check of 10 chunks: meaning and terminology (`Allegro Pay`, `Allegro Smart!`, `BLIK`) preserved.
+**Corpus.** 641 chunks translated into English (using `Bielik-11B`: despite being a Polish model, the translation came out cleaner and faster than with EN-specialised candidates). Spot-check of 10 chunks: meaning and terminology (`Allegro Pay`, `Allegro Smart!`, `BLIK`) preserved.
 
-**Retrieval.** Embedder `multilingual-e5-base` (768-dim, same as the Polish one), its own FAISS/BM25 index. Hit@5 on the English golden set: 0.920 — comparable to the Polish 0.940.
+**Retrieval.** Embedder `multilingual-e5-base` (768-dim, same as the Polish one), its own FAISS/BM25 index. Hit@5 on the English golden set: 0.920, comparable to the Polish 0.940.
 
-**Answering.** Model `Olmo-3-7B-Instruct` — the only one of four tested that didn't falsely refuse on questions with an unambiguous answer in the context (a problem with the Polish models and overloaded endpoints). Refusal thresholds calibrated separately for EN (different score distribution): `RERANK_THRESHOLD=-3.6`, `COVERAGE_THRESHOLD=0.35`. Reranker→judge test on 29 off-topic questions: 29/29 caught.
+**Answering.** Model `Olmo-3-7B-Instruct`, the only one of four tested that didn't falsely refuse on questions with an unambiguous answer in the context (a problem with the Polish models and overloaded endpoints). Refusal thresholds calibrated separately for EN (different score distribution): `RERANK_THRESHOLD=-3.6`, `COVERAGE_THRESHOLD=0.35`. Reranker→judge test on 29 off-topic questions: 29/29 caught.
 
-**Answer-language selection.** Detection (sum of PL vs EN word frequencies) overrides the UI toggle — a question in Polish always gets a Polish answer, regardless of the toggle. Measured: 0 incorrect PL→EN routings out of 100 cases (with and without Polish diacritics).
+**Anti-hallucination gate (coverage), OOD side.** The first calibration measured the threshold on valid questions only: none of the 29 OOD questions reached the coverage gate at that point (the reranker and the judge caught them earlier), so there was no way to tell how the coverage gate alone would behave in isolation. Closing that gap: forced generation on all 79 questions (50 golden + 29 OOD), bypassing both earlier gates.
+
+| | min | median | max |
+|---|---|---|---|
+| golden EN (n=50) | 0.000 | 0.744 | 1.000 |
+| OOD EN (n=29) | 0.000 | 0.368 | 1.000 |
+
+At `COVERAGE_THRESHOLD=0.35`: 1/50 false refusal ("Is Allegro Pay safe": a short answer with no lexical overlap with the context), 13/29 OOD caught by coverage alone. The remaining 16/29 OOD would have enough coverage to pass this gate on their own, the same pattern as in PL (section 7): coverage catches hallucination, it doesn't distinguish domain. Irrelevant in production, since the reranker plus judge catch 29/29 earlier, but if something ever leaked through, coverage would catch some of it, not all.
+
+**Answer-language selection.** Detection (sum of PL vs EN word frequencies) overrides the UI toggle: a question in Polish always gets a Polish answer, regardless of the toggle. Measured: 0 incorrect PL→EN routings out of 100 cases (with and without Polish diacritics).
 
 **Regression on the Polish path.** None.
 
@@ -265,9 +274,9 @@ A second, parallel path for English-speaking clients. Everything is driven by th
 
 **A table-of-contents filter.** Diagnostics flagged 86 of 576 chunks as suspect. Checked against the source: normal content, not tables of contents. It came back later as part of section-based chunking, driven by document structure instead of a line-length threshold.
 
-**Multi-query.** The model generates 2–3 paraphrases of the question, results fused via RRF. It fixed one hard question and broke several easy ones — the paraphrases outvoted the original: 28/30 → 24/30 with three paraphrases. The paraphrases were also generated by the 1.5B; I didn't test with a better model.
+**Multi-query.** The model generates 2–3 paraphrases of the question, results fused via RRF. It fixed one hard question and broke several easy ones: the paraphrases outvoted the original: 28/30 → 24/30 with three paraphrases. The paraphrases were also generated by the 1.5B; I didn't test with a better model.
 
-**Query normalisation before embedding.** "Jak usunac konto" (Polish without diacritics) landed on payments instead of accounts. A single edge case. An attempt to fix it by appending a question mark: 18/20 → 15/20. Normalisation stayed on the BM25 side only — mmlw requires Polish diacritics.
+**Query normalisation before embedding.** "Jak usunac konto" (Polish without diacritics) landed on payments instead of accounts. A single edge case. An attempt to fix it by appending a question mark: 18/20 → 15/20. Normalisation stayed on the BM25 side only, because mmlw requires Polish diacritics.
 
 **Query rewriting by the model.** Implemented, disabled by default. Concatenating the last turn handles most cases without the cost of another call.
 
@@ -275,15 +284,15 @@ A second, parallel path for English-speaking clients. Everything is driven by th
 
 ## Appendix: threshold calibration history
 
-The thresholds are coupled to the stack. Every change of reranker, model or prompt forces a recalibration of all of them at once — below is how it went.
+The thresholds are coupled to the stack. Every change of reranker, model or prompt forces a recalibration of all of them at once. Below is how it went.
 
-**First calibration** (bge reranker, 1.5B model): reranker threshold 0.05, coverage 0.65. Back then the distributions separated cleanly — the lowest score on a test question was 0.945, the highest on an off-topic question 0.005.
+**First calibration** (bge reranker, 1.5B model): reranker threshold 0.05, coverage 0.65. Back then the distributions separated cleanly: the lowest score on a test question was 0.945, the highest on an off-topic question 0.005.
 
 **After swapping the reranker and moving to the 11B model** the thresholds stopped working. The new prompt (grounding separated from persona) raised coverage on both sides. The distributions began to overlap. Reranker threshold −2.0 → −3.2, coverage 0.10 → 0.40.
 
 **After removing the section split and expanding the test sets** (30→61 in-domain, 18→29 off-topic): reranker threshold −3.2 → −4.3, coverage 0.40 → 0.20. Current state.
 
-The new off-topic questions are mostly borderline (seller commission, helpline, stock quotes). The old set was dominated by obvious cases — maths, recipes, code — which the threshold cuts on its own. It inflated the impression of the system's robustness.
+The new off-topic questions are mostly borderline (seller commission, helpline, stock quotes). The old set was dominated by obvious cases (maths, recipes, code), which the threshold cuts on its own. It inflated the impression of the system's robustness.
 
 **Pipeline timings:**
 
@@ -297,6 +306,6 @@ The new off-topic questions are mostly borderline (seller commission, helpline, 
 
 Slow local generation is a hardware limitation, which is why the public demo calls the model over an API.
 
-**Answer length limit: 700 → 1500 tokens.** At 700 the longest answer in the measurement (691 tokens) was cut mid-sentence, invisibly in the logs — the streaming loop ignored the finish reason. Without an upper limit the cost would be unbounded, and a rambling answer drives coverage down, so the gate would start rejecting its own correct answers.
+**Answer length limit: 700 → 1500 tokens.** At 700 the longest answer in the measurement (691 tokens) was cut mid-sentence, invisibly in the logs, because the streaming loop ignored the finish reason. Without an upper limit the cost would be unbounded, and a rambling answer drives coverage down, so the gate would start rejecting its own correct answers.
 
 **Index warm-up at startup.** Indexes loaded lazily and `lifespan` only warmed the reranker and the embedder. The first query paid for loading the index: 18.1 / 17.9 / 15.2 s instead of the usual 3–7 s.
