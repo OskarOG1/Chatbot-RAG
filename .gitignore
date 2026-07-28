@@ -24,6 +24,7 @@ lang_config.py
 test_HF.py
 *.md
 !README.md
+!README_EN.md
 
 Python.code-workspace
 .env
