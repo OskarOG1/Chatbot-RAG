@@ -224,7 +224,7 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 **Citations.** The prompt requires `[n]` markers and forbids bare URLs. A function strips links from the text and maps `[n]` to its source. The reason is in the data: all 141 articles contain links in their own body, so the smaller model would copy them out as a list and duplicate the "Sources" section. Citations serve display only: refusal uses coverage, not the presence of `[n]`.
 
-**Conversation memory.** A 3-turn window. Retrieval runs on the concatenation of the last utterance and the current question, so "and how about from a phone?" after a password question lands correctly. No extra model call.
+**Conversation memory.** A 3-turn window. Follow-ups caught by a cheap detector are rewritten into a standalone question by an LLM before retrieval (`przepisz_zapytanie`), so e.g. "and what if the seller does not respond?" after a complaint question lands correctly. One extra model call, only when a follow-up is actually detected, not on every turn.
 
 ---
 
