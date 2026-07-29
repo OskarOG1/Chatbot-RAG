@@ -19,7 +19,13 @@ TEKSTY = {
         "parse_error": "Nieprawidłowa odpowiedź serwera, spróbuj ponownie.",
         "no_response": "Backend nie odpowiedział, spróbuj ponownie za chwilę.",
         "negacje": {"nie", "nie o to chodziło", "nie o to mi chodziło", "to nie to", "źle"},
-        "szkic_naglowek": "Szkic maila do sprzedawcy",
+        "szkic_naglowek": "Szkic wiadomości do sprzedawcy",
+        "szkic_naglowki": {
+            "reklamacja": "Szkic maila reklamacyjnego",
+            "zwrot": "Szkic wiadomości o zwrocie",
+            "faktura": "Szkic prośby o fakturę",
+            "eskalacja": "Szkic zgłoszenia braku odpowiedzi sprzedawcy",
+        },
     },
     "en": {
         "ustawienia": "Settings",
@@ -34,7 +40,13 @@ TEKSTY = {
         "parse_error": "Invalid server response, try again.",
         "no_response": "Backend didn't respond, try again in a moment.",
         "negacje": {"no", "that's not it", "wrong"},
-        "szkic_naglowek": "Draft email to the seller",
+        "szkic_naglowek": "Draft message to the seller",
+        "szkic_naglowki": {
+            "reklamacja": "Draft complaint email",
+            "zwrot": "Draft return message",
+            "faktura": "Draft invoice request",
+            "eskalacja": "Draft escalation message",
+        },
     },
 }
 
@@ -133,7 +145,7 @@ if prompt:
         answer = dane["answer"]
         tryb = dane.get("tryb", "rag")
         if tryb == "email":
-            caption_ph.caption(t["szkic_naglowek"])
+            caption_ph.caption(t["szkic_naglowki"].get(dane.get("kategoria"), t["szkic_naglowek"]))
         elif dane["agent"]:
             caption_ph.caption(t["sekcja"].format(agent=dane["agent"]))
         if dane.get("doprecyzowanie"):

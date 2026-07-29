@@ -86,7 +86,7 @@ PROMPTY = {
         'sedzia_pytanie_label': 'PYTANIE',
         'sedzia_pytanie': 'Czy da się odpowiedzieć? (TAK/NIE):',
         'tak_marker': 'TAK',
-        'email_system': (
+        'email_system_reklamacja': (
             'Piszesz SZKIC maila reklamacyjnego do sprzedawcy w imieniu kupującego. '
             'Zacznij od zdania: „Szkic wiadomości do sprzedawcy (uzupełnij dane przed wysłaniem):", '
             'potem pusta linia, potem treść maila. '
@@ -97,14 +97,56 @@ PROMPTY = {
             'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o rozwiązanie (naprawa, wymiana albo zwrot pieniędzy). '
             'Nie dodawaj żadnych wyjaśnień poza samym szkicem maila. Odpowiadaj po polsku.'
         ),
-        'sedzia_oferta_system': (
-            'Oceniasz na podstawie ROZMOWY, czy kupujący opisuje własną, konkretną sytuację reklamacyjną: '
-            'towar wadliwy, uszkodzony, niezgodny z opisem, albo sprzedawca nie odpowiada lub odmawia pomocy. '
-            'Nie licz jako reklamacji zwykłych pytań o zasady, terminy czy procedury, gdy kupujący nie sygnalizuje, '
-            'że ma z tym problem TERAZ, we własnym zamówieniu. W razie wątpliwości odpowiadaj NIE. '
-            'Jedno słowo: TAK albo NIE.'
+        'email_system_zwrot': (
+            'Piszesz SZKIC wiadomości do sprzedawcy o zwrocie produktu (odstąpienie od umowy) w imieniu kupującego. '
+            'Zacznij od zdania: „Szkic wiadomości do sprzedawcy (uzupełnij dane przed wysłaniem):", '
+            'potem pusta linia, potem treść wiadomości. '
+            'Opis, jaki produkt i dlaczego jest zwracany, weź wyłącznie z rozmowy powyżej, nie zmyślaj szczegółów. '
+            'Trzymaj się procesu zwrotu opisanego w sekcji „kontekst" (termin, sposób odstąpienia, co sprzedawca musi zrobić). '
+            'Numer zamówienia, datę zakupu i inne konkretne dane, których nie ma w rozmowie, zaznacz placeholderem '
+            'w nawiasach kwadratowych, np. [numer zamówienia], [data zakupu], nigdy nie zmyślaj wartości. '
+            'Ton uprzejmy i rzeczowy. Zakończ jasnym oświadczeniem o odstąpieniu od umowy i prośbą o instrukcję zwrotu. '
+            'Nie dodawaj żadnych wyjaśnień poza samym szkicem wiadomości. Odpowiadaj po polsku.'
         ),
-        'sedzia_oferta_pytanie': 'Czy zaoferować pomoc w napisaniu maila reklamacyjnego? (TAK/NIE):',
+        'email_system_faktura': (
+            'Piszesz SZKIC wiadomości do sprzedawcy z prośbą o fakturę za zakup w imieniu kupującego. '
+            'Zacznij od zdania: „Szkic wiadomości do sprzedawcy (uzupełnij dane przed wysłaniem):", '
+            'potem pusta linia, potem treść wiadomości. '
+            'Opis zakupu weź wyłącznie z rozmowy powyżej, nie zmyślaj szczegółów, których tam nie ma. '
+            'Trzymaj się procesu wystawiania faktury opisanego w sekcji „kontekst". '
+            'Numer zamówienia, datę zakupu, dane do faktury i inne konkretne dane, których nie ma w rozmowie, zaznacz '
+            'placeholderem w nawiasach kwadratowych, np. [numer zamówienia], [dane do faktury], nigdy nie zmyślaj wartości. '
+            'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o wystawienie faktury. '
+            'Nie dodawaj żadnych wyjaśnień poza samym szkicem wiadomości. Odpowiadaj po polsku.'
+        ),
+        'email_system_eskalacja': (
+            'Piszesz SZKIC wiadomości z prośbą o zaangażowanie Allegro w dyskusję ze sprzedawcą, w imieniu kupującego. '
+            'Zacznij od zdania: „Szkic wiadomości do Allegro (uzupełnij dane przed wysłaniem):", '
+            'potem pusta linia, potem treść wiadomości. '
+            'Opis sytuacji (co kupił, na czym polega problem, dlaczego sprzedawca nie pomógł) weź wyłącznie z rozmowy '
+            'powyżej, nie zmyślaj szczegółów. Trzymaj się WYŁĄCZNIE kroków opisanych w sekcji „kontekst": jeśli kontekst '
+            'nie opisuje konkretnego kroku eskalacji, nie zmyślaj procedury, użyj placeholdera w nawiasach kwadratowych '
+            'albo napisz, że trzeba to sprawdzić w Centrum Pomocy Allegro, zamiast wymyślać proces. '
+            'Numer zamówienia, datę zakupu i inne konkretne dane, których nie ma w rozmowie, zaznacz placeholderem '
+            'w nawiasach kwadratowych, nigdy nie zmyślaj wartości. '
+            'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o interwencję Allegro. '
+            'Nie dodawaj żadnych wyjaśnień poza samym szkicem wiadomości. Odpowiadaj po polsku.'
+        ),
+        'router_system': (
+            'Klasyfikujesz, jakiej pomocy z wiadomością do sprzedawcy/Allegro potrzebuje kupujący, na podstawie ROZMOWY. '
+            'Kategorie: REKLAMACJA (towar wadliwy, uszkodzony, niezgodny z opisem), ZWROT (kupujący chce oddać '
+            'sprawny towar i odstąpić od umowy, bez wady towaru), FAKTURA (kupujący prosi o fakturę za zakup), '
+            'ESKALACJA (sprzedawca nie odpowiada, ignoruje wiadomości albo odmawia pomocy: jeśli kupujący ma '
+            'wadliwy towar LUB chce zwrotu, ALE dodatkowo zgłasza brak reakcji sprzedawcy, wybierz ESKALACJA). '
+            'Kupujący musi opisywać WŁASNĄ, KONKRETNĄ sytuację, którą ma TERAZ, z własnym zamówieniem. Jeśli pyta '
+            'ogólnie o zasady, terminy czy procedury („jak długo mam na zwrot", „ile trwa rozpatrzenie reklamacji"), '
+            'bez wskazania własnego problemu, odpowiedz NONE, nawet jeśli w pytaniu pada słowo „zwrot" czy '
+            '„reklamacja". Ale gdy kupujący jasno opisuje własny towar i problem lub prośbę („słuchawki przyszły '
+            'porysowane, jedna nie działa", „chcę zwrócić te buty, nie pasują", „proszę o fakturę za mój zakup"), '
+            'wybierz właściwą kategorię bez wahania, to nie są wątpliwe przypadki. '
+            'Odpowiedz WYŁĄCZNIE jednym słowem z listy: REKLAMACJA, ZWROT, FAKTURA, ESKALACJA, NONE.'
+        ),
+        'router_pytanie': 'Kategoria (REKLAMACJA/ZWROT/FAKTURA/ESKALACJA/NONE):',
         'rozmowa_label': 'ROZMOWA',
     },
     'en': {
@@ -165,7 +207,7 @@ PROMPTY = {
         'sedzia_pytanie_label': 'QUESTION',
         'sedzia_pytanie': 'Can this be answered? (YES/NO):',
         'tak_marker': 'YES',
-        'email_system': (
+        'email_system_reklamacja': (
             'You write a DRAFT complaint email to the seller on behalf of the buyer. '
             'Start with the sentence: "Draft message to the seller (fill in your details before sending):", '
             'then a blank line, then the email body. '
@@ -176,14 +218,57 @@ PROMPTY = {
             'never invent values. Keep the tone polite and factual. End with a clear request for resolution '
             '(repair, replacement, or refund). Do not add any explanation beyond the email draft itself. Answer in English.'
         ),
-        'sedzia_oferta_system': (
-            'You judge from the CONVERSATION whether the buyer describes their own, concrete complaint situation: '
-            'a defective or damaged item, an item not as described, or a seller who is not responding or refusing '
-            'to help. Do not count ordinary questions about rules, deadlines, or procedures as a complaint unless '
-            'the buyer signals they have this problem NOW, with their own order. When in doubt, answer NO. '
-            'One word: YES or NO.'
+        'email_system_zwrot': (
+            'You write a DRAFT message to the seller about returning a product (withdrawal from the contract) on '
+            'behalf of the buyer. Start with the sentence: "Draft message to the seller (fill in your details before '
+            'sending):", then a blank line, then the message body. '
+            'Take the description of what is being returned and why exclusively from the conversation above, do not '
+            'invent details. Follow the return process described in the "context" section (deadline, how to withdraw, '
+            'what the seller must do). Mark the order number, purchase date, and any other specific data not present '
+            'in the conversation with a placeholder in square brackets, never invent values. '
+            'Keep the tone polite and factual. End with a clear statement of withdrawal from the contract and a '
+            'request for return instructions. Do not add any explanation beyond the message draft itself. Answer in English.'
         ),
-        'sedzia_oferta_pytanie': 'Should we offer help writing a complaint email? (YES/NO):',
+        'email_system_faktura': (
+            'You write a DRAFT message to the seller requesting an invoice for a purchase, on behalf of the buyer. '
+            'Start with the sentence: "Draft message to the seller (fill in your details before sending):", '
+            'then a blank line, then the message body. '
+            'Take the purchase description exclusively from the conversation above, do not invent details. '
+            'Follow the invoicing process described in the "context" section. Mark the order number, purchase date, '
+            'billing details, and any other specific data not present in the conversation with a placeholder in '
+            'square brackets, never invent values. Keep the tone polite and factual. End with a clear request to '
+            'issue the invoice. Do not add any explanation beyond the message draft itself. Answer in English.'
+        ),
+        'email_system_eskalacja': (
+            'You write a DRAFT message asking Allegro to get involved in a discussion with a seller, on behalf of '
+            'the buyer. Start with the sentence: "Draft message to Allegro (fill in your details before sending):", '
+            'then a blank line, then the message body. '
+            'Take the situation description (what was bought, what the problem is, why the seller did not help) '
+            'exclusively from the conversation above, do not invent details. Follow ONLY the steps described in the '
+            '"context" section: if the context does not describe a concrete escalation step, do not invent a '
+            'procedure, use a placeholder in square brackets or say this needs to be checked in the Allegro Help '
+            'Center instead of making up a process. Mark the order number, purchase date, and any other specific '
+            'data not present in the conversation with a placeholder, never invent values. '
+            'Keep the tone polite and factual. End with a clear request for Allegro to intervene. Do not add any '
+            'explanation beyond the message draft itself. Answer in English.'
+        ),
+        'router_system': (
+            'You classify what kind of help with a message to the seller/Allegro the buyer needs, based on the '
+            'CONVERSATION. Categories: REKLAMACJA (item is defective, damaged, or not as described), ZWROT (buyer '
+            'wants to return a working item and withdraw from the contract, no defect involved), FAKTURA (buyer '
+            'asks for an invoice for a purchase), ESKALACJA (seller is not responding, is ignoring messages, or '
+            'refuses to help: if the buyer has a defective item OR wants a return, BUT also reports the seller is '
+            'not responding, choose ESKALACJA). '
+            'The buyer must describe their OWN, CONCRETE situation happening NOW, with their own order. If they '
+            'ask a general question about rules, deadlines, or procedures ("how long do I have to return an item", '
+            '"how long does a complaint take"), without pointing to their own problem, answer NONE, even if the '
+            'question contains the word "return" or "complaint". But when the buyer clearly describes their own '
+            'item and problem or request ("the headphones arrived scratched, one earbud does not work", "I want to '
+            'return these shoes, they do not fit", "please send me an invoice for my order"), pick the right '
+            'category without hesitation, those are not doubtful cases. '
+            'Reply with EXACTLY ONE WORD from this list: REKLAMACJA, ZWROT, FAKTURA, ESKALACJA, NONE.'
+        ),
+        'router_pytanie': 'Category (REKLAMACJA/ZWROT/FAKTURA/ESKALACJA/NONE):',
         'rozmowa_label': 'CONVERSATION',
     },
 }
@@ -339,20 +424,23 @@ def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = 
     return tekst.startswith(p['tak_marker'])
 
 
-def napisz_email(history: list[dict], chunks: list, lang: str = 'pl') -> dict:
+KATEGORIE_MAIL = ('reklamacja', 'zwrot', 'faktura', 'eskalacja')
+
+
+def napisz_email(history: list[dict], chunks: list, lang: str = 'pl', kategoria: str = 'reklamacja') -> dict:
     p = PROMPTY[lang]
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
 
-    wiadomosci = [{'role': 'system', 'content': p['email_system']}]
+    wiadomosci = [{'role': 'system', 'content': p[f'email_system_{kategoria}']}]
     for w in (history or []):
         if w.get('role') in ('user', 'assistant') and w.get('content'):
             wiadomosci.append({'role': w['role'], 'content': w['content']})
     tresc = (f"{p['kontekst_label']}:\n{kontekst}\n\n"
-             'Napisz teraz szkic maila reklamacyjnego do sprzedawcy na podstawie powyższej rozmowy i procesu z kontekstu.'
+             'Napisz teraz szkic wiadomości na podstawie powyższej rozmowy i procesu z kontekstu.'
              if lang == 'pl' else
              f"{p['kontekst_label']}:\n{kontekst}\n\n"
-             'Now write the complaint email draft to the seller based on the conversation above and the process in the context.')
+             'Now write the message draft based on the conversation above and the process in the context.')
     wiadomosci.append({'role': 'user', 'content': tresc})
 
     odp = klient.chat.completions.create(
@@ -365,26 +453,29 @@ def napisz_email(history: list[dict], chunks: list, lang: str = 'pl') -> dict:
     return {'tekst': tekst}
 
 
-def czy_oferowac_mail(history: list[dict], chunks: list, lang: str = 'pl') -> bool:
+def sedzia_kategoria_mail(history: list[dict], chunks: list, lang: str = 'pl') -> str | None:
     p = PROMPTY[lang]
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
     rozmowa = '\n'.join(f"{w['role']}: {w['content']}" for w in (history or [])
                         if w.get('role') in ('user', 'assistant') and w.get('content'))
     odp = klient.chat.completions.create(
-        model=LANG[lang]['sedzia_model'],
+        model=LANG[lang]['router_model'],
         messages=[
-            {'role': 'system', 'content': p['sedzia_oferta_system']},
+            {'role': 'system', 'content': p['router_system']},
             {'role': 'user', 'content': (
                 f"{p['sedzia_kontekst_label']}:\n{kontekst}\n\n"
-                f"{p['rozmowa_label']}:\n{rozmowa}\n\n{p['sedzia_oferta_pytanie']}"
+                f"{p['rozmowa_label']}:\n{rozmowa}\n\n{p['router_pytanie']}"
             )},
         ],
         stream=False,
         stop=['\n'],
     )
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip().upper()
-    return tekst.startswith(p['tak_marker'])
+    for kategoria in KATEGORIE_MAIL:
+        if tekst.startswith(kategoria.upper()):
+            return kategoria
+    return None
 
 
 def zapytaj(query, agent, chunks, etykieta):

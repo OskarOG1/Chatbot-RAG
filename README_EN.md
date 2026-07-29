@@ -230,6 +230,14 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 **Result.** 22/22 tests green with the fixture, hermetically. `ruff check src tests` clean after fixing three ambiguous variable names (`l`, `I`) in `chunking.py`/`rankings.py`; regression check: retrieval accuracy on the golden set unchanged (0.820).
 
+### 13. Four mail categories instead of one, a single router judge instead of YES/NO
+
+**Problem.** The action assistant could only draft one kind of message: a complaint email to the seller, gated by a binary LLM judge (YES/NO, whether to offer help). Real buyer needs are broader: wanting a return with no defect involved, requesting an invoice, or reporting that the seller isn't responding at all.
+
+**Solution.** The binary judge was replaced with a single router judge that picks one of five labels: `REKLAMACJA`/`ZWROT`/`FAKTURA`/`ESKALACJA`/`NONE`. Each category's data (grounding article, retrieval query, canonical offer text, cheap-gate words/phrases) lives centrally in the language config. A separate draft prompt per category, with the same rules as before (placeholders instead of invented data, process taken only from the source context).
+
+**Result.** First measurement pass: 5/12 correct categories, because the cheap gate was too lenient on procedural questions, and the router's context retrieval in the free-text path sometimes pulled an unrelated article. After tightening the router prompt (an explicit boundary example for procedural-question-vs-own-situation) and widening the retrieval context (last conversation message instead of the instruction alone, `k` from 3 to 5): **12/12 correct categories, 12/12 correct gates**, draft quality across four categories (PL/EN) 8/8 correct category, average score 4.0-4.4/5 depending on the run (variance on the EN generation side, a known pre-existing weakness, not in the routing). Zero new false positives on the golden set (0/100), the same critical gate as with the single category.
+
 ---
 
 ## Security and robustness

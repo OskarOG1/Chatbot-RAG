@@ -1,7 +1,7 @@
 from sentence_transformers import SentenceTransformer
 import faiss
 from rankings import search_reranked_multi
-from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada, napisz_email, czy_oferowac_mail
+from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada, napisz_email, sedzia_kategoria_mail
 from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
 from lang_config import LANG
@@ -29,7 +29,6 @@ PII_WZORCE = (
 PROG_POKRYCIA = LANG['pl']['prog_pokrycia']
 PROG_RERANK = LANG['pl']['prog_rerank']
 # Lokalne rozwiązanie (bge-v2-m3 + Bielik 1.5B): PROG_POKRYCIA = 0.65, PROG_RERANK = 0.05
-ARTYKUL_REKLAMACJA = 'jak-rozpoczac-dyskusje-i-wyjasnic-problem-ze-sprzedajacym-WEDKYqnEvik'
 
 
 def _followup(query: str, lang: str = 'pl') -> bool:
@@ -40,18 +39,31 @@ def _followup(query: str, lang: str = 'pl') -> bool:
     return bool(set(tokenize_words(low)) & cfg['zaimki'])
 
 
-def _ma_sygnal_reklamacji(query: str, lang: str = 'pl') -> bool:
+def sygnal_maila(query: str, lang: str = 'pl') -> bool:
     cfg = LANG[lang]
     low = query.lower()
-    if set(tokenize_words(low)) & cfg['reklamacja_slowa']:
-        return True
-    return any(fraza in low for fraza in cfg['reklamacja_frazy'])
+    tokeny = set(tokenize_words(low))
+    for kat in cfg['mail_kategorie'].values():
+        if tokeny & kat['slowa']:
+            return True
+        if any(fraza in low for fraza in kat['frazy']):
+            return True
+    return False
+
+
+def _kategoria_z_oferty(query: str, lang: str = 'pl') -> str | None:
+    cfg = LANG[lang]
+    low = query.strip().lower()
+    for nazwa, kat in cfg['mail_kategorie'].items():
+        if low == kat['oferta'].lower():
+            return nazwa
+    return None
 
 
 def _jawna_prosba_o_mail(query: str, lang: str = 'pl') -> bool:
     cfg = LANG[lang]
     low = query.strip().lower()
-    if low == cfg['oferta_wiadomosc'].lower():
+    if _kategoria_z_oferty(query, lang):
         return True
     tokeny = set(tokenize_words(low))
     return bool(tokeny & cfg['mail_czasowniki']) and bool(tokeny & cfg['mail_obiekty'])
@@ -205,14 +217,29 @@ def run_stream(query:str, bielik_model:str | None=None,
         doprecyzowanie = f'Szukam dla: „{query}" — czy o to chodziło?' if korekta['zmieniono'] else None
 
     if _jawna_prosba_o_mail(query, lang):
-        yield krok('Przygotowuję szkic maila do sprzedawcy')
-        mail_emb = MODELE[lang].encode([cfg['query_prefix'] + cfg['reklamacja_zapytanie']]).astype('float32')
+        yield krok('Przygotowuję szkic wiadomości do sprzedawcy')
+        kategoria = _kategoria_z_oferty(query, lang)
+        if kategoria is None:
+            ostatnia_tresc = next((w['content'] for w in reversed(history)
+                                   if w.get('role') == 'user' and w.get('content')), '')
+            tekst_ret = f'{ostatnia_tresc} {query}'.strip()
+            router_emb = MODELE[lang].encode([cfg['query_prefix'] + tekst_ret]).astype('float32')
+            faiss.normalize_L2(router_emb)
+            router_chunks = search_reranked_multi(tekst_ret, router_emb, ['all'], k=5, k_surowe=20, lang=lang)
+            kategoria = sedzia_kategoria_mail(history + [{'role': 'user', 'content': query}], router_chunks, lang)
+        if kategoria is None:
+            yield wynik({'agent': '', 'answer': cfg['mail_doprecyzuj'],
+                         'sources': [], 'citations': [], 'doprecyzowanie': None, 'oferta': None, 'tryb': 'rag'})
+            return
+        kat_cfg = cfg['mail_kategorie'][kategoria]
+        mail_emb = MODELE[lang].encode([cfg['query_prefix'] + kat_cfg['zapytanie']]).astype('float32')
         faiss.normalize_L2(mail_emb)
-        mail_chunks = search_reranked_multi(cfg['reklamacja_zapytanie'], mail_emb, ['all'], k=3, k_surowe=20, lang=lang)
-        szkic = napisz_email(history + [{'role': 'user', 'content': query}], mail_chunks, lang)
+        mail_chunks = search_reranked_multi(kat_cfg['zapytanie'], mail_emb, ['all'], k=3, k_surowe=20, lang=lang)
+        szkic = napisz_email(history + [{'role': 'user', 'content': query}], mail_chunks, lang, kategoria)
         yield wynik({'agent': 'email', 'answer': szkic['tekst'],
                      'sources': list(dict.fromkeys(c['url'] for c, _ in mail_chunks)),
-                     'citations': [], 'doprecyzowanie': None, 'oferta': None, 'tryb': 'email'})
+                     'citations': [], 'doprecyzowanie': None, 'oferta': None, 'tryb': 'email',
+                     'kategoria': kategoria})
         return
 
     if history and (przepisz or _followup(query, lang)):
@@ -261,10 +288,15 @@ def run_stream(query:str, bielik_model:str | None=None,
         return
 
     oferta = None
-    if _ma_sygnal_reklamacji(query, lang) or (chunks and ARTYKUL_REKLAMACJA in chunks[0][0]['url']):
-        yield krok('Sprawdzam, czy zaproponować pomoc z reklamacją')
-        if czy_oferowac_mail(history + [{'role': 'user', 'content': query}], chunks, lang):
-            oferta = cfg['oferta_wiadomosc']
+    oferta_kategoria = None
+    artykuly_maila = {kat['artykul'] for kat in cfg['mail_kategorie'].values()}
+    if sygnal_maila(query, lang) or (chunks and chunks[0][0]['url'] and
+                                      any(art in chunks[0][0]['url'] for art in artykuly_maila)):
+        yield krok('Sprawdzam, czy zaproponować pomoc z wiadomością do sprzedawcy')
+        kategoria = sedzia_kategoria_mail(history + [{'role': 'user', 'content': query}], chunks, lang)
+        if kategoria:
+            oferta = cfg['mail_kategorie'][kategoria]['oferta']
+            oferta_kategoria = kategoria
 
     zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
     yield wynik({'agent': agent_odp,
@@ -273,6 +305,7 @@ def run_stream(query:str, bielik_model:str | None=None,
                  'citations': odpowiedz['cytaty'],
                  'doprecyzowanie': doprecyzowanie,
                  'oferta': oferta,
+                 'oferta_kategoria': oferta_kategoria,
                  'tryb': 'rag'})
 
 
