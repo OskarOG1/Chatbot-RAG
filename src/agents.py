@@ -157,8 +157,7 @@ PROMPTY = {
             '(Allegro account, shopping, delivery, returns, or payments), so the context could at least '
             'partially or indirectly help. Do not check whether the context fully or perfectly answers '
             'the question, whether every detail is covered, or whether the best matching part is only in '
-            'one of several context entries — if even one context entry touches the topic of the question, '
-            'answer YES. Answer YES unless the question is clearly about something '
+            'one of several context entries. Answer YES unless the question is clearly about something '
             'unrelated to Allegro shopping, accounts, or payments (for example cooking, sports, or another '
             'store). When in doubt, answer YES. One word: YES or NO.'
         ),
