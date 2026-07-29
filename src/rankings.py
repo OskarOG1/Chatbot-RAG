@@ -90,9 +90,9 @@ def wczytaj_chunki(agent:str, lang:str='pl') -> list[dict]:
 def ranking_faiss(query_emb, agent:str, chunki: list[dict], lang:str='pl') -> list[int]:
 
   index = get_faiss(agent, lang)
-  D, I = index.search(query_emb, len(chunki))
+  _, idx = index.search(query_emb, len(chunki))
 
-  return list(I[0])
+  return list(idx[0])
 
 def ortografia(token, n=3):
     t = f'#{token}'

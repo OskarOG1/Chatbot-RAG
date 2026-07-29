@@ -11,7 +11,6 @@ chunks*.json
 pytest.ini
 *.pkl
 1_Analytics.py
-test_*.py
 confest.py
 measure.py
 measure_*.py

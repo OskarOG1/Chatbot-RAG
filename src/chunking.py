@@ -46,9 +46,9 @@ def podziel_na_sekcje(tresc: str) -> list[tuple[str | None, str]]:
     while i < len(linie) and linie[i].strip():
         i += 1
 
-    kandydat = [l.strip() for l in linie[start:i] if l.strip()]
+    kandydat = [linia.strip() for linia in linie[start:i] if linia.strip()]
     reszta = linie[i:]
-    zbior = {l.strip() for l in reszta if l.strip()}
+    zbior = {linia.strip() for linia in reszta if linia.strip()}
 
     if not (len(kandydat) >= 2 and all(naglowek in zbior for naglowek in kandydat)):
         return [(None, tresc)]

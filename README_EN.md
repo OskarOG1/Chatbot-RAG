@@ -1,5 +1,7 @@
 # RAG Chatbot: answers drawn exclusively from a document base
 
+[![CI](https://github.com/OskarOG1/Chatbot-RAG/actions/workflows/ci.yml/badge.svg)](https://github.com/OskarOG1/Chatbot-RAG/actions/workflows/ci.yml)
+
 A chatbot that answers questions **only on the basis of the supplied articles**, never from the model's general knowledge. Every answer links to its sources. When the answer isn't in the base, the system refuses instead of making things up.
 
 **Demo: [ogflow.pl](https://ogflow.pl)**
@@ -219,6 +221,14 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 **Solution.** A response cache in `api.py`, keyed by the normalized question, language, and the corpus file's mtime stamp (rebuilding the knowledge base invalidates the cache automatically), only for successful answers and only for standalone questions with no conversation history. A structured JSONL log on every request (language, section, outcome, latency, cache hit), with PII redaction using the same mechanism as the existing `skazone_tokeny` filter. A Streamlit analytics page showing refusal rate, median latency, and top questions. The PL judge prompt was tightened with an explicit "you are not checking completeness" and "one matching source out of several is enough"; the same change was tried on EN too but measured worse across three runs, so it was reverted there.
 
 **Result.** Cache: first request 10.4s, second request (cached) 0.28s, identical content. Judge: PL golden pass rate went from 46/50 to 50/50 end to end (zero refusals), that change stays. The same change measured on EN three times did not help (43 to 42 to 41 out of 50), so it was reverted, the remaining gap is a real problem in the corpus content or the EN embedder, not the prompt. OOD control (6 out of domain questions) showed no regression.
+
+### 12. CI on GitHub Actions
+
+**Problem.** Unit tests only existed locally, nothing enforced that they stayed green on every change. Three of the typo-corrector tests (`correct()`) read a dictionary from `RAG/`, a directory that doesn't exist in the repo, so those same tests would fail in CI despite passing locally.
+
+**Solution.** An autouse fixture in `tests/conftest.py` injects a small dictionary instead of reading `RAG/`, making the `correct()` tests hermetic. The unit tests stopped being private (a deliberate convention change: they used to be gitignored, now they're committed, because GitHub Actions needs them in the checkout to run anything). The `.github/workflows/ci.yml` workflow runs `ruff check` and `pytest` on every push and pull request, without the heavy dependencies (`torch`/`faiss`/`sentence-transformers`).
+
+**Result.** 22/22 tests green with the fixture, hermetically. `ruff check src tests` clean after fixing three ambiguous variable names (`l`, `I`) in `chunking.py`/`rankings.py`; regression check: retrieval accuracy on the golden set unchanged (0.820).
 
 ---
 

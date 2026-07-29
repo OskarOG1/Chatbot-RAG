@@ -1,5 +1,7 @@
 # Chatbot RAG: odpowiedzi wyłącznie z bazy dokumentów
 
+[![CI](https://github.com/OskarOG1/Chatbot-RAG/actions/workflows/ci.yml/badge.svg)](https://github.com/OskarOG1/Chatbot-RAG/actions/workflows/ci.yml)
+
 Chatbot, który odpowiada na pytania **tylko na podstawie dostarczonych artykułów**, nigdy z ogólnej wiedzy modelu. Każda odpowiedź ma odnośniki do źródeł. Gdy odpowiedzi nie ma w bazie  system odmawia zamiast zmyślać.
 
 **Demo: [ogflow.pl](https://ogflow.pl)**
@@ -227,6 +229,14 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 **Rozwiązanie.** Cache odpowiedzi w `api.py`, kluczowany znormalizowanym pytaniem, językiem i stemplem mtime korpusu (przebudowa bazy wiedzy unieważnia cache automatycznie), tylko dla udanych odpowiedzi i tylko dla samodzielnych pytań bez historii rozmowy. Log strukturalny JSONL po każdym zapytaniu (język, sekcja, wynik, latencja, trafienie cache), z redakcją PII tym samym mechanizmem co istniejący filtr `skazone_tokeny`. Strona analityczna w Streamlit z odsetkiem odmów, medianą latencji i top pytaniami. Prompt sędziego PL dociągnięty o wyraźne „nie sprawdzasz kompletności" i „wystarczy jedno pasujące źródło z kilku". Ta sama zmiana wypróbowana też dla EN, ale zmierzona jako gorsza w trzech przebiegach, więc tam wycofana.
 
 **Wynik.** Cache: pierwsze zapytanie 10,4 s, drugie (z cache) 0,28 s, identyczna treść. Sędzia: PL 46/50 → 50/50 golden przechodzi end-to-end (zero odmów), zmiana promptu zostaje. Dla EN ta sama zmiana zmierzona trzykrotnie nie pomogła (43 → 42 → 41/50), więc została wycofana, pozostała luka to realny problem w treści korpusu albo embedderze EN, nie w prompcie. Kontrola OOD (6 pytań spoza domeny) bez regresji.
+
+### 13. CI na GitHub Actions
+
+**Problem.** Testy jednostkowe istniały tylko lokalnie, nic nie pilnowało, żeby zostały zielone przy każdej zmianie. Trzy testy korektora literówek (`correct()`) czytały słownik z `RAG/`, katalogu który w repo nie istnieje, więc te same testy w CI padłyby mimo że lokalnie przechodziły.
+
+**Rozwiązanie.** Autouse fixture w `tests/conftest.py` wstrzykuje mały słownik zamiast czytać `RAG/`, testy `correct()` są teraz hermetyczne. Testy jednostkowe przestały być prywatne (świadoma zmiana konwencji: były w `.gitignore`, teraz są scommitowane, bo GitHub Actions potrzebuje ich w checkout, żeby cokolwiek sprawdzić). Workflow `.github/workflows/ci.yml` uruchamia `ruff check` i `pytest` na każdym pushu i pull requeście, bez ciężkich zależności (`torch`/`faiss`/`sentence-transformers`).
+
+**Wynik.** 22/22 testów zielonych z fixture, hermetycznie. `ruff check src tests` czyste po naprawie trzech niejednoznacznych nazw zmiennych (`l`, `I`) w `chunking.py`/`rankings.py`, kontrola regresji: trafność wyszukiwania na golden set bez zmian (0,820).
 
 ---
 
