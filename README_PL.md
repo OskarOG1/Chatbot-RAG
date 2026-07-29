@@ -246,6 +246,14 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Wynik.** Pierwszy przebieg pomiaru: 5/12 trafnych kategorii, bo cheap-gate sprawdzana na pytaniach proceduralnych nadmiernie liberalna, a mini-retrieval kontekstu dla routera w ścieżce wolnego tekstu czasem trafiał w niezwiązany artykuł. Po dociągnięciu promptu routera (jawna granica pytanie-proceduralne-vs-własna-sytuacja) i rozszerzeniu kontekstu retrievalu (ostatnia wiadomość z historii zamiast samego polecenia, `k` z 3 do 5): **12/12 trafnych kategorii, 12/12 trafnych bramek**, jakość czterech szkiców (PL/EN) 8/8 poprawna kategoria, średnia ocena 4.0-4.4/5 w zależności od przebiegu (wariancja po stronie generacji EN, znana i wcześniej odnotowana słabość, nie routingu). Zero nowych fałszywych trafień na golden (0/100), ta sama krytyczna bramka co przy jednej kategorii.
 
+### 15. Frontend w Next.js obok Streamlita, streaming przez proxy Route Handler
+
+**Problem.** Streamlit sprawdza się jako szybkie demo, ale pod portfolio i realne wdrożenie potrzebny jest frontend z pełną kontrolą nad UX, bez zmiany backendu, który pozostaje jedynym źródłem prawdy.
+
+**Rozwiązanie.** Nowy katalog `frontend-next/` (App Router, TypeScript, Tailwind, komponenty własne, bez shadcn), działający obok `frontend/app.py` do czasu pełnego parytetu. Przeglądarka nie łączy się z FastAPI bezpośrednio: `app/api/chat/route.ts` robi serwerowy fetch do `FASTAPI_URL/chat/stream` i oddaje strumień dalej, więc jeden origin, zero CORS, adres backendu nieujawniony w przeglądarce. Kontrakt SSE (`krok`/`token`/`wynik`/`blad`), reguły historii (dopisywana tylko przy udanej odpowiedzi), retry po negacji i oferta maila z kategorią odwzorowane z `frontend/app.py` jeden do jednego.
+
+**Wynik.** Weryfikacja end-to-end w przeglądarce: pytanie RAG PL i EN streamuje tokeny i kończy renderem z `wynik.dane.answer`, przycisk oferty generuje poprawny szkic z nagłówkiem właściwym dla kategorii (np. „Szkic maila reklamacyjnego"), doprecyzowanie po literówce pokazuje baner i poprawne „nie" wraca do oryginalnego pytania bez ponownej pętli korekty. Pomiar parytetu (`src/measure_frontend.py`, 8 zapytań PL/EN: RAG, oferta, jawna prośba o mail, literówka, odmowa) między proxy a bezpośrednim wywołaniem `/chat/stream`: **8/8 zgodnych** pól `agent`/`tryb`/`oferta`. Narzut samego proxy zmierzony osobno na rozgrzanym cache (żeby oddzielić go od wariancji czasu generowania): mediana **21.7ms**, pomijalny.
+
 ---
 
 ## Bezpieczeństwo i odporność

@@ -2,6 +2,9 @@ venv/
 docs/
 __pycache__/
 *.json
+!frontend-next/package.json
+!frontend-next/package-lock.json
+!frontend-next/tsconfig.json
 *.pyc
 *.npy
 *.faiss
@@ -19,7 +22,7 @@ trudne.jsonl
 *.jsonl
 diag_*.py
 translate_chunks.py
-lang_config.py
+
 
 test_HF.py
 *.md
