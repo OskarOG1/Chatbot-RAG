@@ -204,6 +204,14 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Wynik.** Na pytaniu odtwarzającym incydent („chcę zwrócić zamówienie, ale nie wiem ile waży moja paczka") system przestał podawać progi jako uniwersalne (`True → False`) i zamiast tego trafnie odmawia, bo dostępny kontekst dotyczy tylko innej kategorii. Kontrola regresji na 50 pytaniach golden + 29 OOD (sędzia) i 12 pytaniach z `pipeline.pytania` (cytaty `[n]`): bez regresji. Pełny log: `src/POMIAR_ROUTING.md`, sekcja 17.
 
+### 10. Wieloturowość przez przepisanie zapytania, nowy asystent maila reklamacyjnego
+
+**Problem.** Dopytania w rozmowie były sklejane prostą konkatenacją poprzedniej wypowiedzi z nowym pytaniem, co czasem dawało zapytanie do wyszukiwarki gorsze niż samodzielnie sformułowane. Bot też kończył zawsze na odpowiedzi, nigdy nie proponował konkretnej akcji, mimo że część pytań (reklamacja, sprzedawca nie odpowiada) prosi się o gotowy szkic wiadomości.
+
+**Rozwiązanie.** Dopytania rozpoznane tanim detektorem (`_followup`) są teraz przepisywane przez LLM na samodzielne pytanie (`przepisz_zapytanie`) zamiast sklejane. Osobno: nowy tryb generuje szkic maila reklamacyjnego do sprzedawcy, ugruntowany w artykule o Dyskusji z Centrum Pomocy, z placeholderami zamiast zmyślonych numerów zamówień i dat. Wyzwalany hybrydowo: tani regex na słowa klucze bramkuje jedno wywołanie LLM-sędziego (`czy_oferowac_mail`), które decyduje, czy zaproponować pomoc, plus tani fallback na wyraźną prośbę.
+
+**Wynik.** Pary wieloturowe: trafność w źródło startowego pytania 40%→60% (n=10). Bramka i sędzia oferty: 6/6 trafnych decyzji na oznaczonym zestawie, 0/100 fałszywych trafień jawnej prośby na golden. Jakość szkicu maila (sędzia LLM, rubryka 1-5): średnia 4,5/5. Regresja end-to-end na 50 golden na język: bez zmian ponad znany szum losowości generacji (sekcja 13). Przy okazji znaleziony i naprawiony pre-istniejący błąd retrievalu (zapytanie „reklamacja” nie trafiało w artykuł, który używa terminu „Dyskusja”) oraz błąd renderowania przycisku oferty w Streamlit (widget wewnątrz warunkowego bloku nigdy nie rejestrował kliknięcia). Pełny log: `src/POMIAR_ROUTING.md`, sekcja 19.
+
 ---
 
 ## Bezpieczeństwo i odporność
@@ -224,7 +232,7 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Cytaty.** Prompt każe wstawiać odnośniki `[n]` i zabrania gołych URL-i. Funkcja wycina linki z tekstu i mapuje `[n]` na źródło. Powód jest w danych: wszystkie 141 artykułów mają linki we własnej treści, więc mniejszy model przepisywał je jako listę i dublował sekcję „Źródła". Cytaty służą wyłącznie do wyświetlania, do odmowy używane jest pokrycie, nie obecność `[n]`.
 
-**Pamięć rozmowy.** Okno 3 tur. Wyszukiwanie leci na sklejce ostatniej wypowiedzi i bieżącego pytania, więc „a jak to z telefonu?" po pytaniu o hasło trafia poprawnie. Bez dodatkowego wywołania modelu.
+**Pamięć rozmowy.** Okno 3 tur. Dopytania wykryte tanim detektorem są przepisywane przez LLM na samodzielne pytanie przed wyszukiwaniem (`przepisz_zapytanie`), więc np. „a co jeśli sprzedawca nie odpowiada?" po pytaniu o reklamację trafia poprawnie. Jedno dodatkowe wywołanie modelu, tylko przy wykrytym dopytaniu, nie przy każdej turze.
 
 ---
 

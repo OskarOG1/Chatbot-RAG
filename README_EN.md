@@ -196,6 +196,14 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 **Result.** The right article was labelled `konto` (account) instead of `zakupy` (purchases), so it never entered the candidate pool. Fix: one line of mapping plus moving 3 articles. Regression check: accuracy unchanged (0.900/0.933).
 
+### 9. Multi-turn rewriting via LLM, new complaint-email assistant
+
+**Problem.** Follow-up turns were joined to the previous question by plain concatenation, which sometimes produced a worse search query than a standalone rephrasing would. The bot also always stopped at an answer, never proposing a concrete action, even though some situations (a complaint, an unresponsive seller) call for a ready-to-send draft.
+
+**Solution.** Follow-ups detected by a cheap detector (`_followup`) are now rewritten into a standalone question by an LLM (`przepisz_zapytanie`) instead of concatenated. Separately, a new mode drafts a complaint email to the seller, grounded in the Help Center article on opening a Discussion, with placeholders instead of invented order numbers and dates. Triggered by a hybrid: a cheap keyword regex gates a single LLM-judge call (`czy_oferowac_mail`) that decides whether to offer help, plus a cheap fallback for an explicit request.
+
+**Result.** Multi-turn pairs: hit rate on the originating source went from 40% to 60% (n=10). The offer gate and judge: 6/6 correct decisions on a labelled set, 0/100 false positives for the explicit-request path on golden. Draft email quality (LLM judge, 1-5 rubric): average 4.5/5. End-to-end regression on 50 golden questions per language: unchanged beyond the known generation/judge noise floor (section 13 of the measurement log). Along the way, a pre-existing retrieval bug was found and fixed (the query "complaint" did not match the article, which uses the term "Discussion" instead), plus a Streamlit UI bug where the offer button never registered its click because it lived inside a conditionally executed block. Full log: `src/POMIAR_ROUTING.md`, section 19.
+
 ---
 
 ## Security and robustness
