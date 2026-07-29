@@ -238,6 +238,14 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 **Result.** First measurement pass: 5/12 correct categories, because the cheap gate was too lenient on procedural questions, and the router's context retrieval in the free-text path sometimes pulled an unrelated article. After tightening the router prompt (an explicit boundary example for procedural-question-vs-own-situation) and widening the retrieval context (last conversation message instead of the instruction alone, `k` from 3 to 5): **12/12 correct categories, 12/12 correct gates**, draft quality across four categories (PL/EN) 8/8 correct category, average score 4.0-4.4/5 depending on the run (variance on the EN generation side, a known pre-existing weakness, not in the routing). Zero new false positives on the golden set (0/100), the same critical gate as with the single category.
 
+### 14. Next.js frontend alongside Streamlit, streaming through a proxy Route Handler
+
+**Problem.** Streamlit works well as a quick demo, but a portfolio piece and real deployment need a frontend with full UX control, without changing the backend, which stays the single source of truth.
+
+**Solution.** A new `frontend-next/` directory (App Router, TypeScript, Tailwind, custom components, no shadcn), running alongside `frontend/app.py` until full parity is reached. The browser never talks to FastAPI directly: `app/api/chat/route.ts` does a server-side fetch to `FASTAPI_URL/chat/stream` and forwards the stream, so it's same-origin, zero CORS, and the backend address never reaches the browser. The SSE contract (`krok`/`token`/`wynik`/`blad`), the history rule (appended only on a successful reply), the retry-after-negation flow, and the categorized mail offer are mirrored 1:1 from `frontend/app.py`.
+
+**Result.** End-to-end verification in the browser: a PL and EN RAG question streams tokens and finishes rendering from `wynik.dane.answer`, the offer button generates a correct draft with the category-specific header (e.g. "Draft complaint email"), a typo triggers the confirmation banner, and a correct "no" reverts to the original question without re-looping the correction. Parity measurement (`src/measure_frontend.py`, 8 PL/EN queries: RAG, offer, explicit mail request, typo, refusal) between the proxy and calling `/chat/stream` directly: **8/8 matching** on `agent`/`tryb`/`oferta`. Proxy-only overhead measured separately on a warmed cache (to isolate it from generation-time variance): median **21.7ms**, negligible.
+
 ---
 
 ## Security and robustness

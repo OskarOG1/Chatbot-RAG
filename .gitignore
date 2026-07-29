@@ -2,6 +2,9 @@ venv/
 docs/
 __pycache__/
 *.json
+!frontend-next/package.json
+!frontend-next/package-lock.json
+!frontend-next/tsconfig.json
 *.pyc
 *.npy
 *.faiss
