@@ -1,7 +1,7 @@
 from sentence_transformers import SentenceTransformer
 import faiss
 from rankings import search_reranked_multi
-from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada
+from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada, napisz_email, czy_oferowac_mail
 from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
 from lang_config import LANG
@@ -29,6 +29,7 @@ PII_WZORCE = (
 PROG_POKRYCIA = LANG['pl']['prog_pokrycia']
 PROG_RERANK = LANG['pl']['prog_rerank']
 # Lokalne rozwiązanie (bge-v2-m3 + Bielik 1.5B): PROG_POKRYCIA = 0.65, PROG_RERANK = 0.05
+ARTYKUL_REKLAMACJA = 'jak-rozpoczac-dyskusje-i-wyjasnic-problem-ze-sprzedajacym-WEDKYqnEvik'
 
 
 def _followup(query: str, lang: str = 'pl') -> bool:
@@ -37,6 +38,23 @@ def _followup(query: str, lang: str = 'pl') -> bool:
     if low.startswith(cfg['followup_prefiksy']):
         return True
     return bool(set(tokenize_words(low)) & cfg['zaimki'])
+
+
+def _ma_sygnal_reklamacji(query: str, lang: str = 'pl') -> bool:
+    cfg = LANG[lang]
+    low = query.lower()
+    if set(tokenize_words(low)) & cfg['reklamacja_slowa']:
+        return True
+    return any(fraza in low for fraza in cfg['reklamacja_frazy'])
+
+
+def _jawna_prosba_o_mail(query: str, lang: str = 'pl') -> bool:
+    cfg = LANG[lang]
+    low = query.strip().lower()
+    if low == cfg['oferta_wiadomosc'].lower():
+        return True
+    tokeny = set(tokenize_words(low))
+    return bool(tokeny & cfg['mail_czasowniki']) and bool(tokeny & cfg['mail_obiekty'])
 
 
 def _lematy(tekst: str, lang: str = 'pl') -> set:
@@ -168,12 +186,20 @@ def run_stream(query:str, bielik_model:str | None=None,
                 return
         doprecyzowanie = f'Szukam dla: „{query}" — czy o to chodziło?' if korekta['zmieniono'] else None
 
-    if przepisz and history:
+    if _jawna_prosba_o_mail(query, lang):
+        yield krok('Przygotowuję szkic maila do sprzedawcy')
+        mail_emb = MODELE[lang].encode([cfg['query_prefix'] + cfg['reklamacja_zapytanie']]).astype('float32')
+        faiss.normalize_L2(mail_emb)
+        mail_chunks = search_reranked_multi(cfg['reklamacja_zapytanie'], mail_emb, ['all'], k=3, k_surowe=20, lang=lang)
+        szkic = napisz_email(history + [{'role': 'user', 'content': query}], mail_chunks, lang)
+        yield wynik({'agent': 'email', 'answer': szkic['tekst'],
+                     'sources': list(dict.fromkeys(c['url'] for c, _ in mail_chunks)),
+                     'citations': [], 'doprecyzowanie': None, 'oferta': None, 'tryb': 'email'})
+        return
+
+    if history and (przepisz or _followup(query, lang)):
         yield krok('Przepisuję pytanie z kontekstu rozmowy')
         zapytanie_ret = przepisz_zapytanie(query, history, bielik_model, lang)
-    elif history and _followup(query, lang):
-        poprzedni_user = [w['content'] for w in history if w['role'] == 'user'][-1:]
-        zapytanie_ret = ' '.join(poprzedni_user + [query])
     else:
         zapytanie_ret = query
 
@@ -216,12 +242,20 @@ def run_stream(query:str, bielik_model:str | None=None,
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
         return
 
+    oferta = None
+    if _ma_sygnal_reklamacji(query, lang) or (chunks and ARTYKUL_REKLAMACJA in chunks[0][0]['url']):
+        yield krok('Sprawdzam, czy zaproponować pomoc z reklamacją')
+        if czy_oferowac_mail(history + [{'role': 'user', 'content': query}], chunks, lang):
+            oferta = cfg['oferta_wiadomosc']
+
     zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
     yield wynik({'agent': agent_odp,
                  'answer': odpowiedz['tekst'],
                  'sources': zrodla,
                  'citations': odpowiedz['cytaty'],
-                 'doprecyzowanie': doprecyzowanie})
+                 'doprecyzowanie': doprecyzowanie,
+                 'oferta': oferta,
+                 'tryb': 'rag'})
 
 
 def run(query:str, bielik_model:str | None=None,

@@ -81,6 +81,26 @@ PROMPTY = {
         'sedzia_pytanie_label': 'PYTANIE',
         'sedzia_pytanie': 'Czy da się odpowiedzieć? (TAK/NIE):',
         'tak_marker': 'TAK',
+        'email_system': (
+            'Piszesz SZKIC maila reklamacyjnego do sprzedawcy w imieniu kupującego. '
+            'Zacznij od zdania: „Szkic wiadomości do sprzedawcy (uzupełnij dane przed wysłaniem):", '
+            'potem pusta linia, potem treść maila. '
+            'Opis problemu weź wyłącznie z rozmowy z kupującym w wiadomościach powyżej, nie zmyślaj szczegółów, '
+            'których tam nie ma. Trzymaj się procesu reklamacji opisanego w sekcji „kontekst" (kroki, wymagane elementy zgłoszenia). '
+            'Numer zamówienia, datę zakupu i inne konkretne dane, których nie ma w rozmowie, zaznacz placeholderem '
+            'w nawiasach kwadratowych, np. [numer zamówienia], [data zakupu], nigdy nie zmyślaj wartości. '
+            'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o rozwiązanie (naprawa, wymiana albo zwrot pieniędzy). '
+            'Nie dodawaj żadnych wyjaśnień poza samym szkicem maila. Odpowiadaj po polsku.'
+        ),
+        'sedzia_oferta_system': (
+            'Oceniasz na podstawie ROZMOWY, czy kupujący opisuje własną, konkretną sytuację reklamacyjną: '
+            'towar wadliwy, uszkodzony, niezgodny z opisem, albo sprzedawca nie odpowiada lub odmawia pomocy. '
+            'Nie licz jako reklamacji zwykłych pytań o zasady, terminy czy procedury, gdy kupujący nie sygnalizuje, '
+            'że ma z tym problem TERAZ, we własnym zamówieniu. W razie wątpliwości odpowiadaj NIE. '
+            'Jedno słowo: TAK albo NIE.'
+        ),
+        'sedzia_oferta_pytanie': 'Czy zaoferować pomoc w napisaniu maila reklamacyjnego? (TAK/NIE):',
+        'rozmowa_label': 'ROZMOWA',
     },
     'en': {
         'grounding': (
@@ -140,6 +160,26 @@ PROMPTY = {
         'sedzia_pytanie_label': 'QUESTION',
         'sedzia_pytanie': 'Can this be answered? (YES/NO):',
         'tak_marker': 'YES',
+        'email_system': (
+            'You write a DRAFT complaint email to the seller on behalf of the buyer. '
+            'Start with the sentence: "Draft message to the seller (fill in your details before sending):", '
+            'then a blank line, then the email body. '
+            'Take the problem description exclusively from the buyer conversation above, do not invent details '
+            'that are not there. Follow the complaint process described in the "context" section (steps, required '
+            'elements of the complaint). Mark the order number, purchase date, and any other specific data not '
+            'present in the conversation with a placeholder in square brackets, e.g. [order number], [purchase date], '
+            'never invent values. Keep the tone polite and factual. End with a clear request for resolution '
+            '(repair, replacement, or refund). Do not add any explanation beyond the email draft itself. Answer in English.'
+        ),
+        'sedzia_oferta_system': (
+            'You judge from the CONVERSATION whether the buyer describes their own, concrete complaint situation: '
+            'a defective or damaged item, an item not as described, or a seller who is not responding or refusing '
+            'to help. Do not count ordinary questions about rules, deadlines, or procedures as a complaint unless '
+            'the buyer signals they have this problem NOW, with their own order. When in doubt, answer NO. '
+            'One word: YES or NO.'
+        ),
+        'sedzia_oferta_pytanie': 'Should we offer help writing a complaint email? (YES/NO):',
+        'rozmowa_label': 'CONVERSATION',
     },
 }
 
@@ -289,6 +329,54 @@ def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = 
         ],
         stream=False,
         stop=['\n', f"{p['pytanie_label']}:"],
+    )
+    tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip().upper()
+    return tekst.startswith(p['tak_marker'])
+
+
+def napisz_email(history: list[dict], chunks: list, lang: str = 'pl') -> dict:
+    p = PROMPTY[lang]
+    teksty = [c for c, _ in chunks]
+    kontekst = context(teksty)
+
+    wiadomosci = [{'role': 'system', 'content': p['email_system']}]
+    for w in (history or []):
+        if w.get('role') in ('user', 'assistant') and w.get('content'):
+            wiadomosci.append({'role': w['role'], 'content': w['content']})
+    tresc = (f"{p['kontekst_label']}:\n{kontekst}\n\n"
+             'Napisz teraz szkic maila reklamacyjnego do sprzedawcy na podstawie powyższej rozmowy i procesu z kontekstu.'
+             if lang == 'pl' else
+             f"{p['kontekst_label']}:\n{kontekst}\n\n"
+             'Now write the complaint email draft to the seller based on the conversation above and the process in the context.')
+    wiadomosci.append({'role': 'user', 'content': tresc})
+
+    odp = klient.chat.completions.create(
+        model=LANG[lang]['model'],
+        messages=wiadomosci,
+        stream=False,
+        max_tokens=MAX_TOKENS,
+    )
+    tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip()
+    return {'tekst': tekst}
+
+
+def czy_oferowac_mail(history: list[dict], chunks: list, lang: str = 'pl') -> bool:
+    p = PROMPTY[lang]
+    teksty = [c for c, _ in chunks]
+    kontekst = context(teksty)
+    rozmowa = '\n'.join(f"{w['role']}: {w['content']}" for w in (history or [])
+                        if w.get('role') in ('user', 'assistant') and w.get('content'))
+    odp = klient.chat.completions.create(
+        model=LANG[lang]['sedzia_model'],
+        messages=[
+            {'role': 'system', 'content': p['sedzia_oferta_system']},
+            {'role': 'user', 'content': (
+                f"{p['sedzia_kontekst_label']}:\n{kontekst}\n\n"
+                f"{p['rozmowa_label']}:\n{rozmowa}\n\n{p['sedzia_oferta_pytanie']}"
+            )},
+        ],
+        stream=False,
+        stop=['\n'],
     )
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip().upper()
     return tekst.startswith(p['tak_marker'])

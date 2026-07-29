@@ -19,6 +19,7 @@ TEKSTY = {
         "parse_error": "Nieprawidłowa odpowiedź serwera, spróbuj ponownie.",
         "no_response": "Backend nie odpowiedział, spróbuj ponownie za chwilę.",
         "negacje": {"nie", "nie o to chodziło", "nie o to mi chodziło", "to nie to", "źle"},
+        "szkic_naglowek": "Szkic maila do sprzedawcy",
     },
     "en": {
         "ustawienia": "Settings",
@@ -33,6 +34,7 @@ TEKSTY = {
         "parse_error": "Invalid server response, try again.",
         "no_response": "Backend didn't respond, try again in a moment.",
         "negacje": {"no", "that's not it", "wrong"},
+        "szkic_naglowek": "Draft email to the seller",
     },
 }
 
@@ -51,12 +53,21 @@ if 'messages' not in st.session_state:
     st.session_state.messages = []
 if 'historia_api' not in st.session_state:
     st.session_state.historia_api = []
+if 'pending_prompt' not in st.session_state:
+    st.session_state.pending_prompt = None
+if 'oferta_aktywna' not in st.session_state:
+    st.session_state.oferta_aktywna = None
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg['content'])
 
-if prompt := st.chat_input():
+prompt = st.chat_input()
+if not prompt and st.session_state.pending_prompt:
+    prompt = st.session_state.pending_prompt
+    st.session_state.pending_prompt = None
+
+if prompt:
     if jest_negacja(prompt, jezyk) and st.session_state.get("ostatnia_korekta"):
         wiadomosc = st.session_state.ostatnia_korekta
         bez_korekty = True
@@ -120,11 +131,17 @@ if prompt := st.chat_input():
                     "sources": [], "citations": [], "doprecyzowanie": None}
 
         answer = dane["answer"]
-        if dane["agent"]:
+        tryb = dane.get("tryb", "rag")
+        if tryb == "email":
+            caption_ph.caption(t["szkic_naglowek"])
+        elif dane["agent"]:
             caption_ph.caption(t["sekcja"].format(agent=dane["agent"]))
         if dane.get("doprecyzowanie"):
             info_ph.info(dane["doprecyzowanie"])
-        answer_ph.markdown(answer)
+        if tryb == "email":
+            answer_ph.code(answer)
+        else:
+            answer_ph.markdown(answer)
 
     st.session_state.messages.append({"role": "assistant", "content": answer})
 
@@ -143,3 +160,11 @@ if prompt := st.chat_input():
         st.caption(t["zrodla"])
         for url in zrodla:
             st.markdown(f"- [{url}]({url})")
+
+    st.session_state.oferta_aktywna = dane.get("oferta")
+
+if st.session_state.oferta_aktywna:
+    if st.button(st.session_state.oferta_aktywna, key="przycisk_oferty"):
+        st.session_state.pending_prompt = st.session_state.oferta_aktywna
+        st.session_state.oferta_aktywna = None
+        st.rerun()
