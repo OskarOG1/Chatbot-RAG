@@ -41,6 +41,7 @@ export interface ChatRequestBody {
 interface Teksty {
   title: string;
   subtitle: string;
+  welcome: string;
   connected: string;
   langButtonLabel: string;
   themeButtonLabel: { light: string; dark: string };
@@ -63,8 +64,10 @@ interface Teksty {
 
 export const TEKSTY: Record<Lang, Teksty> = {
   pl: {
-    title: 'Pomoc, Asystent',
+    title: 'Asystent Allegro',
     subtitle: 'Odpowiada na podstawie bazy wiedzy centrum pomocy',
+    welcome:
+      'Witam, jestem Twoim asystentem Allegro. Mogę:\n\n* odpowiadać na pytania na podstawie bazy wiedzy centrum pomocy\n* przygotować wiadomość do sprzedawcy w sprawie reklamacji, zwrotu, faktury lub eskalacji sporu\n\nNapisz, w czym mogę pomóc.',
     connected: 'Połączono z bazą wiedzy',
     langButtonLabel: 'EN',
     themeButtonLabel: { light: 'Ciemny motyw', dark: 'Jasny motyw' },
@@ -85,8 +88,10 @@ export const TEKSTY: Record<Lang, Teksty> = {
     placeholder: 'Napisz wiadomość…',
   },
   en: {
-    title: 'Help, Assistant',
+    title: 'Allegro Assistant',
     subtitle: 'Answers grounded in the help center knowledge base',
+    welcome:
+      "Welcome, I am your Allegro assistant. I can:\n\n* answer questions using the help center knowledge base\n* prepare a message to the seller about a complaint, return, invoice, or dispute escalation\n\nTell me what you need help with.",
     connected: 'Connected to knowledge base',
     langButtonLabel: 'PL',
     themeButtonLabel: { light: 'Dark theme', dark: 'Light theme' },
@@ -113,12 +118,19 @@ export function jestNegacja(tekst: string, lang: Lang): boolean {
 }
 
 export function rozdzielSzkic(tekst: string): { temat: string; tresc: string } {
-  const wzorzec = /^(?:Temat|Subject):\s*(.+)\n+/;
-  const dopasowanie = wzorzec.exec(tekst);
+  const preambula =
+    /^(?:Szkic wiadomości do .+?\(uzupełnij dane przed wysłaniem\):|Draft message to .+?\(fill in your details before sending\):)\s*\n+/;
+  const reszta = tekst.replace(preambula, '');
+
+  const wzorzecTematu = /^(?:Temat|Subject):\s*(.+)$/m;
+  const dopasowanie = wzorzecTematu.exec(reszta);
   if (!dopasowanie) {
-    return { temat: '', tresc: tekst };
+    return { temat: '', tresc: reszta.trim() };
   }
-  return { temat: dopasowanie[1].trim(), tresc: tekst.slice(dopasowanie[0].length) };
+  const przed = reszta.slice(0, dopasowanie.index);
+  const po = reszta.slice(dopasowanie.index + dopasowanie[0].length);
+  const tresc = (przed + po).replace(/\n{3,}/g, '\n\n').trim();
+  return { temat: dopasowanie[1].trim(), tresc };
 }
 
 export function zbudujZadanie(

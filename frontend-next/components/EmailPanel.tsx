@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useEffect, useRef, type MouseEvent } from 'react';
 import { useTheme } from '@/lib/theme';
 import { TEKSTY, type Lang } from '@/lib/chat';
+import { htmlDoMarkdown, markdownDoHtml } from '@/lib/richtext';
 
 interface Props {
   lang: Lang;
@@ -35,21 +36,30 @@ export default function EmailPanel({
 }: Props) {
   const th = useTheme();
   const t = TEKSTY[lang];
-  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const ostatnioZsynchronizowane = useRef<string>('');
 
-  function wrapSelection(before: string, after: string) {
-    const el = bodyRef.current;
-    if (!el) return;
-    const start = el.selectionStart;
-    const end = el.selectionEnd;
-    const selected = body.slice(start, end) || 'text';
-    const next = body.slice(0, start) + before + selected + after + body.slice(end);
-    onBodyChange(next);
-    requestAnimationFrame(() => {
-      el.focus();
-      el.selectionStart = start + before.length;
-      el.selectionEnd = start + before.length + selected.length;
-    });
+  useEffect(() => {
+    if (!bodyRef.current) return;
+    if (body === ostatnioZsynchronizowane.current) return;
+    bodyRef.current.innerHTML = markdownDoHtml(body);
+    ostatnioZsynchronizowane.current = body;
+  }, [body]);
+
+  function synchronizujBody() {
+    if (!bodyRef.current) return;
+    const markdown = htmlDoMarkdown(bodyRef.current);
+    ostatnioZsynchronizowane.current = markdown;
+    onBodyChange(markdown);
+  }
+
+  function formatuj(polecenie: string) {
+    document.execCommand(polecenie);
+    synchronizujBody();
+  }
+
+  function zachowajZaznaczenie(e: MouseEvent) {
+    e.preventDefault();
   }
 
   return (
@@ -122,26 +132,38 @@ export default function EmailPanel({
           </div>
 
           <div style={{ flex: '0 0 auto', padding: '16px 22px 0', display: 'flex', gap: 6 }}>
-            <button type="button" onClick={() => wrapSelection('**', '**')} style={toolbarBtn(th, { fontWeight: 800 })}>
+            <button
+              type="button"
+              onMouseDown={zachowajZaznaczenie}
+              onClick={() => formatuj('bold')}
+              style={toolbarBtn(th, { fontWeight: 800 })}
+            >
               B
             </button>
             <button
               type="button"
-              onClick={() => wrapSelection('_', '_')}
+              onMouseDown={zachowajZaznaczenie}
+              onClick={() => formatuj('italic')}
               style={toolbarBtn(th, { fontStyle: 'italic', fontWeight: 700 })}
             >
               I
             </button>
-            <button type="button" onClick={() => wrapSelection('\n• ', '')} style={toolbarBtn(th, {})}>
+            <button
+              type="button"
+              onMouseDown={zachowajZaznaczenie}
+              onClick={() => formatuj('insertUnorderedList')}
+              style={toolbarBtn(th, {})}
+            >
               ≡
             </button>
           </div>
 
           <div style={{ flex: '1 1 auto', padding: '12px 22px 0', minHeight: 0 }}>
-            <textarea
+            <div
               ref={bodyRef}
-              value={body}
-              onChange={(e) => onBodyChange(e.target.value)}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={synchronizujBody}
               style={{
                 width: '100%',
                 height: '100%',
@@ -152,7 +174,7 @@ export default function EmailPanel({
                 fontFamily: 'inherit',
                 fontSize: 14,
                 lineHeight: 1.65,
-                resize: 'none',
+                overflowY: 'auto',
                 outline: 'none',
                 color: th.textPrimary,
               }}

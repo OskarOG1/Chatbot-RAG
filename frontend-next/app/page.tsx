@@ -1,6 +1,6 @@
 'use client';
 
-import { useReducer, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import ChatMessage from '@/components/ChatMessage';
 import Composer from '@/components/Composer';
 import TypingBubble from '@/components/TypingBubble';
@@ -47,7 +47,7 @@ interface State {
 }
 
 const stanPoczatkowy: State = {
-  messages: [],
+  messages: [{ id: 0, role: 'assistant', content: TEKSTY.pl.welcome }],
   historiaApi: [],
   ostatniAgent: null,
   ostatniaKorekta: null,
@@ -68,7 +68,8 @@ type Action =
       doprecyzowanie?: string | null;
       action?: string | null;
     }
-  | { type: 'historia'; wiadomoscWyslana: string; odpowiedz: string; agent: string; doprecyzowanie: string | null; bezKorekty: boolean };
+  | { type: 'historia'; wiadomoscWyslana: string; odpowiedz: string; agent: string; doprecyzowanie: string | null; bezKorekty: boolean }
+  | { type: 'welcome'; content: string };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -114,6 +115,10 @@ function reducer(state: State, action: Action): State {
       }
       return { ...state, historiaApi, ostatniAgent, ostatniaKorekta };
     }
+    case 'welcome': {
+      if (state.messages.length !== 1 || state.messages[0].id !== 0) return state;
+      return { ...state, messages: [{ ...state.messages[0], content: action.content }] };
+    }
     default:
       return state;
   }
@@ -129,6 +134,10 @@ export default function Page() {
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = TEKSTY[lang];
   const th = THEMES[themeName];
+
+  useEffect(() => {
+    dispatch({ type: 'welcome', content: t.welcome });
+  }, [t.welcome]);
 
   function nextId() {
     idCounter.current += 1;
