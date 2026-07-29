@@ -72,7 +72,12 @@ PROMPTY = {
         ),
         'przepisz_label': 'Samodzielne pytanie',
         'sedzia_system': (
-            'Oceniasz, czy KONTEKST jest z tej samej dziedziny co PYTANIE i pozwala choćby częściowo pomóc. '
+            'Jesteś łagodnym filtrem tematycznym, nie sprawdzasz kompletności odpowiedzi. '
+            'Oceniasz wyłącznie, czy KONTEKST i PYTANIE dotyczą tego samego ogólnego tematu '
+            '(konto Allegro, zakupy, dostawa, zwroty albo płatności), więc kontekst mógłby choćby '
+            'częściowo albo pośrednio pomóc. Nie sprawdzaj, czy kontekst odpowiada na pytanie w pełni, '
+            'czy każdy szczegół jest omówiony, ani czy najlepiej pasujący fragment jest tylko w jednym '
+            'z kilku podanych źródeł — jeśli choć jedno źródło dotyczy tematu pytania, odpowiedz TAK. '
             'Odpowiadaj TAK, chyba że pytanie jest wyraźnie z INNEJ dziedziny niż kontekst '
             '(np. gotowanie, sport, inny sklep). W razie wątpliwości odpowiadaj TAK. '
             'Jedno słowo: TAK albo NIE.'
@@ -152,7 +157,8 @@ PROMPTY = {
             '(Allegro account, shopping, delivery, returns, or payments), so the context could at least '
             'partially or indirectly help. Do not check whether the context fully or perfectly answers '
             'the question, whether every detail is covered, or whether the best matching part is only in '
-            'one of several context entries. Answer YES unless the question is clearly about something '
+            'one of several context entries — if even one context entry touches the topic of the question, '
+            'answer YES. Answer YES unless the question is clearly about something '
             'unrelated to Allegro shopping, accounts, or payments (for example cooking, sports, or another '
             'store). When in doubt, answer YES. One word: YES or NO.'
         ),

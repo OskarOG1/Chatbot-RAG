@@ -10,13 +10,14 @@ chunks*.json
 .pytest_cache
 pytest.ini
 *.pkl
-
+1_Analytics.py
 test_*.py
-
+confest.py
 measure.py
 measure_*.py
 classify.py
 trudne.jsonl
+*.jsonl
 diag_*.py
 translate_chunks.py
 lang_config.py

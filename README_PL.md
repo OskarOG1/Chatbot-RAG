@@ -220,6 +220,14 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Wynik.** 22/22 testów zielonych. Kontrola regresji: trafność wyszukiwania na golden set bez zmian (0,820, te same pudła co przed zmianą), model w pliku pomiarowym i w pipeline to teraz jeden obiekt w pamięci zamiast dwóch.
 
+### 12. Cache odpowiedzi, obserwowalność produkcji i docinanie sędziego
+
+**Problem.** Częste pytania generowały odpowiedź od nowa za każdym razem (kilka do kilkunastu sekund, plus koszt API), mimo że treść odpowiedzi jest deterministyczna dla tego samego pytania i tego samego stanu korpusu. Osobno: brak było wglądu w to, co dzieje się na produkcji, odsetek odmów, rozkład latencji, które sekcje są pytane. Pomiar end-to-end (`measure_e2e`) pokazał też, że część golden pytań kończy się odmową mimo trafnego kontekstu w retrievalu, bo sędzia LLM oceniał kontekst zbyt surowo.
+
+**Rozwiązanie.** Cache odpowiedzi w `api.py`, kluczowany znormalizowanym pytaniem, językiem i stemplem mtime korpusu (przebudowa bazy wiedzy unieważnia cache automatycznie), tylko dla udanych odpowiedzi i tylko dla samodzielnych pytań bez historii rozmowy. Log strukturalny JSONL po każdym zapytaniu (język, sekcja, wynik, latencja, trafienie cache), z redakcją PII tym samym mechanizmem co istniejący filtr `skazone_tokeny`. Strona analityczna w Streamlit z odsetkiem odmów, medianą latencji i top pytaniami. Prompt sędziego dociągnięty o wyraźne „nie sprawdzasz kompletności" i „wystarczy jedno pasujące źródło z kilku".
+
+**Wynik.** Cache: pierwsze zapytanie 10,4 s, drugie (z cache) 0,28 s, identyczna treść. Sędzia: PL 46/50 → 50/50 golden przechodzi end-to-end (zero odmów), EN częściowa poprawa przy pozostałej grupie pytań ograniczonej realną luką w treści korpusu/embedderze, nie promptem. Kontrola OOD (6 pytań spoza domeny) bez regresji.
+
 ---
 
 ## Bezpieczeństwo i odporność

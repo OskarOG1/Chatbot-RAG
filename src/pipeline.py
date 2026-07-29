@@ -63,10 +63,21 @@ def _lematy(tekst: str, lang: str = 'pl') -> set:
             for t in tokenize_words(tekst) if len(t) >= MIN_DLUGOSC}
 
 
-def _zaladuj_idf(lang: str) -> tuple[dict, float]:
+def _chunks_path(lang: str) -> Path:
     suffix = LANG[lang]['suffix']
-    chunks_json = Path(__file__).resolve().parent.parent / 'RAG' / f'chunks{suffix}.json'
-    idf_cache = chunks_json.parent / f'idf{suffix}.pkl'
+    return Path(__file__).resolve().parent.parent / 'RAG' / f'chunks{suffix}.json'
+
+
+def corpus_stamp(lang: str) -> int:
+    try:
+        return int(_chunks_path(lang).stat().st_mtime)
+    except OSError:
+        return 0
+
+
+def _zaladuj_idf(lang: str) -> tuple[dict, float]:
+    chunks_json = _chunks_path(lang)
+    idf_cache = chunks_json.parent / f'idf{LANG[lang]["suffix"]}.pkl'
     idf, idf_max = {}, 1.0
     try:
         stamp = int(chunks_json.stat().st_mtime)
@@ -118,6 +129,13 @@ def skazone_tokeny(query: str) -> set:
         for dopasowanie in wzorzec.finditer(query):
             trafienia.update(tokenize_words(dopasowanie.group(0)))
     return trafienia
+
+
+def redaguj(query: str) -> str:
+    tekst = query
+    for wzorzec in PII_WZORCE:
+        tekst = wzorzec.sub('[ukryte]', tekst)
+    return tekst
 
 
 def loguj_trudne(query: str, nieznane: list) -> None:
