@@ -1,40 +1,85 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type KeyboardEvent } from 'react';
+import { useTheme } from '@/lib/theme';
 
 interface Props {
   placeholder: string;
-  wyslijEtykieta: string;
   disabled: boolean;
   onSend: (tekst: string) => void;
 }
 
-export default function Composer({ placeholder, wyslijEtykieta, disabled, onSend }: Props) {
+export default function Composer({ placeholder, disabled, onSend }: Props) {
+  const th = useTheme();
   const [wartosc, setWartosc] = useState('');
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  function wyslijJesliMozna() {
     const tekst = wartosc.trim();
     if (!tekst || disabled) return;
     onSend(tekst);
     setWartosc('');
   }
 
+  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      wyslijJesliMozna();
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
-      <input
-        type="text"
+    <div
+      style={{
+        width: '100%',
+        maxWidth: 680,
+        display: 'flex',
+        gap: 10,
+        alignItems: 'flex-end',
+        background: th.bgSurface,
+        border: `1px solid ${th.border}`,
+        borderRadius: 16,
+        padding: '10px 10px 10px 18px',
+      }}
+    >
+      <textarea
         value={wartosc}
         onChange={(e) => setWartosc(e.target.value)}
+        onKeyDown={handleKeyDown}
         placeholder={placeholder}
+        rows={1}
         disabled={disabled}
-        className="flex-1 rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100"
+        style={{
+          flex: '1 1 auto',
+          border: 'none',
+          outline: 'none',
+          resize: 'none',
+          fontFamily: 'inherit',
+          fontSize: 14.5,
+          lineHeight: 1.5,
+          padding: '8px 0',
+          maxHeight: 120,
+          background: 'transparent',
+          color: th.textPrimary,
+        }}
       />
       <button
-        type="submit"
+        type="button"
+        onClick={wyslijJesliMozna}
         disabled={disabled || !wartosc.trim()}
-        className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:bg-gray-300"
+        style={{
+          flex: '0 0 auto',
+          background: th.accent,
+          color: 'white',
+          border: 'none',
+          borderRadius: 11,
+          width: 42,
+          height: 42,
+          cursor: disabled || !wartosc.trim() ? 'default' : 'pointer',
+          fontSize: 16,
+          fontWeight: 700,
+          opacity: disabled || !wartosc.trim() ? 0.5 : 1,
+        }}
       >
-        {wyslijEtykieta}
+        ↑
       </button>
-    </form>
+    </div>
   );
 }

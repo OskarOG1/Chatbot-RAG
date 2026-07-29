@@ -1,32 +1,40 @@
 'use client';
 
-import { useReducer, useState } from 'react';
+import { useReducer, useRef, useState } from 'react';
 import ChatMessage from '@/components/ChatMessage';
 import Composer from '@/components/Composer';
-import ProgressSteps from '@/components/ProgressSteps';
-import OfferButton from '@/components/OfferButton';
-import SourceList from '@/components/SourceList';
-import LanguageToggle from '@/components/LanguageToggle';
+import TypingBubble from '@/components/TypingBubble';
+import EmailPanel from '@/components/EmailPanel';
+import Topbar from '@/components/Topbar';
+import Toast from '@/components/Toast';
 import InfoBanner from '@/components/InfoBanner';
 import { czytajSse } from '@/lib/sse';
+import { ThemeContext, THEMES, type ThemeName } from '@/lib/theme';
 import {
   TEKSTY,
   jestNegacja,
-  naglowekSzkicu,
+  rozdzielSzkic,
   zbudujZadanie,
   type ChatResponse,
   type Lang,
-  type Tryb,
   type Wiadomosc,
 } from '@/lib/chat';
 
 interface WiadomoscUi {
+  id: number;
   role: 'user' | 'assistant';
   content: string;
-  tryb?: Tryb;
   sources?: string[];
   doprecyzowanie?: string | null;
-  kategoria?: string | null;
+  action?: string | null;
+}
+
+interface PanelState {
+  recipient: string;
+  subject: string;
+  body: string;
+  kategoria: string | null;
+  trigger: string;
 }
 
 interface State {
@@ -34,8 +42,7 @@ interface State {
   historiaApi: Wiadomosc[];
   ostatniAgent: string | null;
   ostatniaKorekta: string | null;
-  oferta: string | null;
-  kroki: string[];
+  aktualnyKrok: string | null;
   wysylanie: boolean;
 }
 
@@ -44,78 +51,68 @@ const stanPoczatkowy: State = {
   historiaApi: [],
   ostatniAgent: null,
   ostatniaKorekta: null,
-  oferta: null,
-  kroki: [],
+  aktualnyKrok: null,
   wysylanie: false,
 };
 
 type Action =
-  | { type: 'wyslij_start'; promptUser: string }
+  | { type: 'busy_start' }
+  | { type: 'busy_end' }
   | { type: 'krok'; tekst: string }
+  | { type: 'user_bubble'; id: number; content: string }
   | {
-      type: 'zakoncz';
-      wiadomoscWyslana: string;
-      bezKorekty: boolean;
-      dane: ChatResponse | null;
-      bladTekst: string | null;
-      noResponse: string;
-    };
+      type: 'assistant_bubble';
+      id: number;
+      content: string;
+      sources?: string[];
+      doprecyzowanie?: string | null;
+      action?: string | null;
+    }
+  | { type: 'historia'; wiadomoscWyslana: string; odpowiedz: string; agent: string; doprecyzowanie: string | null; bezKorekty: boolean };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
-    case 'wyslij_start':
-      return {
-        ...state,
-        wysylanie: true,
-        kroki: [],
-        messages: [...state.messages, { role: 'user', content: action.promptUser }],
-      };
+    case 'busy_start':
+      return { ...state, wysylanie: true, aktualnyKrok: null };
+    case 'busy_end':
+      return { ...state, wysylanie: false, aktualnyKrok: null };
     case 'krok':
-      return { ...state, kroki: [...state.kroki, action.tekst] };
-    case 'zakoncz': {
-      const { dane, bladTekst, wiadomoscWyslana, bezKorekty, noResponse } = action;
-      const answer = dane?.answer ?? bladTekst ?? noResponse;
-      const tryb: Tryb = dane?.tryb ?? 'rag';
-      const agent = dane?.agent ?? '';
-
-      let historiaApi = state.historiaApi;
-      let ostatniAgent = state.ostatniAgent;
-      if (agent) {
-        historiaApi = [
-          ...historiaApi,
-          { role: 'user', content: wiadomoscWyslana },
-          { role: 'assistant', content: answer },
-        ];
-        ostatniAgent = agent;
-      }
-
-      let ostatniaKorekta = state.ostatniaKorekta;
-      if (dane?.doprecyzowanie) {
-        ostatniaKorekta = wiadomoscWyslana;
-      } else if (!bezKorekty) {
-        ostatniaKorekta = null;
-      }
-
+      return { ...state, aktualnyKrok: action.tekst };
+    case 'user_bubble':
+      return { ...state, messages: [...state.messages, { id: action.id, role: 'user', content: action.content }] };
+    case 'assistant_bubble':
       return {
         ...state,
-        wysylanie: false,
-        kroki: [],
-        historiaApi,
-        ostatniAgent,
-        ostatniaKorekta,
-        oferta: dane?.oferta ?? null,
         messages: [
           ...state.messages,
           {
+            id: action.id,
             role: 'assistant',
-            content: answer,
-            tryb,
-            sources: dane?.sources ?? [],
-            doprecyzowanie: dane?.doprecyzowanie ?? null,
-            kategoria: dane?.kategoria ?? null,
+            content: action.content,
+            sources: action.sources ?? [],
+            doprecyzowanie: action.doprecyzowanie ?? null,
+            action: action.action ?? null,
           },
         ],
       };
+    case 'historia': {
+      let historiaApi = state.historiaApi;
+      let ostatniAgent = state.ostatniAgent;
+      if (action.agent) {
+        historiaApi = [
+          ...historiaApi,
+          { role: 'user', content: action.wiadomoscWyslana },
+          { role: 'assistant', content: action.odpowiedz },
+        ];
+        ostatniAgent = action.agent;
+      }
+      let ostatniaKorekta = state.ostatniaKorekta;
+      if (action.doprecyzowanie) {
+        ostatniaKorekta = action.wiadomoscWyslana;
+      } else if (!action.bezKorekty) {
+        ostatniaKorekta = null;
+      }
+      return { ...state, historiaApi, ostatniAgent, ostatniaKorekta };
     }
     default:
       return state;
@@ -124,17 +121,28 @@ function reducer(state: State, action: Action): State {
 
 export default function Page() {
   const [lang, setLang] = useState<Lang>('pl');
+  const [themeName, setThemeName] = useState<ThemeName>('light');
   const [state, dispatch] = useReducer(reducer, stanPoczatkowy);
+  const [panel, setPanel] = useState<PanelState | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const idCounter = useRef(0);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = TEKSTY[lang];
+  const th = THEMES[themeName];
 
-  async function wyslij(promptUser: string) {
-    const bezKorekty = jestNegacja(promptUser, lang) && Boolean(state.ostatniaKorekta);
-    const wiadomosc = bezKorekty ? (state.ostatniaKorekta as string) : promptUser;
+  function nextId() {
+    idCounter.current += 1;
+    return idCounter.current;
+  }
 
-    dispatch({ type: 'wyslij_start', promptUser });
+  function pokazToast(tekst: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(tekst);
+    toastTimer.current = setTimeout(() => setToast(null), 2200);
+  }
 
+  async function poproszBackend(wiadomosc: string, bezKorekty: boolean): Promise<{ dane: ChatResponse | null; bladTekst: string | null }> {
     const body = zbudujZadanie(wiadomosc, state.historiaApi, state.ostatniAgent, bezKorekty, lang);
-
     let dane: ChatResponse | null = null;
     let bladTekst: string | null = null;
 
@@ -161,40 +169,151 @@ export default function Page() {
       bladTekst = t.connectError;
     }
 
+    return { dane, bladTekst };
+  }
+
+  async function wyslij(promptUser: string) {
+    const bezKorekty = jestNegacja(promptUser, lang) && Boolean(state.ostatniaKorekta);
+    const wiadomosc = bezKorekty ? (state.ostatniaKorekta as string) : promptUser;
+
+    dispatch({ type: 'busy_start' });
+    dispatch({ type: 'user_bubble', id: nextId(), content: promptUser });
+
+    const { dane, bladTekst } = await poproszBackend(wiadomosc, bezKorekty);
+
+    dispatch({ type: 'busy_end' });
     dispatch({
-      type: 'zakoncz',
+      type: 'historia',
       wiadomoscWyslana: wiadomosc,
+      odpowiedz: dane?.answer ?? '',
+      agent: dane?.agent ?? '',
+      doprecyzowanie: dane?.doprecyzowanie ?? null,
       bezKorekty,
-      dane,
-      bladTekst,
-      noResponse: t.noResponse,
     });
+
+    if (dane?.tryb === 'email') {
+      const { temat, tresc } = rozdzielSzkic(dane.answer);
+      setPanel({
+        recipient: lang === 'pl' ? 'Sprzedawca' : 'Seller',
+        subject: temat,
+        body: tresc,
+        kategoria: dane.kategoria,
+        trigger: wiadomosc,
+      });
+      dispatch({ type: 'assistant_bubble', id: nextId(), content: t.panelOpened });
+    } else {
+      dispatch({
+        type: 'assistant_bubble',
+        id: nextId(),
+        content: dane?.answer ?? bladTekst ?? t.noResponse,
+        sources: dane?.sources ?? [],
+        doprecyzowanie: dane?.doprecyzowanie ?? null,
+        action: dane?.oferta ?? null,
+      });
+    }
+  }
+
+  async function regenerujPanel() {
+    if (!panel) return;
+    dispatch({ type: 'busy_start' });
+    const { dane, bladTekst } = await poproszBackend(panel.trigger, false);
+    dispatch({ type: 'busy_end' });
+
+    if (dane?.tryb === 'email') {
+      const { temat, tresc } = rozdzielSzkic(dane.answer);
+      setPanel((p) => (p ? { ...p, subject: temat, body: tresc, kategoria: dane.kategoria } : p));
+      dispatch({
+        type: 'historia',
+        wiadomoscWyslana: panel.trigger,
+        odpowiedz: dane.answer,
+        agent: dane.agent,
+        doprecyzowanie: null,
+        bezKorekty: true,
+      });
+    } else {
+      pokazToast(bladTekst ?? t.noResponse);
+    }
+  }
+
+  function kopiujEmail() {
+    if (!panel) return;
+    navigator.clipboard?.writeText(`${panel.subject}\n\n${panel.body}`).catch(() => {});
+    pokazToast(t.toastCopied);
   }
 
   return (
-    <div className="mx-auto flex h-screen max-w-3xl flex-col gap-4 p-4">
-      <header className="flex items-center justify-between border-b pb-3">
-        <h1 className="text-lg font-semibold">{t.ustawienia}</h1>
-        <LanguageToggle lang={lang} onChange={setLang} />
-      </header>
+    <ThemeContext.Provider value={th}>
+      <div
+        style={{
+          width: '100%',
+          height: '100vh',
+          minHeight: 640,
+          background: th.bgApp,
+          fontFamily: 'var(--font-plus-jakarta), sans-serif',
+          color: th.textPrimary,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
+        <Topbar
+          lang={lang}
+          theme={themeName}
+          onToggleLang={() => setLang((l) => (l === 'pl' ? 'en' : 'pl'))}
+          onToggleTheme={() => setThemeName((th2) => (th2 === 'light' ? 'dark' : 'light'))}
+        />
 
-      <div className="flex-1 space-y-3 overflow-y-auto">
-        {state.messages.map((m, i) => (
-          <div key={i} className="space-y-1">
-            {m.role === 'assistant' && m.tryb === 'email' && (
-              <p className="text-sm text-gray-500">{naglowekSzkicu(lang, m.kategoria ?? null)}</p>
-            )}
-            <ChatMessage role={m.role} content={m.content} tryb={m.tryb} />
-            {m.doprecyzowanie && <InfoBanner tekst={m.doprecyzowanie} />}
-            {m.sources && m.sources.length > 0 && <SourceList zrodla={m.sources} etykieta={t.zrodla} />}
+        <div style={{ flex: '1 1 auto', display: 'flex', minHeight: 0, position: 'relative' }}>
+          <div style={{ flex: '1 1 auto', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <div
+              style={{
+                flex: '1 1 auto',
+                overflowY: 'auto',
+                padding: '28px 0',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+              }}
+            >
+              <div style={{ width: '100%', maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 18, padding: '0 20px' }}>
+                {state.messages.map((m) => (
+                  <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <ChatMessage role={m.role} content={m.content} sources={m.sources} action={m.action} onAction={wyslij} />
+                    {m.doprecyzowanie && (
+                      <div style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                        <InfoBanner tekst={m.doprecyzowanie} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {state.wysylanie && <TypingBubble krok={state.aktualnyKrok} />}
+              </div>
+            </div>
+
+            <div style={{ flex: '0 0 auto', padding: '16px 20px 22px', display: 'flex', justifyContent: 'center' }}>
+              <Composer placeholder={t.placeholder} disabled={state.wysylanie} onSend={wyslij} />
+            </div>
           </div>
-        ))}
-        {state.wysylanie && <ProgressSteps kroki={state.kroki} etykieta={t.mysle} />}
+
+          <EmailPanel
+            lang={lang}
+            open={panel !== null}
+            recipient={panel?.recipient ?? ''}
+            subject={panel?.subject ?? ''}
+            body={panel?.body ?? ''}
+            regenerating={state.wysylanie}
+            onSubjectChange={(v) => setPanel((p) => (p ? { ...p, subject: v } : p))}
+            onBodyChange={(v) => setPanel((p) => (p ? { ...p, body: v } : p))}
+            onClose={() => setPanel(null)}
+            onCopy={kopiujEmail}
+            onSaveTemplate={() => pokazToast(t.toastSaved)}
+            onRegenerate={regenerujPanel}
+            onSend={() => pokazToast(t.toastSent)}
+          />
+
+          <Toast tekst={toast} />
+        </div>
       </div>
-
-      {state.oferta && <OfferButton tekst={state.oferta} onClick={wyslij} />}
-
-      <Composer placeholder={t.placeholder} wyslijEtykieta={t.wyslij} disabled={state.wysylanie} onSend={wyslij} />
-    </div>
+    </ThemeContext.Provider>
   );
 }

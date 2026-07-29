@@ -39,70 +39,72 @@ export interface ChatRequestBody {
 }
 
 interface Teksty {
-  ustawienia: string;
-  mysle: string;
-  gotowe: string;
-  bladStatus: string;
-  sekcja: (agent: string) => string;
-  zrodla: string;
+  title: string;
+  subtitle: string;
+  connected: string;
+  langButtonLabel: string;
+  themeButtonLabel: { light: string; dark: string };
   connectError: string;
-  timeoutError: string;
-  httpError: string;
-  parseError: string;
   noResponse: string;
   negacje: Set<string>;
-  szkicNaglowek: string;
-  szkicNaglowki: Record<string, string>;
+  panelOpened: string;
+  panelTitle: string;
+  to: string;
+  subjectLabel: string;
+  copy: string;
+  saveTemplate: string;
+  regenerate: string;
+  send: string;
+  toastCopied: string;
+  toastSaved: string;
+  toastSent: string;
   placeholder: string;
-  wyslij: string;
 }
 
 export const TEKSTY: Record<Lang, Teksty> = {
   pl: {
-    ustawienia: 'Ustawienia',
-    mysle: 'Myślę…',
-    gotowe: 'Gotowe',
-    bladStatus: 'Błąd',
-    sekcja: (agent) => `Sekcja: ${agent}`,
-    zrodla: 'Źródła:',
+    title: 'Pomoc, Asystent',
+    subtitle: 'Odpowiada na podstawie bazy wiedzy centrum pomocy',
+    connected: 'Połączono z bazą wiedzy',
+    langButtonLabel: 'EN',
+    themeButtonLabel: { light: 'Ciemny motyw', dark: 'Jasny motyw' },
     connectError: 'Backend nie odpowiada, spróbuj ponownie za chwilę.',
-    timeoutError: 'Zbyt długi czas odpowiedzi, spróbuj ponownie.',
-    httpError: 'Połączenie zostało przerwane, spróbuj ponownie.',
-    parseError: 'Nieprawidłowa odpowiedź serwera, spróbuj ponownie.',
     noResponse: 'Backend nie odpowiedział, spróbuj ponownie za chwilę.',
     negacje: new Set(['nie', 'nie o to chodziło', 'nie o to mi chodziło', 'to nie to', 'źle']),
-    szkicNaglowek: 'Szkic wiadomości do sprzedawcy',
-    szkicNaglowki: {
-      reklamacja: 'Szkic maila reklamacyjnego',
-      zwrot: 'Szkic wiadomości o zwrocie',
-      faktura: 'Szkic prośby o fakturę',
-      eskalacja: 'Szkic zgłoszenia braku odpowiedzi sprzedawcy',
-    },
+    panelOpened: 'Przygotowałem szkic wiadomości, zobacz panel obok.',
+    panelTitle: 'Edytor wiadomości',
+    to: 'Do:',
+    subjectLabel: 'Temat',
+    copy: 'Kopiuj',
+    saveTemplate: 'Zapisz szablon',
+    regenerate: 'Regeneruj',
+    send: 'Wyślij wiadomość',
+    toastCopied: 'Skopiowano do schowka',
+    toastSaved: 'Zapisano jako szablon',
+    toastSent: 'Funkcja wysyłki jest w przygotowaniu',
     placeholder: 'Napisz wiadomość…',
-    wyslij: 'Wyślij',
   },
   en: {
-    ustawienia: 'Settings',
-    mysle: 'Thinking…',
-    gotowe: 'Done',
-    bladStatus: 'Error',
-    sekcja: (agent) => `Section: ${agent}`,
-    zrodla: 'Sources:',
+    title: 'Help, Assistant',
+    subtitle: 'Answers grounded in the help center knowledge base',
+    connected: 'Connected to knowledge base',
+    langButtonLabel: 'PL',
+    themeButtonLabel: { light: 'Dark theme', dark: 'Light theme' },
     connectError: "Backend isn't responding, try again in a moment.",
-    timeoutError: 'Response took too long, try again.',
-    httpError: 'Connection was interrupted, try again.',
-    parseError: 'Invalid server response, try again.',
     noResponse: "Backend didn't respond, try again in a moment.",
     negacje: new Set(['no', "that's not it", 'wrong']),
-    szkicNaglowek: 'Draft message to the seller',
-    szkicNaglowki: {
-      reklamacja: 'Draft complaint email',
-      zwrot: 'Draft return message',
-      faktura: 'Draft invoice request',
-      eskalacja: 'Draft escalation message',
-    },
+    panelOpened: "I've prepared a draft message, see the panel on the right.",
+    panelTitle: 'Message editor',
+    to: 'To:',
+    subjectLabel: 'Subject',
+    copy: 'Copy',
+    saveTemplate: 'Save template',
+    regenerate: 'Regenerate',
+    send: 'Send message',
+    toastCopied: 'Copied to clipboard',
+    toastSaved: 'Saved as template',
+    toastSent: 'Sending is coming soon',
     placeholder: 'Type a message…',
-    wyslij: 'Send',
   },
 };
 
@@ -110,12 +112,13 @@ export function jestNegacja(tekst: string, lang: Lang): boolean {
   return TEKSTY[lang].negacje.has(tekst.trim().toLowerCase());
 }
 
-export function naglowekSzkicu(lang: Lang, kategoria: string | null): string {
-  const t = TEKSTY[lang];
-  if (kategoria && kategoria in t.szkicNaglowki) {
-    return t.szkicNaglowki[kategoria];
+export function rozdzielSzkic(tekst: string): { temat: string; tresc: string } {
+  const wzorzec = /^(?:Temat|Subject):\s*(.+)\n+/;
+  const dopasowanie = wzorzec.exec(tekst);
+  if (!dopasowanie) {
+    return { temat: '', tresc: tekst };
   }
-  return t.szkicNaglowek;
+  return { temat: dopasowanie[1].trim(), tresc: tekst.slice(dopasowanie[0].length) };
 }
 
 export function zbudujZadanie(
