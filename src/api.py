@@ -129,6 +129,8 @@ class ChatResponse(BaseModel):
    citations: list[Cytat]
    doprecyzowanie: str | None = None
    oferta: str | None = None
+   oferta_kategoria: str | None = None
+   kategoria: str | None = None
    tryb: Literal['rag', 'email'] = 'rag'
 
 app = FastAPI(lifespan=lifespan)

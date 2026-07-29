@@ -238,6 +238,14 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Wynik.** 22/22 testów zielonych z fixture, hermetycznie. `ruff check src tests` czyste po naprawie trzech niejednoznacznych nazw zmiennych (`l`, `I`) w `chunking.py`/`rankings.py`, kontrola regresji: trafność wyszukiwania na golden set bez zmian (0,820).
 
+### 14. Cztery kategorie maila zamiast jednej, jeden sędzia-router zamiast TAK/NIE
+
+**Problem.** Asystent akcji umiał wygenerować tylko jeden rodzaj wiadomości: mail reklamacyjny do sprzedawcy, oceniany binarnym sędzią LLM (TAK/NIE, czy zaoferować pomoc). Realne potrzeby kupującego są szersze: chęć zwrotu bez wady towaru, prośba o fakturę, zgłoszenie że sprzedawca w ogóle nie odpowiada.
+
+**Rozwiązanie.** Sędzia binarny zastąpiony jednym sędzią-routerem LLM, który wybiera jedną z pięciu etykiet: `REKLAMACJA`/`ZWROT`/`FAKTURA`/`ESKALACJA`/`NONE`. Dane każdej kategorii (artykuł groundujący, zapytanie do retrievalu, kanoniczny tekst oferty, słowa/frazy taniej bramki) trzymane centralnie w konfiguracji językowej. Osobny prompt generujący szkic dla każdej kategorii, z tymi samymi regułami co dotychczas (placeholdery zamiast zmyślonych danych, proces wyłącznie z kontekstu źródłowego).
+
+**Wynik.** Pierwszy przebieg pomiaru: 5/12 trafnych kategorii, bo cheap-gate sprawdzana na pytaniach proceduralnych nadmiernie liberalna, a mini-retrieval kontekstu dla routera w ścieżce wolnego tekstu czasem trafiał w niezwiązany artykuł. Po dociągnięciu promptu routera (jawna granica pytanie-proceduralne-vs-własna-sytuacja) i rozszerzeniu kontekstu retrievalu (ostatnia wiadomość z historii zamiast samego polecenia, `k` z 3 do 5): **12/12 trafnych kategorii, 12/12 trafnych bramek**, jakość czterech szkiców (PL/EN) 8/8 poprawna kategoria, średnia ocena 4.0-4.4/5 w zależności od przebiegu (wariancja po stronie generacji EN, znana i wcześniej odnotowana słabość, nie routingu). Zero nowych fałszywych trafień na golden (0/100), ta sama krytyczna bramka co przy jednej kategorii.
+
 ---
 
 ## Bezpieczeństwo i odporność
