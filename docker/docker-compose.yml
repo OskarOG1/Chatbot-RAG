@@ -29,6 +29,21 @@ services:
     networks:
       - wewnetrzna
 
+  frontend-next:
+    build:
+      context: ..
+      dockerfile: frontend-next/Dockerfile
+    environment:
+      - FASTAPI_URL=http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - wewnetrzna
+
   caddy:
     image: caddy:2
     ports:
