@@ -12,6 +12,7 @@ pytest.ini
 *.pkl
 
 test_*.py
+
 measure.py
 measure_*.py
 classify.py

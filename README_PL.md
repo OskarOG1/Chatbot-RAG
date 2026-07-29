@@ -212,6 +212,14 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Wynik.** Pary wieloturowe: trafność w źródło startowego pytania 40%→60% (n=10). Bramka i sędzia oferty: 6/6 trafnych decyzji na oznaczonym zestawie, 0/100 fałszywych trafień jawnej prośby na golden. Jakość szkicu maila (sędzia LLM, rubryka 1-5): średnia 4,5/5. Regresja end-to-end na 50 golden na język: bez zmian ponad znany szum losowości generacji (sekcja 13). Przy okazji znaleziony i naprawiony pre-istniejący błąd retrievalu (zapytanie „reklamacja” nie trafiało w artykuł, który używa terminu „Dyskusja”) oraz błąd renderowania przycisku oferty w Streamlit (widget wewnątrz warunkowego bloku nigdy nie rejestrował kliknięcia). Pełny log: `src/POMIAR_ROUTING.md`, sekcja 19.
 
+### 11. Sprawdzalność: siatka testów jednostkowych i porządek w wczytywaniu modeli
+
+**Problem.** Logika filtrów wejścia i korektora literówek miała pokrycie tylko przez end to end pomiary na golden set, bez testów samych funkcji. Osobno: przy uruchomieniu pomiarów w tym samym procesie co pipeline, model embeddingów mmlw wczytywał się dwukrotnie, raz we własnym pliku pomiarowym i raz w pipeline.
+
+**Rozwiązanie.** Dwadzieścia dwa testy jednostkowe (pytest) dla filtrów wejścia (za krótkie, za długie, obcy alfabet, wykrywanie prób wstrzyknięcia promptu wraz z wariantami leet) oraz dla korektora literówek (detekcja języka, dopasowanie do słownika korpusu, odległość edycyjna). Plik pomiarowy przestał tworzyć własną instancję modelu i korzysta teraz z tej samej instancji co pipeline.
+
+**Wynik.** 22/22 testów zielonych. Kontrola regresji: trafność wyszukiwania na golden set bez zmian (0,820, te same pudła co przed zmianą), model w pliku pomiarowym i w pipeline to teraz jeden obiekt w pamięci zamiast dwóch.
+
 ---
 
 ## Bezpieczeństwo i odporność

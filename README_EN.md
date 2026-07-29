@@ -204,6 +204,14 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 **Result.** Multi-turn pairs: hit rate on the originating source went from 40% to 60% (n=10). The offer gate and judge: 6/6 correct decisions on a labelled set, 0/100 false positives for the explicit-request path on golden. Draft email quality (LLM judge, 1-5 rubric): average 4.5/5. End-to-end regression on 50 golden questions per language: unchanged beyond the known generation/judge noise floor (section 13 of the measurement log). Along the way, a pre-existing retrieval bug was found and fixed (the query "complaint" did not match the article, which uses the term "Discussion" instead), plus a Streamlit UI bug where the offer button never registered its click because it lived inside a conditionally executed block. Full log: `src/POMIAR_ROUTING.md`, section 19.
 
+### 10. Testability: a unit test suite and cleaning up duplicate model loading
+
+**Problem.** The input filter and typo corrector logic was covered only by end to end measurements on the golden set, with no tests for the underlying functions. Separately, running measurements in the same process as the pipeline loaded the mmlw embedding model twice, once in the measurement file and once again inside the pipeline.
+
+**Solution.** Twenty two unit tests (pytest) for the input filters (too short, too long, foreign alphabet, prompt injection detection including leet variants) and for the typo corrector (language detection, matching against the corpus dictionary, edit distance). The measurement file no longer creates its own model instance and now reuses the one already loaded by the pipeline.
+
+**Result.** 22/22 tests passing. Regression check: retrieval accuracy on the golden set unchanged (0.820, the same misses as before the change), and the model in the measurement file and in the pipeline are now a single object in memory instead of two.
+
 ---
 
 ## Security and robustness
