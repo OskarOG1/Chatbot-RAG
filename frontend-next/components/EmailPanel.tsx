@@ -126,10 +126,15 @@ export default function EmailPanel({
                 background: th.bgApp,
                 width: 30,
                 height: 30,
+                padding: 0,
                 borderRadius: 8,
                 cursor: 'pointer',
                 fontSize: 15,
+                lineHeight: 1,
                 color: th.textSecondary,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               ✕
@@ -292,8 +297,13 @@ function toolbarBtn(th: ReturnType<typeof useTheme>, extra: Record<string, strin
     borderRadius: 8,
     width: 32,
     height: 32,
+    padding: 0,
     fontSize: 13,
+    lineHeight: 1,
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     ...extra,
   };
 }

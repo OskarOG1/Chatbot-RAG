@@ -10,6 +10,7 @@ export interface Wiadomosc {
 export interface Cytat {
   n: number;
   url: string;
+  tytul?: string | null;
 }
 
 export interface ChatResponse {
@@ -29,6 +30,7 @@ export interface WyslijZadanie {
   temat: string;
   tresc: string;
   kategoria: string | null;
+  lang: Lang;
 }
 
 export interface WyslijOdpowiedz {
@@ -63,7 +65,6 @@ interface Teksty {
   suggestionsByAgent: Record<string, string[]>;
   welcome: string;
   connected: string;
-  langButtonLabel: string;
   themeButtonLabel: { light: string; dark: string };
   connectError: string;
   noResponse: string;
@@ -97,6 +98,16 @@ interface Teksty {
   emailPlaceholder: string;
   emailPrivacyNote: string;
   placeholder: string;
+  recipientSeller: string;
+  sendShort: string;
+}
+
+function odmianaRozmow(n: number): string {
+  if (n === 1) return 'rozmowę';
+  const ostatnia = n % 10;
+  const dziesiatki = n % 100;
+  if (ostatnia >= 2 && ostatnia <= 4 && (dziesiatki < 10 || dziesiatki >= 20)) return 'rozmowy';
+  return 'rozmów';
 }
 
 export const TEKSTY: Record<Lang, Teksty> = {
@@ -120,7 +131,6 @@ export const TEKSTY: Record<Lang, Teksty> = {
     welcome:
       'Witam, jestem Twoim asystentem Allegro. Mogę:\n\n* odpowiadać na pytania na podstawie bazy wiedzy centrum pomocy\n* przygotować wiadomość do sprzedawcy w sprawie reklamacji, zwrotu, faktury lub eskalacji sporu\n\nNapisz, w czym mogę pomóc.',
     connected: 'Połączono z bazą wiedzy',
-    langButtonLabel: 'EN',
     themeButtonLabel: { light: 'Ciemny motyw', dark: 'Jasny motyw' },
     connectError: 'Backend nie odpowiada, spróbuj ponownie za chwilę.',
     noResponse: 'Backend nie odpowiedział, spróbuj ponownie za chwilę.',
@@ -132,7 +142,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     selectMode: 'Wybierz',
     cancelSelect: 'Anuluj',
     confirmDeleteAll: 'Na pewno usunąć wszystkie rozmowy?',
-    confirmDeleteSelected: (n) => `Na pewno usunąć ${n} rozmów?`,
+    confirmDeleteSelected: (n) => `Na pewno usunąć ${n} ${odmianaRozmow(n)}?`,
     panelOpened: 'Przygotowałem szkic wiadomości, zobacz panel obok.',
     panelTitle: 'Edytor wiadomości',
     to: 'Do:',
@@ -152,8 +162,10 @@ export const TEKSTY: Record<Lang, Teksty> = {
     toastInvalidEmail: 'Podaj poprawny adres email.',
     emailFieldLabel: 'Twój adres email',
     emailPlaceholder: 'np. jan.kowalski@poczta.pl',
-    emailPrivacyNote: 'Nie przechowujemy Twojego adresu ani treści wiadomości po wysyłce.',
+    emailPrivacyNote: 'Nie przechowujemy Twojego adresu po wysyłce; treść pytania trafia do logu w formie zredagowanej.',
     placeholder: 'Napisz wiadomość…',
+    recipientSeller: 'Sprzedawca',
+    sendShort: 'Wyślij',
   },
   en: {
     title: 'Allegro Assistant',
@@ -167,19 +179,18 @@ export const TEKSTY: Record<Lang, Teksty> = {
     newChatToast: 'Started a new conversation',
     threadFallbackTitle: 'New conversation',
     suggestionsByAgent: {
-      default: ['How do I report a non delivery?', 'How long do I have to return it?', 'When will I get my money back?'],
-      konto: ['How do I reset my password?', 'How do I change my account details?', 'I suspect my account was hacked, what now?'],
-      zakupy: ['How do I report a non delivery?', 'How long do I have to return it?', 'How do I check my purchase history?'],
-      platnosci: ['When will I get my refund?', 'How do I check a payment status?', 'How do I pay with Allegro Pay?'],
+      default: ['How do I report an order that never arrived?', 'How long do I have to return an item?', 'When will I get my money back?'],
+      konto: ['How do I reset my password?', 'How do I change my account details?', 'I suspect my account was hacked, what should I do?'],
+      zakupy: ['How do I report an order that never arrived?', 'How long do I have to return an item?', 'How do I check my order history?'],
+      platnosci: ['When will I get my refund?', 'How do I check the status of a payment?', 'How do I pay with Allegro Pay?'],
     },
     welcome:
-      "Welcome, I am your Allegro assistant. I can:\n\n* answer questions using the help center knowledge base\n* prepare a message to the seller about a complaint, return, invoice, or dispute escalation\n\nTell me what you need help with.",
-    connected: 'Connected to knowledge base',
-    langButtonLabel: 'PL',
-    themeButtonLabel: { light: 'Dark theme', dark: 'Light theme' },
-    connectError: "Backend isn't responding, try again in a moment.",
-    noResponse: "Backend didn't respond, try again in a moment.",
-    negacje: new Set(['no', "that's not it", 'wrong']),
+      "Welcome, I'm the Allegro assistant. I can:\n\n* answer questions using the help center knowledge base\n* prepare a message to the seller about a complaint, return, invoice, or dispute escalation\n\nTell me what you need help with.",
+    connected: 'Connected to the knowledge base',
+    themeButtonLabel: { light: 'Switch to dark theme', dark: 'Switch to light theme' },
+    connectError: "The backend isn't responding right now, please try again in a moment.",
+    noResponse: "The backend didn't respond, please try again in a moment.",
+    negacje: new Set(['no', "that's not it", 'wrong', 'not what i meant', 'that is not what i meant']),
     deleteChat: 'Delete chat',
     deleteCurrent: 'Delete current chat',
     deleteAll: 'Delete all',
@@ -187,7 +198,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     selectMode: 'Select',
     cancelSelect: 'Cancel',
     confirmDeleteAll: 'Delete all conversations?',
-    confirmDeleteSelected: (n) => `Delete ${n} conversations?`,
+    confirmDeleteSelected: (n) => `Delete ${n} conversation${n === 1 ? '' : 's'}?`,
     panelOpened: "I've prepared a draft message, see the panel on the right.",
     panelTitle: 'Message editor',
     to: 'To:',
@@ -201,14 +212,16 @@ export const TEKSTY: Record<Lang, Teksty> = {
     send: 'Send message',
     sending: 'Sending…',
     toastCopied: 'Copied to clipboard',
-    toastSent: (ticket) => `Sent, ticket number: ${ticket}`,
-    toastSendConfigError: 'Demo sending is not configured, try again later.',
-    toastSendError: 'Sending failed, try again.',
-    toastInvalidEmail: 'Enter a valid email address.',
+    toastSent: (ticket) => `Sent, your ticket number is ${ticket}`,
+    toastSendConfigError: 'Demo sending isn\'t configured right now, please try again later.',
+    toastSendError: 'Sending failed, please try again.',
+    toastInvalidEmail: 'Please enter a valid email address.',
     emailFieldLabel: 'Your email address',
     emailPlaceholder: 'e.g. jane.doe@mail.com',
-    emailPrivacyNote: 'We do not store your address or message content after sending.',
+    emailPrivacyNote: 'We don\'t store your address after sending; the question text is kept in the log in redacted form.',
     placeholder: 'Type a message…',
+    recipientSeller: 'Seller',
+    sendShort: 'Send',
   },
 };
 

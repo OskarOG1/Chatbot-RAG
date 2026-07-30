@@ -23,6 +23,8 @@ export default function Suggestions({ items, onPick }: Props) {
           onMouseEnter={() => setHover(i)}
           onMouseLeave={() => setHover(null)}
           style={{
+            display: 'inline-flex',
+            alignItems: 'center',
             padding: '7px 12px',
             borderRadius: 100,
             border: `1px solid ${hover === i ? th.accentLine : th.line}`,
@@ -31,6 +33,7 @@ export default function Suggestions({ items, onPick }: Props) {
             fontFamily: BODY,
             fontSize: 12,
             fontWeight: 500,
+            lineHeight: 1.35,
             cursor: 'pointer',
           }}
         >

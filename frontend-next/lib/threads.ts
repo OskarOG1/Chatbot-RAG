@@ -41,7 +41,25 @@ interface Zapis {
 }
 
 const STORAGE_KEY = 'allegro-rag-threads-v1';
+const LANG_KEY = 'allegro-rag-lang-v1';
 const VERSION = 1;
+
+export function wczytajJezyk(): Lang | null {
+  try {
+    const zapis = localStorage.getItem(LANG_KEY);
+    return zapis === 'pl' || zapis === 'en' ? zapis : null;
+  } catch {
+    return null;
+  }
+}
+
+export function zapiszJezyk(lang: Lang): void {
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    return;
+  }
+}
 
 export function nowyThread(lang: Lang): Thread {
   const teraz = Date.now();
@@ -94,6 +112,14 @@ export function wczytajStan(): { threads: Thread[]; activeId: string } | null {
 
 export function usunWatki(threads: Thread[], ids: Set<string>): Thread[] {
   return threads.filter((th) => !ids.has(th.id));
+}
+
+export function podmienPowitanie(threads: Thread[], lang: Lang): Thread[] {
+  return threads.map((th) => {
+    if (th.messages.some((m) => m.role === 'user')) return th;
+    if (th.messages.length !== 1) return th;
+    return { ...th, messages: [{ id: 0, role: 'assistant', content: TEKSTY[lang].welcome }] };
+  });
 }
 
 export function zapiszStan(threads: Thread[], activeId: string): void {

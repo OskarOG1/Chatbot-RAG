@@ -9,6 +9,7 @@ import EmailPanel from '@/components/EmailPanel';
 import Rail, { type RailItem } from '@/components/Rail';
 import Toast from '@/components/Toast';
 import InfoBanner from '@/components/InfoBanner';
+import { IkonaKosz } from '@/components/Ikony';
 import { czytajSse } from '@/lib/sse';
 import { ThemeContext, THEMES, BODY, DISPLAY, MONO, type ThemeName } from '@/lib/theme';
 import {
@@ -23,12 +24,16 @@ import {
 } from '@/lib/chat';
 import {
   nowyThread,
+  podmienPowitanie,
   tytulZWiadomosci,
   usunWatki,
+  wczytajJezyk,
   wczytajStan,
+  zapiszJezyk,
   zapiszStan,
   type Thread,
 } from '@/lib/threads';
+import { oczyscPodglad } from '@/lib/zrodla';
 
 const EMAIL_WZORZEC = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -43,12 +48,15 @@ function deleteCurrentBtn(th: { line: string; surface: string; ink2: string }) {
   return {
     width: 30,
     height: 30,
+    padding: 0,
     borderRadius: 100,
     border: `1px solid ${th.line}`,
     background: th.surface,
     color: th.ink2,
-    fontSize: 13,
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   } as const;
 }
 
@@ -60,7 +68,7 @@ function stanPoczatkowy(): { threads: Thread[]; activeId: string } {
 }
 
 export default function ChatApp() {
-  const [lang, setLang] = useState<Lang>('pl');
+  const [lang, setLangState] = useState<Lang>(() => wczytajJezyk() ?? 'pl');
   const [themeName, setThemeName] = useState<ThemeName>('light');
   const [seed] = useState(stanPoczatkowy);
   const [threads, setThreads] = useState<Thread[]>(seed.threads);
@@ -81,6 +89,16 @@ export default function ChatApp() {
   useEffect(() => {
     zapiszStan(threads, activeId);
   }, [threads, activeId]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  function setLang(nowyLang: Lang) {
+    setLangState(nowyLang);
+    zapiszJezyk(nowyLang);
+    setThreads((ts) => podmienPowitanie(ts, nowyLang));
+  }
 
   const active = threads.find((x) => x.id === activeId) ?? null;
 
@@ -122,6 +140,8 @@ export default function ChatApp() {
       setActiveId(th0.id);
       setDraft('');
       setStreamBuffor('');
+      setSelectedIds(new Set());
+      setSelectMode(false);
       return;
     }
     setThreads(pozostale);
@@ -131,9 +151,14 @@ export default function ChatApp() {
       setDraft('');
       setStreamBuffor('');
     }
+    const pozostaleId = new Set(pozostale.map((x) => x.id));
+    const przyciete = new Set([...selectedIds].filter((id) => pozostaleId.has(id)));
+    setSelectedIds(przyciete);
+    if (przyciete.size === 0) setSelectMode(false);
   }
 
   function usunThread(id: string) {
+    if (id === sendingId) return;
     usunPozostale(usunWatki(threads, new Set([id])), id === activeId);
   }
 
@@ -146,8 +171,6 @@ export default function ChatApp() {
     if (selectedIds.size === 0) return;
     if (!window.confirm(t.confirmDeleteSelected(selectedIds.size))) return;
     usunPozostale(usunWatki(threads, selectedIds), selectedIds.has(activeId));
-    setSelectedIds(new Set());
-    setSelectMode(false);
   }
 
   function przelaczTrybWyboru() {
@@ -255,7 +278,7 @@ export default function ChatApp() {
       updateThread(tid, (x) => ({
         ...x,
         panel: {
-          recipient: lang === 'pl' ? 'Sprzedawca' : 'Seller',
+          recipient: t.recipientSeller,
           subject: temat,
           body: tresc,
           originalSubject: temat,
@@ -318,6 +341,7 @@ export default function ChatApp() {
           temat: panel.subject,
           tresc: panel.body,
           kategoria: panel.kategoria,
+          lang,
         }),
       });
 
@@ -412,7 +436,7 @@ export default function ChatApp() {
             </div>
             <div style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
               <button type="button" aria-label={t.deleteCurrent} onClick={() => usunThread(activeId)} style={deleteCurrentBtn(th)}>
-                🗑
+                <IkonaKosz color={th.ink2} />
               </button>
               <div
                 style={{
@@ -428,7 +452,7 @@ export default function ChatApp() {
                   color: th.ink2,
                 }}
               >
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: th.dot, boxShadow: `0 0 0 3px ${th.raised}` }} />
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: th.dot, flex: '0 0 auto' }} />
                 {t.connected}
               </div>
             </div>
@@ -446,7 +470,7 @@ export default function ChatApp() {
                   )}
                 </div>
               ))}
-              {pokazTyping && streamBuffor && <ChatMessage role="assistant" content={streamBuffor} lang={lang} />}
+              {pokazTyping && streamBuffor && <ChatMessage role="assistant" content={oczyscPodglad(streamBuffor)} lang={lang} />}
               {pokazTyping && !streamBuffor && <TypingBubble krok={aktualnyKrok} thinking={t.connected} />}
             </div>
           </div>
@@ -478,7 +502,7 @@ export default function ChatApp() {
                 value={draft}
                 placeholder={t.placeholder}
                 hint={t.composerHint}
-                sendLabel={lang === 'pl' ? 'Wyślij' : 'Send'}
+                sendLabel={t.sendShort}
                 disabled={wysylanie}
                 onChange={setDraft}
                 onSend={() => wyslij(draft.trim())}

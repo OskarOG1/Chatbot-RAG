@@ -1,9 +1,11 @@
 'use client';
 
 import type { CSSProperties } from 'react';
+import Link from 'next/link';
 import { useTheme, DISPLAY, BODY, MONO } from '@/lib/theme';
 import { TEKSTY, type Lang } from '@/lib/chat';
 import type { ThemeName } from '@/lib/theme';
+import { FlagaPl, FlagaGb, IkonaKosz, IkonaSlonce, IkonaKsiezyc } from './Ikony';
 
 export interface RailItem {
   id: string;
@@ -28,8 +30,6 @@ interface Props {
   onDeleteAll: () => void;
   onDeleteSelected: () => void;
 }
-
-const FLAGA: Record<Lang, string> = { pl: '🇵🇱', en: '🇬🇧' };
 
 export default function Rail({
   lang,
@@ -172,7 +172,7 @@ export default function Rail({
                 }}
                 style={trashBtn(th)}
               >
-                🗑
+                <IkonaKosz color={th.ink3} />
               </button>
             )}
           </div>
@@ -182,7 +182,7 @@ export default function Rail({
       {selectMode && (
         <div style={{ flex: '0 0 auto', borderTop: `1px solid ${th.line}`, padding: '12px 16px', display: 'flex', gap: 8 }}>
           <button type="button" onClick={onDeleteSelected} disabled={selectedIds.size === 0} style={dangerBtn(th, selectedIds.size === 0)}>
-            {t.deleteSelected} {selectedIds.size > 0 ? `(${selectedIds.size})` : ''}
+            {selectedIds.size > 0 ? `${t.deleteSelected} (${selectedIds.size})` : t.deleteSelected}
           </button>
           <button type="button" onClick={onToggleSelectMode} style={railGhost(th)}>
             {t.cancelSelect}
@@ -193,13 +193,20 @@ export default function Rail({
       <div style={{ flex: '0 0 auto', borderTop: `1px solid ${th.line}`, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ flex: '1 1 auto', display: 'flex', padding: 2, borderRadius: 8, background: th.raised, border: `1px solid ${th.line}` }}>
-            <button type="button" onClick={() => onSetLang('pl')} style={segBtn(th, lang === 'pl')}>{FLAGA.pl} PL</button>
-            <button type="button" onClick={() => onSetLang('en')} style={segBtn(th, lang === 'en')}>{FLAGA.en} EN</button>
+            <button type="button" onClick={() => onSetLang('pl')} style={segBtn(th, lang === 'pl')}>
+              <FlagaPl /> PL
+            </button>
+            <button type="button" onClick={() => onSetLang('en')} style={segBtn(th, lang === 'en')}>
+              <FlagaGb /> EN
+            </button>
           </div>
           <button type="button" aria-label={t.themeButtonLabel[theme]} onClick={onToggleTheme} style={themeIconBtn(th)}>
-            {theme === 'light' ? '☀️' : '🌙'}
+            {theme === 'light' ? <IkonaKsiezyc color={th.ink2} /> : <IkonaSlonce color={th.ink2} />}
           </button>
         </div>
+        <Link href="/prywatnosc" style={privacyLink(th)}>
+          {lang === 'pl' ? 'Jak przetwarzamy dane' : 'How we handle data'}
+        </Link>
       </div>
     </aside>
   );
@@ -227,12 +234,17 @@ function newChatBtn(th: ReturnType<typeof useTheme>): CSSProperties {
 function segBtn(th: ReturnType<typeof useTheme>, active: boolean): CSSProperties {
   return {
     flex: 1,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     padding: 6,
     border: 'none',
     borderRadius: 6,
     fontFamily: MONO,
     fontSize: 11,
     fontWeight: 500,
+    lineHeight: 1,
     cursor: 'pointer',
     background: active ? th.surface : 'transparent',
     color: active ? th.ink : th.ink3,
@@ -257,6 +269,8 @@ function railGhost(th: ReturnType<typeof useTheme>): CSSProperties {
 
 function miniGhost(th: ReturnType<typeof useTheme>): CSSProperties {
   return {
+    display: 'inline-flex',
+    alignItems: 'center',
     padding: '3px 8px',
     borderRadius: 6,
     border: `1px solid ${th.line}`,
@@ -265,6 +279,7 @@ function miniGhost(th: ReturnType<typeof useTheme>): CSSProperties {
     fontFamily: BODY,
     fontSize: 10.5,
     fontWeight: 600,
+    lineHeight: 1.4,
     cursor: 'pointer',
   };
 }
@@ -279,9 +294,11 @@ function trashBtn(th: ReturnType<typeof useTheme>): CSSProperties {
     border: 'none',
     background: 'transparent',
     color: th.ink3,
-    fontSize: 12,
     cursor: 'pointer',
-    lineHeight: 1,
+    padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   };
 }
 
@@ -293,11 +310,21 @@ function themeIconBtn(th: ReturnType<typeof useTheme>): CSSProperties {
     borderRadius: 8,
     border: `1px solid ${th.line}`,
     background: th.raised,
-    fontSize: 14,
     cursor: 'pointer',
+    padding: 0,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+  };
+}
+
+function privacyLink(th: ReturnType<typeof useTheme>): CSSProperties {
+  return {
+    fontFamily: BODY,
+    fontSize: 10.5,
+    color: th.ink3,
+    textDecoration: 'none',
+    padding: '2px 2px 0',
   };
 }
 
