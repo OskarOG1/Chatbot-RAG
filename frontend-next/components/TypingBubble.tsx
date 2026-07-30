@@ -1,42 +1,51 @@
-import { useTheme } from '@/lib/theme';
+import { useTheme, DISPLAY, BODY } from '@/lib/theme';
 
 interface Props {
   krok: string | null;
+  thinking: string;
 }
 
-export default function TypingBubble({ krok }: Props) {
+export default function TypingBubble({ krok, thinking }: Props) {
   const th = useTheme();
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-      <div
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <span
         style={{
-          background: th.bgBubbleBot,
-          border: `1px solid ${th.border}`,
-          borderRadius: '16px 16px 16px 4px',
-          padding: '14px 16px',
+          width: 22,
+          height: 22,
+          borderRadius: 6,
+          background: th.accent,
+          color: th.markInk,
+          fontFamily: DISPLAY,
+          fontSize: 14,
+          fontWeight: 800,
           display: 'flex',
-          gap: 10,
           alignItems: 'center',
+          justifyContent: 'center',
+          lineHeight: 1,
+          flex: '0 0 auto',
         }}
       >
-        <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-          <span style={dotStyle(th.textSecondary, '0s')} />
-          <span style={dotStyle(th.textSecondary, '0.15s')} />
-          <span style={dotStyle(th.textSecondary, '0.3s')} />
-        </div>
-        {krok && <span style={{ fontSize: 13, color: th.textSecondary }}>{krok}</span>}
-      </div>
+        a
+      </span>
+      <span style={{ fontFamily: BODY, fontSize: 12.5, color: th.ink3 }}>{krok ?? thinking}</span>
+      <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <span style={dot(th.accent, '0s')} />
+        <span style={dot(th.accent, '0.18s')} />
+        <span style={dot(th.accent, '0.36s')} />
+      </span>
     </div>
   );
 }
 
-function dotStyle(color: string, delay: string) {
+function dot(color: string, delay: string) {
   return {
-    width: 6,
-    height: 6,
+    width: 5,
+    height: 5,
     borderRadius: '50%',
     background: color,
-    animation: `dcDot 1.2s infinite ${delay}`,
+    display: 'inline-block',
+    animation: `dcPulse 1.1s infinite ${delay}`,
   };
 }

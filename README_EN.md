@@ -72,7 +72,7 @@ RERANKER (cross-encoder scores the question–chunk pair, window of 20) → 5 li
       ▼  GATE 2: LLM judge (YES/NO) on borderline questions
       │
       ▼
-GENERATION (system prompt + conversation history + context → Bielik-11B via API / Ollama locally)
+GENERATION (system prompt + conversation history + context → apertus-v1.5-8b via API / Ollama locally)
       │
       ▼  URLs stripped from the text, citations [n] mapped to sources
       ▼  GATE 3: answer coverage by context < 0.20 → refusal
@@ -89,7 +89,7 @@ Answer + Sources
 | Vector store | FAISS | Local, fast, sufficient at this scale |
 | Lexical retrieval | BM25 + lemmatisation + trigrams | Embeddings alone missed questions built around specific words |
 | Reranker | mmarco-mMiniLMv2 (118M) | 26× faster than bge-v2-m3 at the cost of one hit |
-| Answering model | Bielik-11B | A Polish model for Polish content |
+| Answering model | apertus-v1.5-8b | In a 25 PL + 25 EN question measurement it matches or beats Bielik-11B/Olmo-3-7B on quality (context coverage, no contradictions), with zero API errors and about 3.4x faster (see `Pomiary/jakosc_modeli.md`, `Pomiary/latencja.md`) |
 
 ---
 
@@ -169,6 +169,8 @@ Judge selection:
 | EuroLLM-22B | 5/30 | 18/18 |
 
 Bielik as the compromise. EuroLLM held in reserve for a client where "never answer off-topic" outweighs the occasional false refusal. The judge model is decoupled from the answering model; a YES/NO decision is lighter than generation, so a cheaper model can sit on it.
+
+When the answering model was switched to apertus-v1.5-8b (see the technology choices table above), apertus was also tested in the judge role: false refusals were comparable (PL 1/50 vs 1/50, EN 0/50 vs 3/50 in apertus's favor), but caught OOD questions were clearly worse (22/29 vs 28/29 PL, 22/29 vs 27/29 EN), a real regression of the anti-hallucination gate. The judge stays on Bielik-11B (PL) and Olmo-3-7B (EN), independent of the answering model (see `Pomiary/sedzia_modele.md`).
 
 ### 7. The anti-hallucination gate threw out good answers
 

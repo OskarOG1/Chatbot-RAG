@@ -71,7 +71,7 @@ RERANKER (cross-encoder ocenia parę pytanie–fragment, okno 20) → 5 linków
       ▼  BRAMKA 2: sędzia LLM (TAK/NIE) na pytaniach granicznych
       │
       ▼
-GENERACJA (system prompt + historia rozmowy + kontekst → Bielik-11B przez API / lokalnie Ollama)
+GENERACJA (system prompt + historia rozmowy + kontekst → apertus-v1.5-8b przez API / lokalnie Ollama)
       │
       ▼  wycięcie URL-i z tekstu, mapowanie cytatów [n] → źródło
       ▼  BRAMKA 3: pokrycie odpowiedzi kontekstem < 0.20 → odmowa
@@ -88,7 +88,7 @@ Odpowiedź + Źródła
 | Baza wektorowa | FAISS | Lokalna, szybka, wystarcza na tej skali |
 | Wyszukiwanie po słowach | BM25 + lematyzacja + trigramy | Sam embedding gubił pytania zbudowane wokół konkretnych słów |
 | Reranker | mmarco-mMiniLMv2 (118M) | 26× szybszy od bge-v2-m3 przy stracie jednego trafienia |
-| Model odpowiadający | Bielik-11B | Polski model do polskich treści |
+| Model odpowiadający | apertus-v1.5-8b | Na pomiarze 25 pytań PL + 25 EN dorównuje lub przewyższa Bielika-11B/Olmo-3-7B jakością (pokrycie kontekstu, brak sprzeczności), bez błędów API, ~3.4× szybszy (patrz `Pomiary/jakosc_modeli.md`, `Pomiary/latencja.md`) |
 
 ---
 
@@ -169,6 +169,8 @@ Wybór sędziego:
 | EuroLLM-22B | 5/30 | 18/18 |
 
 Bielik jako kompromis. EuroLLM w rezerwie pod klienta, gdzie „nigdy nie odpowiadaj nie na temat" waży więcej niż okazjonalna fałszywa odmowa. Model sędziego jest odpięty od modelu odpowiadającego, decyzja TAK/NIE jest lżejsza niż generacja, więc może na niej siedzieć tańszy model.
+
+Przy okazji zmiany modelu odpowiadającego na apertus-v1.5-8b (patrz tabela wyboru technologii wyżej) sprawdzono też apertusa w roli sędziego: falszywe odmowy porównywalne (PL 1/50 vs 1/50, EN 0/50 vs 3/50 na korzyść apertusa), ale zlapane OOD wyraźnie gorsze (22/29 vs 28/29 PL, 22/29 vs 27/29 EN), czyli realna regresja bramki antyhalucynacyjnej. Sędzia zostaje przy Bielik-11B (PL) i Olmo-3-7B (EN), niezależnie od modelu odpowiadającego (patrz `Pomiary/sedzia_modele.md`).
 
 ### 7. Bramka antyhalucynacyjna wyrzucała dobre odpowiedzi
 

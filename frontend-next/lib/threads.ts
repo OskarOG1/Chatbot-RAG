@@ -1,0 +1,102 @@
+import { TEKSTY, type Cytat, type Lang, type Wiadomosc } from './chat';
+
+export interface WiadomoscUi {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  citations?: Cytat[];
+  doprecyzowanie?: string | null;
+  action?: string | null;
+}
+
+export interface PanelState {
+  recipient: string;
+  subject: string;
+  body: string;
+  originalSubject: string;
+  originalBody: string;
+  kategoria: string | null;
+  trigger: string;
+  clientEmail: string;
+  sending: boolean;
+}
+
+export interface Thread {
+  id: string;
+  title: string | null;
+  createdAt: number;
+  updatedAt: number;
+  messages: WiadomoscUi[];
+  historiaApi: Wiadomosc[];
+  ostatniAgent: string | null;
+  ostatniaKorekta: string | null;
+  panel: PanelState | null;
+  panelOpen: boolean;
+}
+
+interface Zapis {
+  version: number;
+  activeId: string;
+  threads: Thread[];
+}
+
+const STORAGE_KEY = 'allegro-rag-threads-v1';
+const VERSION = 1;
+
+export function nowyThread(lang: Lang): Thread {
+  const teraz = Date.now();
+  return {
+    id: losoweId(),
+    title: null,
+    createdAt: teraz,
+    updatedAt: teraz,
+    messages: [{ id: 0, role: 'assistant', content: TEKSTY[lang].welcome }],
+    historiaApi: [],
+    ostatniAgent: null,
+    ostatniaKorekta: null,
+    panel: null,
+    panelOpen: false,
+  };
+}
+
+export function losoweId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  } catch {
+    return `t-${Math.floor(performance.now() * 1000).toString(36)}`;
+  }
+  return `t-${Math.floor(performance.now() * 1000).toString(36)}-${Math.floor(performance.now()).toString(36)}`;
+}
+
+export function tytulZWiadomosci(messages: WiadomoscUi[], zapas: string): string {
+  const pierwszaUzytkownika = messages.find((m) => m.role === 'user');
+  if (!pierwszaUzytkownika) return zapas;
+  const tekst = pierwszaUzytkownika.content.trim().replace(/\s+/g, ' ');
+  return tekst.length > 46 ? `${tekst.slice(0, 46)}…` : tekst;
+}
+
+export function wczytajStan(): { threads: Thread[]; activeId: string } | null {
+  try {
+    const surowe = localStorage.getItem(STORAGE_KEY);
+    if (!surowe) return null;
+    const dane = JSON.parse(surowe) as Zapis;
+    if (dane.version !== VERSION || !Array.isArray(dane.threads) || dane.threads.length === 0) return null;
+    const threads = dane.threads.map((th) => ({
+      ...th,
+      panel: th.panel ? { ...th.panel, sending: false } : null,
+    }));
+    const activeId = threads.some((th) => th.id === dane.activeId) ? dane.activeId : threads[0].id;
+    return { threads, activeId };
+  } catch {
+    return null;
+  }
+}
+
+export function zapiszStan(threads: Thread[], activeId: string): void {
+  try {
+    const dane: Zapis = { version: VERSION, activeId, threads };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dane));
+  } catch {
+    return;
+  }
+}
