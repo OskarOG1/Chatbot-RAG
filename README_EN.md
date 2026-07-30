@@ -282,7 +282,7 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 Backend: **FastAPI**. `POST /chat` returns JSON (answer, sources, citations). `POST /chat/stream` is the same process over SSE, streaming each step as it happens.
 
-Frontend: **Streamlit**. Chat, clickable sources, live step preview.
+Frontend: **Next.js** (`frontend-next/`). Chat, clickable sources, live step preview, mail edit panel.
 
 ---
 

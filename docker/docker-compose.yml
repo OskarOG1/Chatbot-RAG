@@ -14,21 +14,6 @@ services:
     networks:
       - wewnetrzna
 
-  frontend:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.frontend
-    environment:
-      - API_URL=http://api:8000/chat/stream
-    expose:
-      - "8501"
-    depends_on:
-      api:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - wewnetrzna
-
   frontend-next:
     build:
       context: ..
