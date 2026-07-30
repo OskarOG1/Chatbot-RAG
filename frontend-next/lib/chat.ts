@@ -52,6 +52,15 @@ export interface ChatRequestBody {
 interface Teksty {
   title: string;
   subtitle: string;
+  brandSub: string;
+  newChat: string;
+  recent: string;
+  assistant: string;
+  sourcesLabel: string;
+  composerHint: string;
+  newChatToast: string;
+  threadFallbackTitle: string;
+  suggestions: string[];
   welcome: string;
   connected: string;
   langButtonLabel: string;
@@ -83,6 +92,15 @@ export const TEKSTY: Record<Lang, Teksty> = {
   pl: {
     title: 'Asystent Allegro',
     subtitle: 'Odpowiada na podstawie bazy wiedzy centrum pomocy',
+    brandSub: 'RAG · centrum pomocy',
+    newChat: 'Nowa rozmowa',
+    recent: 'Ostatnie rozmowy',
+    assistant: 'Asystent',
+    sourcesLabel: 'Źródła z centrum pomocy',
+    composerHint: 'Enter wysyła · Shift + Enter nowa linia',
+    newChatToast: 'Rozpoczęto nową rozmowę',
+    threadFallbackTitle: 'Nowa rozmowa',
+    suggestions: ['Jak zgłosić brak dostawy?', 'Ile mam czasu na zwrot?', 'Kiedy dostanę pieniądze?'],
     welcome:
       'Witam, jestem Twoim asystentem Allegro. Mogę:\n\n* odpowiadać na pytania na podstawie bazy wiedzy centrum pomocy\n* przygotować wiadomość do sprzedawcy w sprawie reklamacji, zwrotu, faktury lub eskalacji sporu\n\nNapisz, w czym mogę pomóc.',
     connected: 'Połączono z bazą wiedzy',
@@ -113,6 +131,15 @@ export const TEKSTY: Record<Lang, Teksty> = {
   en: {
     title: 'Allegro Assistant',
     subtitle: 'Answers grounded in the help center knowledge base',
+    brandSub: 'RAG · help center',
+    newChat: 'New conversation',
+    recent: 'Recent conversations',
+    assistant: 'Assistant',
+    sourcesLabel: 'Help center sources',
+    composerHint: 'Enter sends · Shift + Enter for a new line',
+    newChatToast: 'Started a new conversation',
+    threadFallbackTitle: 'New conversation',
+    suggestions: ['How do I report a non delivery?', 'How long do I have to return it?', 'When will I get my money back?'],
     welcome:
       "Welcome, I am your Allegro assistant. I can:\n\n* answer questions using the help center knowledge base\n* prepare a message to the seller about a complaint, return, invoice, or dispute escalation\n\nTell me what you need help with.",
     connected: 'Connected to knowledge base',
