@@ -1,6 +1,7 @@
 import os
 
 MODEL_11B = 'speakleash/Bielik-11B-v3.0-Instruct'
+MODEL_DOMYSLNY = 'swiss-ai/apertus-v1.5-8b'
 
 LANG = {
     'pl': {
@@ -10,8 +11,8 @@ LANG = {
         'lemma_lang': 'pl',
         'freq_lang': 'pl',
         'suffix': '',
-        'model': os.getenv('MODEL', MODEL_11B),
-        'sedzia_model': os.getenv('SEDZIA_MODEL', os.getenv('MODEL', MODEL_11B)),
+        'model': os.getenv('MODEL', MODEL_DOMYSLNY),
+        'sedzia_model': os.getenv('SEDZIA_MODEL', MODEL_11B),
         'prog_rerank': -4.3,
         'prog_pokrycia': 0.20,
         'brak_wiedzy': (
@@ -27,7 +28,7 @@ LANG = {
                          'wiadomości', 'reklamacja', 'reklamację', 'reklamacje', 'reklamacji',
                          'reklamacyjny', 'reklamacyjnego', 'reklamacyjną', 'zwrot', 'zwrotu',
                          'fakturę', 'fakturze', 'fakturą'},
-        'router_model': os.getenv('ROUTER_MODEL', os.getenv('SEDZIA_MODEL', os.getenv('MODEL', MODEL_11B))),
+        'router_model': os.getenv('ROUTER_MODEL', os.getenv('SEDZIA_MODEL', MODEL_11B)),
         'mail_doprecyzuj': (
             'Nie jestem pewien, o jaki rodzaj wiadomości chodzi: reklamację uszkodzonego towaru, '
             'zwrot, prośbę o fakturę czy zgłoszenie braku odpowiedzi sprzedawcy? Napisz proszę dokładniej.'
@@ -76,8 +77,8 @@ LANG = {
         'lemma_lang': 'en',
         'freq_lang': 'en',
         'suffix': '_en',
-        'model': os.getenv('MODEL_EN', 'allenai/Olmo-3-7B-Instruct'),
-        'sedzia_model': os.getenv('SEDZIA_MODEL_EN', os.getenv('MODEL_EN', 'allenai/Olmo-3-7B-Instruct')),
+        'model': os.getenv('MODEL_EN', MODEL_DOMYSLNY),
+        'sedzia_model': os.getenv('SEDZIA_MODEL_EN', 'allenai/Olmo-3-7B-Instruct'),
         'prog_rerank': -3.6,
         'prog_pokrycia': 0.35,
         'brak_wiedzy': (
@@ -89,7 +90,7 @@ LANG = {
         'followup_prefiksy': ('and ', 'what about', 'how about', 'what if'),
         'mail_czasowniki': {'write', 'draft', 'prepare', 'help'},
         'mail_obiekty': {'email', 'e-mail', 'mail', 'message', 'complaint', 'return', 'invoice', 'receipt'},
-        'router_model': os.getenv('ROUTER_MODEL_EN', os.getenv('SEDZIA_MODEL_EN', os.getenv('MODEL_EN', 'allenai/Olmo-3-7B-Instruct'))),
+        'router_model': os.getenv('ROUTER_MODEL_EN', os.getenv('SEDZIA_MODEL_EN', 'allenai/Olmo-3-7B-Instruct')),
         'mail_doprecyzuj': (
             "I'm not sure which kind of message you need: a complaint about a damaged item, a return, "
             'an invoice request, or a report that the seller is not responding? Please be more specific.'
