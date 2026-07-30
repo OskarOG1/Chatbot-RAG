@@ -1,7 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTheme, DISPLAY, BODY } from '@/lib/theme';
-import { linkujCytaty, zrodlaZCytatow } from '@/lib/zrodla';
+import { przygotujOdpowiedz } from '@/lib/zrodla';
 import { TEKSTY, type Cytat, type Lang } from '@/lib/chat';
 import SourceList from './SourceList';
 
@@ -41,8 +41,7 @@ export default function ChatMessage({ role, content, lang, citations = [], actio
     );
   }
 
-  const tresc = linkujCytaty(content, citations);
-  const zrodla = zrodlaZCytatow(citations);
+  const { tekst: tresc, zrodla } = przygotujOdpowiedz(content, citations);
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -85,8 +84,16 @@ export default function ChatMessage({ role, content, lang, citations = [], actio
           remarkPlugins={[remarkGfm]}
           components={{
             p: ({ children }) => <p style={{ margin: 0 }}>{children}</p>,
-            ul: ({ children }) => <ul style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>{children}</ul>,
-            ol: ({ children }) => <ol style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>{children}</ol>,
+            ul: ({ children }) => (
+              <ul style={{ margin: 0, paddingLeft: 22, listStyle: 'disc', listStylePosition: 'outside', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {children}
+              </ul>
+            ),
+            ol: ({ children }) => (
+              <ol style={{ margin: 0, paddingLeft: 22, listStyle: 'decimal', listStylePosition: 'outside', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {children}
+              </ol>
+            ),
             li: ({ children }) => <li style={{ margin: 0 }}>{children}</li>,
             strong: ({ children }) => <strong style={{ color: th.ink, fontWeight: 600 }}>{children}</strong>,
             a: ({ href, children }) => (

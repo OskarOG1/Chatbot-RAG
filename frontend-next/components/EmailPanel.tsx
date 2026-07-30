@@ -3,6 +3,28 @@ import { useTheme } from '@/lib/theme';
 import { TEKSTY, type Lang } from '@/lib/chat';
 import { htmlDoMarkdown, markdownDoHtml } from '@/lib/richtext';
 
+const SZEROKOSCI: Record<'left' | 'center' | 'right', number[]> = {
+  left: [16, 11, 14],
+  center: [16, 10, 13],
+  right: [16, 11, 14],
+};
+
+function AlignIcon({ align, color }: { align: 'left' | 'center' | 'right'; color: string }) {
+  const justify = align === 'left' ? 'flex-start' : align === 'center' ? 'center' : 'flex-end';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, width: 16 }}>
+      {SZEROKOSCI[align].map((w, i) => (
+        <span
+          key={i}
+          style={{ display: 'flex', justifyContent: justify, width: '100%' }}
+        >
+          <span style={{ width: w, height: 2, background: color, borderRadius: 1 }} />
+        </span>
+      ))}
+    </div>
+  );
+}
+
 interface Props {
   lang: Lang;
   open: boolean;
@@ -154,11 +176,30 @@ export default function EmailPanel({
             </button>
             <button
               type="button"
+              aria-label={t.alignLeft}
               onMouseDown={zachowajZaznaczenie}
-              onClick={() => formatuj('insertUnorderedList')}
+              onClick={() => formatuj('justifyLeft')}
               style={toolbarBtn(th, {})}
             >
-              ≡
+              <AlignIcon align="left" color={th.textPrimary} />
+            </button>
+            <button
+              type="button"
+              aria-label={t.alignCenter}
+              onMouseDown={zachowajZaznaczenie}
+              onClick={() => formatuj('justifyCenter')}
+              style={toolbarBtn(th, {})}
+            >
+              <AlignIcon align="center" color={th.textPrimary} />
+            </button>
+            <button
+              type="button"
+              aria-label={t.alignRight}
+              onMouseDown={zachowajZaznaczenie}
+              onClick={() => formatuj('justifyRight')}
+              style={toolbarBtn(th, {})}
+            >
+              <AlignIcon align="right" color={th.textPrimary} />
             </button>
           </div>
 

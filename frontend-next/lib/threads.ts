@@ -92,6 +92,10 @@ export function wczytajStan(): { threads: Thread[]; activeId: string } | null {
   }
 }
 
+export function usunWatki(threads: Thread[], ids: Set<string>): Thread[] {
+  return threads.filter((th) => !ids.has(th.id));
+}
+
 export function zapiszStan(threads: Thread[], activeId: string): void {
   try {
     const dane: Zapis = { version: VERSION, activeId, threads };

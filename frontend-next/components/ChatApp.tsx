@@ -24,6 +24,7 @@ import {
 import {
   nowyThread,
   tytulZWiadomosci,
+  usunWatki,
   wczytajStan,
   zapiszStan,
   type Thread,
@@ -36,6 +37,19 @@ function formatCzas(ts: number): string {
   const gg = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${gg}:${mm}`;
+}
+
+function deleteCurrentBtn(th: { line: string; surface: string; ink2: string }) {
+  return {
+    width: 30,
+    height: 30,
+    borderRadius: 100,
+    border: `1px solid ${th.line}`,
+    background: th.surface,
+    color: th.ink2,
+    fontSize: 13,
+    cursor: 'pointer',
+  } as const;
 }
 
 function stanPoczatkowy(): { threads: Thread[]; activeId: string } {
@@ -57,6 +71,8 @@ export default function ChatApp() {
   const [aktualnyKrok, setAktualnyKrok] = useState<string | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const msgSub = useRef(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = TEKSTY[lang];
@@ -97,6 +113,55 @@ export default function ChatApp() {
     setActiveId(id);
     setDraft('');
     setStreamBuffor('');
+  }
+
+  function usunPozostale(pozostale: Thread[], usuwanyAktywny: boolean) {
+    if (pozostale.length === 0) {
+      const th0 = nowyThread(lang);
+      setThreads([th0]);
+      setActiveId(th0.id);
+      setDraft('');
+      setStreamBuffor('');
+      return;
+    }
+    setThreads(pozostale);
+    if (usuwanyAktywny) {
+      const najnowszy = [...pozostale].sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      setActiveId(najnowszy.id);
+      setDraft('');
+      setStreamBuffor('');
+    }
+  }
+
+  function usunThread(id: string) {
+    usunPozostale(usunWatki(threads, new Set([id])), id === activeId);
+  }
+
+  function usunWszystkie() {
+    if (!window.confirm(t.confirmDeleteAll)) return;
+    usunPozostale([], true);
+  }
+
+  function usunWybrane() {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(t.confirmDeleteSelected(selectedIds.size))) return;
+    usunPozostale(usunWatki(threads, selectedIds), selectedIds.has(activeId));
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  }
+
+  function przelaczTrybWyboru() {
+    setSelectMode((v) => !v);
+    setSelectedIds(new Set());
+  }
+
+  function przelaczWybor(id: string) {
+    setSelectedIds((ids) => {
+      const kopia = new Set(ids);
+      if (kopia.has(id)) kopia.delete(id);
+      else kopia.add(id);
+      return kopia;
+    });
   }
 
   async function poproszBackend(
@@ -316,6 +381,13 @@ export default function ChatApp() {
           onSelect={wybierzThread}
           onSetLang={setLang}
           onToggleTheme={() => setThemeName((x) => (x === 'light' ? 'dark' : 'light'))}
+          selectMode={selectMode}
+          selectedIds={selectedIds}
+          onToggleSelectMode={przelaczTrybWyboru}
+          onToggleSelected={przelaczWybor}
+          onDeleteOne={usunThread}
+          onDeleteAll={usunWszystkie}
+          onDeleteSelected={usunWybrane}
         />
 
         <main style={{ flex: '1 1 auto', minWidth: 'min(400px, 100%)', display: 'flex', flexDirection: 'column' }}>
@@ -334,32 +406,36 @@ export default function ChatApp() {
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
               <h1 style={{ margin: 0, fontFamily: DISPLAY, fontSize: 21, fontWeight: 700, letterSpacing: '-0.025em', color: th.ink }}>
-                {active.title ?? t.subtitle}
+                {active.title ?? t.threadFallbackTitle}
               </h1>
               <span style={{ fontFamily: MONO, fontSize: 11, color: th.ink3 }}>{t.subtitle}</span>
             </div>
-            <div
-              style={{
-                flex: '0 0 auto',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 7,
-                padding: '6px 12px',
-                borderRadius: 100,
-                border: `1px solid ${th.line}`,
-                background: th.surface,
-                fontSize: 11.5,
-                fontWeight: 500,
-                color: th.ink2,
-              }}
-            >
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: th.dot, boxShadow: `0 0 0 3px ${th.raised}` }} />
-              {t.connected}
+            <div style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+              <button type="button" aria-label={t.deleteCurrent} onClick={() => usunThread(activeId)} style={deleteCurrentBtn(th)}>
+                🗑
+              </button>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  padding: '6px 12px',
+                  borderRadius: 100,
+                  border: `1px solid ${th.line}`,
+                  background: th.surface,
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  color: th.ink2,
+                }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: th.dot, boxShadow: `0 0 0 3px ${th.raised}` }} />
+                {t.connected}
+              </div>
             </div>
           </header>
 
-          <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '32px 0 8px' }}>
-            <div style={{ maxWidth: 760, margin: '0 auto', padding: '0 32px', display: 'flex', flexDirection: 'column', gap: 30 }}>
+          <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '32px 32px 8px' }}>
+            <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 30 }}>
               {active.messages.map((m) => (
                 <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <ChatMessage role={m.role} content={m.content} lang={lang} citations={m.citations} action={m.action} onAction={wyslij} />
@@ -397,7 +473,7 @@ export default function ChatApp() {
                   {t.openDraft}
                 </button>
               )}
-              <Suggestions items={t.suggestions} onPick={setDraft} />
+              <Suggestions items={t.suggestionsByAgent[active.ostatniAgent ?? ''] ?? t.suggestionsByAgent.default} onPick={setDraft} />
               <Composer
                 value={draft}
                 placeholder={t.placeholder}
