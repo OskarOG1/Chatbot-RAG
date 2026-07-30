@@ -290,7 +290,7 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 Backend: **FastAPI**. `POST /chat` zwraca JSON (odpowiedź, źródła, cytaty). `POST /chat/stream`, ten sam proces przez SSE, kolejne kroki na bieżąco.
 
-Frontend: **Streamlit**. Czat, klikalne źródła, podgląd kroków na żywo.
+Frontend: **Next.js** (`frontend-next/`). Czat, klikalne źródła, podgląd kroków na żywo, panel edycji maila.
 
 ---
 
