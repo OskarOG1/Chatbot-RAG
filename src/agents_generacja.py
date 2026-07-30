@@ -1,6 +1,17 @@
 from lang_config import LANG
-from agents_core import PROMPTY, klient, MAX_TOKENS, context, verify_answer
+from agents_core import PROMPTY, klient, MAX_TOKENS, MODEL_FALLBACK, context, verify_answer
+import itertools
 import re
+
+
+def _otworz_strumien(nazwa: str, wiadomosci: list[dict], stop: list[str]):
+    return klient.chat.completions.create(
+        model=nazwa,
+        messages=wiadomosci,
+        stream=True,
+        max_tokens=MAX_TOKENS,
+        stop=stop,
+    )
 
 
 def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
@@ -19,14 +30,20 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
             wiadomosci.append({'role': w['role'], 'content': w['content']})
     wiadomosci.append({'role': 'user', 'content': tresc})
 
+    stop = [f"{p['pytanie_label']}:", '<|start_header_id|>']
+    try:
+        strumien = _otworz_strumien(nazwa, wiadomosci, stop)
+        pierwszy = next(strumien)
+        kawalki = itertools.chain([pierwszy], strumien)
+    except StopIteration:
+        kawalki = iter(())
+    except Exception as e:
+        print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_FALLBACK}')
+        nazwa = MODEL_FALLBACK
+        kawalki = _otworz_strumien(nazwa, wiadomosci, stop)
+
     pelna = ''
-    for kawalek in klient.chat.completions.create(
-        model=nazwa,
-        messages=wiadomosci,
-        stream=True,
-        max_tokens=MAX_TOKENS,
-        stop=[f"{p['pytanie_label']}:", '<|start_header_id|>'],
-    ):
+    for kawalek in kawalki:
         if not kawalek.choices:
             continue
         token = kawalek.choices[0].delta.content
@@ -56,13 +73,17 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
             wiadomosci.append({'role': w['role'], 'content': w['content']})
     wiadomosci.append({'role': 'user', 'content': tresc})
 
-    odp = klient.chat.completions.create(
-        model=nazwa,
-        messages=wiadomosci,
-        stream=False,
-        max_tokens=MAX_TOKENS,
-        stop=[f"{p['pytanie_label']}:", '<|start_header_id|>'],
-    )
+    stop = [f"{p['pytanie_label']}:", '<|start_header_id|>']
+    try:
+        odp = klient.chat.completions.create(
+            model=nazwa, messages=wiadomosci, stream=False, max_tokens=MAX_TOKENS, stop=stop,
+        )
+    except Exception as e:
+        print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_FALLBACK}')
+        nazwa = MODEL_FALLBACK
+        odp = klient.chat.completions.create(
+            model=nazwa, messages=wiadomosci, stream=False, max_tokens=MAX_TOKENS, stop=stop,
+        )
 
     pelna = odp.choices[0].message.content
     pelna = re.sub(r'<\|.*?\|>', '', pelna)

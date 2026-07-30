@@ -1,7 +1,8 @@
 import { useTheme } from '@/lib/theme';
+import type { Zrodlo } from '@/lib/zrodla';
 
 interface Props {
-  zrodla: string[];
+  zrodla: Zrodlo[];
 }
 
 export default function SourceList({ zrodla }: Props) {
@@ -10,10 +11,10 @@ export default function SourceList({ zrodla }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-      {zrodla.map((url) => (
+      {zrodla.map((z) => (
         <a
-          key={url}
-          href={url}
+          key={z.url}
+          href={z.url}
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -27,11 +28,15 @@ export default function SourceList({ zrodla }: Props) {
             fontSize: 12.5,
             fontWeight: 600,
             textDecoration: 'none',
+            minWidth: 0,
           }}
         >
           <span style={{ width: 5, height: 5, borderRadius: '50%', background: th.accent, flex: '0 0 auto' }} />
-          <span style={{ flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {url}
+          <span style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {z.tytul}
+            {z.domena && (
+              <span style={{ opacity: 0.6, fontWeight: 500 }}> · {z.domena}</span>
+            )}
           </span>
           <span style={{ flex: '0 0 auto', opacity: 0.6 }}>↗</span>
         </a>

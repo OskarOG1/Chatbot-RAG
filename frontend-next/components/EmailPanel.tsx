@@ -11,15 +11,13 @@ interface Props {
   body: string;
   clientEmail: string;
   emailValid: boolean;
-  regenerating: boolean;
   sending: boolean;
   onSubjectChange: (v: string) => void;
   onBodyChange: (v: string) => void;
   onClientEmailChange: (v: string) => void;
   onClose: () => void;
   onCopy: () => void;
-  onSaveTemplate: () => void;
-  onRegenerate: () => void;
+  onUndo: () => void;
   onSend: () => void;
 }
 
@@ -31,15 +29,13 @@ export default function EmailPanel({
   body,
   clientEmail,
   emailValid,
-  regenerating,
   sending,
   onSubjectChange,
   onBodyChange,
   onClientEmailChange,
   onClose,
   onCopy,
-  onSaveTemplate,
-  onRegenerate,
+  onUndo,
   onSend,
 }: Props) {
   const th = useTheme();
@@ -82,7 +78,7 @@ export default function EmailPanel({
         animation: open ? 'dcSlideIn 0.3s ease both' : 'none',
       }}
     >
-      {open && (
+      {
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
           <div
             style={{
@@ -217,26 +213,21 @@ export default function EmailPanel({
               <button type="button" onClick={onCopy} style={secondaryBtn(th)}>
                 {t.copy}
               </button>
-              <button type="button" onClick={onSaveTemplate} style={secondaryBtn(th)}>
-                {t.saveTemplate}
+              <button type="button" onClick={onUndo} style={outlineBtn(th)}>
+                {t.undoEdits}
               </button>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={onRegenerate} disabled={regenerating} style={outlineBtn(th)}>
-                {t.regenerate}
-              </button>
-              <button
-                type="button"
-                onClick={onSend}
-                disabled={!emailValid || sending}
-                style={primaryBtn(th, !emailValid || sending)}
-              >
-                {sending ? t.sending : t.send}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={!emailValid || sending}
+              style={primaryBtn(th, !emailValid || sending)}
+            >
+              {sending ? t.sending : t.send}
+            </button>
           </div>
         </div>
-      )}
+      }
     </div>
   );
 }

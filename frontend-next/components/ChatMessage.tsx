@@ -1,19 +1,23 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTheme } from '@/lib/theme';
+import { linkujCytaty, zrodlaZCytatow } from '@/lib/zrodla';
+import type { Cytat } from '@/lib/chat';
 import SourceList from './SourceList';
 
 interface Props {
   role: 'user' | 'assistant';
   content: string;
-  sources?: string[];
+  citations?: Cytat[];
   action?: string | null;
   onAction?: (tekst: string) => void;
 }
 
-export default function ChatMessage({ role, content, sources = [], action, onAction }: Props) {
+export default function ChatMessage({ role, content, citations = [], action, onAction }: Props) {
   const th = useTheme();
   const isUser = role === 'user';
+  const tresc = isUser ? content : linkujCytaty(content, citations);
+  const zrodla = zrodlaZCytatow(citations);
 
   const bubbleStyle = isUser
     ? {
@@ -51,11 +55,22 @@ export default function ChatMessage({ role, content, sources = [], action, onAct
             content
           ) : (
             <div className="prose prose-sm max-w-none">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  a: ({ href, children }) => (
+                    <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: th.accent }}>
+                      {children}
+                    </a>
+                  ),
+                }}
+              >
+                {tresc}
+              </ReactMarkdown>
             </div>
           )}
         </div>
-        {sources.length > 0 && <SourceList zrodla={sources} />}
+        {zrodla.length > 0 && <SourceList zrodla={zrodla} />}
         {action && onAction && (
           <button
             type="button"

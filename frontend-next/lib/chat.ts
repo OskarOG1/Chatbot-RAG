@@ -64,12 +64,11 @@ interface Teksty {
   to: string;
   subjectLabel: string;
   copy: string;
-  saveTemplate: string;
-  regenerate: string;
+  undoEdits: string;
+  openDraft: string;
   send: string;
   sending: string;
   toastCopied: string;
-  toastSaved: string;
   toastSent: (ticket: string) => string;
   toastSendConfigError: string;
   toastSendError: string;
@@ -97,12 +96,11 @@ export const TEKSTY: Record<Lang, Teksty> = {
     to: 'Do:',
     subjectLabel: 'Temat',
     copy: 'Kopiuj',
-    saveTemplate: 'Zapisz szablon',
-    regenerate: 'Regeneruj',
+    undoEdits: 'Cofnij edycje',
+    openDraft: 'Otwórz szkic wiadomości',
     send: 'Wyślij wiadomość',
     sending: 'Wysyłanie…',
     toastCopied: 'Skopiowano do schowka',
-    toastSaved: 'Zapisano jako szablon',
     toastSent: (ticket) => `Wysłano, numer zgłoszenia: ${ticket}`,
     toastSendConfigError: 'Wysyłka demo nie jest skonfigurowana, spróbuj ponownie później.',
     toastSendError: 'Wysyłka się nie powiodła, spróbuj ponownie.',
@@ -128,12 +126,11 @@ export const TEKSTY: Record<Lang, Teksty> = {
     to: 'To:',
     subjectLabel: 'Subject',
     copy: 'Copy',
-    saveTemplate: 'Save template',
-    regenerate: 'Regenerate',
+    undoEdits: 'Undo edits',
+    openDraft: 'Open message draft',
     send: 'Send message',
     sending: 'Sending…',
     toastCopied: 'Copied to clipboard',
-    toastSaved: 'Saved as template',
     toastSent: (ticket) => `Sent, ticket number: ${ticket}`,
     toastSendConfigError: 'Demo sending is not configured, try again later.',
     toastSendError: 'Sending failed, try again.',
