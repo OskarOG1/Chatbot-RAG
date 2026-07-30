@@ -203,8 +203,8 @@ def run_stream(query:str, bielik_model:str | None=None,
     def wynik(d):
         return {'typ': 'wynik', 'dane': d}
 
-    yield krok('Sprawdzam pytanie')
-    powod = sprawdz(query)
+    yield krok(cfg['kroki']['sprawdzam_pytanie'])
+    powod = sprawdz(query, cfg['guardy'])
     if powod:
         yield wynik({'agent': '', 'answer': powod, 'sources': [], 'citations': [], 'doprecyzowanie': None})
         return
@@ -214,7 +214,7 @@ def run_stream(query:str, bielik_model:str | None=None,
 
         doprecyzowanie = None
     else:
-        yield krok('Poprawiam literówki')
+        yield krok(cfg['kroki']['poprawiam_literowki'])
         korekta = correct(query)
         query = korekta['poprawione']
         if korekta['nieznane']:
@@ -225,10 +225,10 @@ def run_stream(query:str, bielik_model:str | None=None,
                 yield wynik({'agent': '', 'answer': cfg['nie_zrozumialem'],
                              'sources': [], 'citations': [], 'doprecyzowanie': None})
                 return
-        doprecyzowanie = f'Szukam dla: „{query}" — czy o to chodziło?' if korekta['zmieniono'] else None
+        doprecyzowanie = f'Szukam dla: „{query}", czy o to chodziło?' if korekta['zmieniono'] else None
 
     if _jawna_prosba_o_mail(query, lang):
-        yield krok('Przygotowuję szkic wiadomości do sprzedawcy')
+        yield krok(cfg['kroki']['szkic_wiadomosci'])
         kategoria = _kategoria_z_oferty(query, lang)
         if kategoria is None:
             ostatnia_tresc = next((w['content'] for w in reversed(history)
@@ -252,15 +252,15 @@ def run_stream(query:str, bielik_model:str | None=None,
         return
 
     if history and (przepisz or _followup(query, lang)):
-        yield krok('Przepisuję pytanie z kontekstu rozmowy')
+        yield krok(cfg['kroki']['przepisuje_pytanie'])
         zapytanie_ret = przepisz_zapytanie(query, history, bielik_model, lang)
     else:
         zapytanie_ret = query
 
-    yield krok('Zamieniam pytanie na wektor')
+    yield krok(cfg['kroki']['zamieniam_na_wektor'])
     query_emb = embed_query(lang, zapytanie_ret)
 
-    yield krok('Przeszukuję bazę wiedzy i porządkuję wyniki')
+    yield krok(cfg['kroki']['przeszukuje_baze'])
     chunks = search_reranked_multi(zapytanie_ret, query_emb, ['all'], k=5, k_surowe=20, lang=lang)
 
     agenci_chunkow = [c['agent'] for c, _ in chunks]
@@ -270,19 +270,19 @@ def run_stream(query:str, bielik_model:str | None=None,
         agent_odp = chunks[0][0]['agent'] if chunks else ''
 
     if not chunks or chunks[0][1] < cfg['prog_rerank']:
-        yield krok('Poza zakresem bazy pomocy — odmawiam')
+        yield krok(cfg['kroki']['poza_zakresem'])
         yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
         return
 
     if (SEDZIA_ON if sedzia is None else sedzia) and chunks:
-        yield krok('Sprawdzam, czy kontekst odpowiada na pytanie')
+        yield krok(cfg['kroki']['sprawdzam_kontekst'])
         if not czy_kontekst_odpowiada(zapytanie_ret, chunks, lang=lang):
             yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
                          'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
             return
 
-    yield krok(f'Generuję odpowiedź (sekcja: {agent_odp})')
+    yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=agent_odp))
     odpowiedz = None
     for ev in answer_stream(query, agent_odp, chunks, bielik_model, history, lang):
         if ev['typ'] == 'token':
