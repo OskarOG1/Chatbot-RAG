@@ -345,6 +345,7 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     tekst = URL_REGEX.sub(strip_url, pelna)
     tekst = re.sub(r'\[(?:Security|Note|Disclaimer|Warning)[^\[\]]*:[^\[\]]*\]\s*', '',
                     tekst, flags=re.IGNORECASE).lstrip()
+    tekst = re.sub(r'\[(?!\d+\])[^\[\]]*\]', '', tekst)
 
     numery = []
     for m in re.findall(r'\[(\d+)\]', tekst):
@@ -355,6 +356,7 @@ def verify_answer(pelna: str, chunks: list) -> dict:
 
     tekst = re.sub(r'(?m)^[ \t]*(?:\[\d+\][ \t]*)+$\n?', '', tekst)
     tekst = re.sub(r'(?:[ \t]*\[\d+\])+[ \t]*$', '', tekst).rstrip()
-    tekst = re.sub(r'[ \t]{2,}', ' ', tekst).strip()
+    tekst = re.sub(r'[ \t]{2,}', ' ', tekst)
+    tekst = re.sub(r'[ \t]+([,.;:!?])', r'\1', tekst).strip()
 
     return {'tekst': tekst, 'cytaty': cytaty, 'obce': obce}
