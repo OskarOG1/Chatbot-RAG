@@ -36,6 +36,8 @@ PROMPTY = {
             'Nie przenoś reguły z konkretnej kategorii ani przypadku na sytuację ogólną. '
             'Gdy pytanie jest ogólne, najpierw opisz ogólną procedurę, a dopiero potem, jeśli kontekst na to pozwala, '
             'wspomnij o przypadkach szczególnych jako dodatek, nie jako całą odpowiedź. '
+            'W kontekście mogą występować listy linków i tytuły innych artykułów, sąsiadujące z fragmentem, na którym się opierasz. '
+            'Nie przepisuj tych list ani tytułów do odpowiedzi. '
             'Odpowiadaj zawsze po polsku.'
         ),
         'system_prompty': {
@@ -59,7 +61,9 @@ PROMPTY = {
         'cytaty_instrukcja': (
             ' Po każdej informacji z kontekstu podaj w nawiasie kwadratowym numer źródła, '
             'np. [1] lub [2]. Używaj wyłącznie numerów źródeł z podanego kontekstu. '
-            'Nie podawaj żadnych adresów URL — linki zostaną dołączone automatycznie.'
+            'Nie podawaj żadnych adresów URL — linki zostaną dołączone automatycznie. '
+            'Nie dopisuj na końcu osobnej listy ani sekcji źródeł i nie powtarzaj tytułów artykułów, '
+            'lista linków powstaje automatycznie poza Twoją odpowiedzią.'
         ),
         'kontekst_label': 'kontekst',
         'pytanie_label': 'Pytanie',
@@ -176,6 +180,8 @@ PROMPTY = {
             'Do not carry a rule from a specific category or case over to the general situation. '
             'When the question is general, describe the general procedure first, and only then, if the context allows, '
             'mention special cases as an addition, not as the whole answer. '
+            'The context may contain lists of links and titles of other articles next to the passage you rely on. '
+            'Do not copy those lists or titles into your answer. '
             'Always answer in English.'
         ),
         'system_prompty': {
@@ -199,7 +205,9 @@ PROMPTY = {
         'cytaty_instrukcja': (
             ' After each piece of information from the context, give the source number in square brackets, '
             'e.g. [1] or [2]. Use only source numbers from the given context. '
-            'Do not include any URLs — links will be added automatically.'
+            'Do not include any URLs — links will be added automatically. '
+            'Do not append a separate sources list or section at the end and do not repeat article titles, '
+            'the list of links is generated automatically outside your answer.'
         ),
         'kontekst_label': 'context',
         'pytanie_label': 'Question',
@@ -311,6 +319,24 @@ URL_REGEX = re.compile(r'https?://\S+|\bwww\.\S+', re.IGNORECASE)
 KONCOWKA = '.,;:!?)]}>"\''
 KATEGORIE_MAIL = ('reklamacja', 'zwrot', 'faktura', 'eskalacja')
 
+NAGLOWEK_ZRODEL = re.compile(
+    r'^[ \t]*\**(?:źródła|źródło|zrodla|zrodlo|sources|source|references|bibliografia)\**'
+    r'[ \t]*:?[ \t]*((?:\[\d+\][ \t]*,?[ \t]*)*)$',
+    re.IGNORECASE,
+)
+LINIA_NUMERU = re.compile(r'^[ \t]*\[\d+\]')
+
+
+def usun_sekcje_zrodel(tekst: str) -> str:
+    linie = tekst.split('\n')
+    for i, linia in enumerate(linie):
+        if NAGLOWEK_ZRODEL.match(linia):
+            reszta = linie[i + 1:]
+            if all(not linia_reszty.strip() or LINIA_NUMERU.match(linia_reszty) for linia_reszty in reszta):
+                return '\n'.join(linie[:i]).rstrip()
+            return '\n'.join(linie[:i] + reszta)
+    return tekst
+
 
 def context(chunks: list[dict]) -> str:
     bloki = []
@@ -333,6 +359,7 @@ def zwin_linki_markdown(tekst: str) -> str:
 
 def verify_answer(pelna: str, chunks: list) -> dict:
     mapa = {i: c['url'] for i, (c, _) in enumerate(chunks, 1)}
+    mapa_tytul = {i: c['tytul'] for i, (c, _) in enumerate(chunks, 1)}
 
     obce = []
     pelna = zwin_linki_markdown(pelna)
@@ -347,13 +374,14 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     tekst = re.sub(r'\[(?:Security|Note|Disclaimer|Warning)[^\[\]]*:[^\[\]]*\]\s*', '',
                     tekst, flags=re.IGNORECASE).lstrip()
     tekst = re.sub(r'\[(?!\d+\])[^\[\]]*\]', '', tekst)
+    tekst = usun_sekcje_zrodel(tekst)
 
     numery = []
     for m in re.findall(r'\[(\d+)\]', tekst):
         n = int(m)
         if n in mapa and n not in numery:
             numery.append(n)
-    cytaty = [{'n': n, 'url': mapa[n]} for n in numery]
+    cytaty = [{'n': n, 'url': mapa[n], 'tytul': mapa_tytul[n]} for n in numery]
 
     tekst = re.sub(r'(?m)^[ \t]*(?:\[\d+\][ \t]*)+$\n?', '', tekst)
     tekst = re.sub(r'(?:[ \t]*\[\d+\])+[ \t]*$', '', tekst).rstrip()

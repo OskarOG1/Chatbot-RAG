@@ -138,12 +138,14 @@ class ChatRequest(BaseModel):
 class Cytat(BaseModel):
    n: int
    url: str
+   tytul: str | None = None
 
 class WyslijZadanie(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     temat: str = Field(min_length=1, max_length=200)
     tresc: str = Field(min_length=1, max_length=8000)
     kategoria: str | None = None
+    lang: Literal['pl', 'en'] | None = None
 
 class WyslijOdpowiedz(BaseModel):
     ticket: str
@@ -167,11 +169,11 @@ def health():
 
 @app.post('/chat', response_model=ChatResponse)
 def chat(request: ChatRequest):
+    lang = efektywny_jezyk(request.message, request.lang)
     if not w_limicie():
-        raise HTTPException(status_code=429, detail='Limit zapytań demo osiągnięty — spróbuj później.')
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     start = time.perf_counter()
     try:
-        lang = efektywny_jezyk(request.message, request.lang)
         uzyj_cache = cache_zdatny(request)
         klucz = cache_klucz(lang, request.message) if uzyj_cache else None
         wynik = cache_pobierz(klucz) if klucz else None
@@ -187,18 +189,19 @@ def chat(request: ChatRequest):
         return wynik
     except Exception as e:
         print(f'blad /chat: {type(e).__name__}: {e}')
-        raise HTTPException(status_code=503, detail='Model chwilowo niedostępny — spróbuj ponownie za chwilę.')
+        raise HTTPException(status_code=503, detail=LANG[lang]['bledy']['model_niedostepny'])
 
 
 @app.post('/chat/stream')
 def chat_stream(request: ChatRequest):
+    lang = efektywny_jezyk(request.message, request.lang)
+
     def gen():
         if not w_limicie():
-            yield f"data: {json.dumps({'typ': 'blad', 'kod': 429, 'tekst': 'Limit zapytań demo osiągnięty — spróbuj później.'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'typ': 'blad', 'kod': 429, 'tekst': LANG[lang]['bledy']['limit_zapytan']}, ensure_ascii=False)}\n\n"
             return
         start = time.perf_counter()
         try:
-            lang = efektywny_jezyk(request.message, request.lang)
             uzyj_cache = cache_zdatny(request)
             klucz = cache_klucz(lang, request.message) if uzyj_cache else None
             cached = cache_pobierz(klucz) if klucz else None
@@ -219,21 +222,22 @@ def chat_stream(request: ChatRequest):
             loguj_zapytanie(lang, wynik.get('agent', ''), time.perf_counter() - start, False, request.message)
         except Exception as e:
             print(f'blad /chat/stream: {type(e).__name__}: {e}')
-            yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': 'Model chwilowo niedostępny — spróbuj ponownie.'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': LANG[lang]['bledy']['model_niedostepny']}, ensure_ascii=False)}\n\n"
     return StreamingResponse(gen(), media_type='text/event-stream')
 
 
 @app.post('/send-email', response_model=WyslijOdpowiedz)
 def send_email(request: WyslijZadanie):
+    lang = request.lang or DOMYSLNY_JEZYK
     if not w_limicie_wysylki():
-        raise HTTPException(status_code=429, detail='Limit wysyłek demo osiągnięty, spróbuj później.')
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
     if not EMAIL_WZORZEC.match(request.email):
-        raise HTTPException(status_code=422, detail='Podaj poprawny adres email.')
+        raise HTTPException(status_code=422, detail=LANG[lang]['bledy']['zly_email'])
     try:
         ticket = wyslij_potwierdzenie(request.email, request.kategoria, request.temat, request.tresc)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except httpx.HTTPError:
-        raise HTTPException(status_code=502, detail='Wysyłka się nie powiodła, spróbuj ponownie.')
+        raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
     print(f'wysylka: ticket={ticket} kategoria={request.kategoria} sukces=True')
     return WyslijOdpowiedz(ticket=ticket)

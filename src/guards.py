@@ -51,19 +51,26 @@ def wykryj_injekcje(q: str) -> bool:
             return True
     return False
 
-def sprawdz(query: str) -> str | None:
+def sprawdz(query: str, guardy: dict | None = None) -> str | None:
+    g = guardy or {
+        'za_krotkie': 'Napisz proszę pełne pytanie.',
+        'za_dlugie': 'Pytanie jest za długie, opisz jeden problem na raz.',
+        'nie_rozumiem': 'Nie rozumiem pytania. Czy możesz napisać je inaczej?',
+        'zly_alfabet': 'Pomagam w sprawach Allegro po polsku, napisz proszę pytanie po polsku.',
+        'injekcja': 'Mogę pomóc tylko w sprawach zakupów, konta i płatności.',
+    }
     q = query.strip()
 
     if len(q) < MIN_ZNAKI:
-        return "Napisz proszę pełne pytanie."
+        return g['za_krotkie']
     if len(q) > MAX_ZNAKI:
-        return "Pytanie jest za długie, opisz jeden problem na raz."
+        return g['za_dlugie']
     if liter(q) < 0.4:
-        return "Nie rozumiem pytania. Czy możesz napisać je inaczej?"
+        return g['nie_rozumiem']
     if alfabet_lacinski(q) < 0.5:
-        return "Pomagam w sprawach Allegro po polsku — napisz proszę pytanie po polsku."
+        return g['zly_alfabet']
 
     if wykryj_injekcje(q):
-        return "Mogę pomóc tylko w sprawach zakupów, konta i płatności"
+        return g['injekcja']
 
     return None

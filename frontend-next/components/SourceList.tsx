@@ -39,8 +39,9 @@ export default function SourceList({ zrodla, label }: Props) {
           >
             <span
               style={{
-                width: 19,
+                minWidth: 19,
                 height: 19,
+                padding: '0 4px',
                 borderRadius: 5,
                 background: th.accentSoft,
                 border: `1px solid ${th.accentLine}`,
