@@ -286,6 +286,14 @@ Frontend: **Streamlit**. Chat, clickable sources, live step preview.
 
 ---
 
+## Sending the message to the seller (demo)
+
+The email panel in `frontend-next` has a real send button, not just a preview. The customer enters their address, the message goes out in one call to a fixed demo seller inbox (`.env`, outside the repo) and a second call, with a confirmation and a ticket number, to the customer's address. `src/wysylka.py` generates the ticket (`secrets.token_hex`), calls the Resend REST API through `httpx`, no SMTP involved. The `POST /send-email` endpoint has its own, lower rate limit than `/chat` (a real external call, spam risk). Without a configured `RESEND_API_KEY`, sending returns a clear configuration error, never a fake success. The server log only stores the ticket, category, and outcome, never the address or the message body.
+
+Measurement (`pomiary/measure_send_email.py`, mocked httpx, zero cost and zero spam risk): 4/4 cases pass, ticket generation, category carried into both messages, rejection without configuration, server log free of the email address and body.
+
+---
+
 ## Bilingual version (PL/EN)
 
 A second, parallel path for English-speaking clients. Everything is driven by the `lang` parameter (default `'pl'`): its own embedder, its own index, its own answering model, its own refusal thresholds. Full measurement log: `src/POMIAR_DWUJEZYCZNOSC.md`.

@@ -9,9 +9,13 @@ interface Props {
   recipient: string;
   subject: string;
   body: string;
+  clientEmail: string;
+  emailValid: boolean;
   regenerating: boolean;
+  sending: boolean;
   onSubjectChange: (v: string) => void;
   onBodyChange: (v: string) => void;
+  onClientEmailChange: (v: string) => void;
   onClose: () => void;
   onCopy: () => void;
   onSaveTemplate: () => void;
@@ -25,9 +29,13 @@ export default function EmailPanel({
   recipient,
   subject,
   body,
+  clientEmail,
+  emailValid,
   regenerating,
+  sending,
   onSubjectChange,
   onBodyChange,
+  onClientEmailChange,
   onClose,
   onCopy,
   onSaveTemplate,
@@ -181,6 +189,29 @@ export default function EmailPanel({
             />
           </div>
 
+          <div style={{ flex: '0 0 auto', padding: '18px 22px 0' }}>
+            <label style={labelStyle(th.textSecondary)}>{t.emailFieldLabel}</label>
+            <input
+              type="email"
+              value={clientEmail}
+              placeholder={t.emailPlaceholder}
+              onChange={(e) => onClientEmailChange(e.target.value)}
+              style={{
+                width: '100%',
+                marginTop: 6,
+                border: `1px solid ${th.border}`,
+                background: th.inputBg,
+                color: th.textPrimary,
+                borderRadius: 10,
+                padding: '10px 12px',
+                fontFamily: 'inherit',
+                fontSize: 14,
+                outline: 'none',
+              }}
+            />
+            <div style={{ fontSize: 11.5, color: th.textSecondary, marginTop: 6 }}>{t.emailPrivacyNote}</div>
+          </div>
+
           <div style={{ flex: '0 0 auto', padding: '18px 22px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" onClick={onCopy} style={secondaryBtn(th)}>
@@ -194,8 +225,13 @@ export default function EmailPanel({
               <button type="button" onClick={onRegenerate} disabled={regenerating} style={outlineBtn(th)}>
                 {t.regenerate}
               </button>
-              <button type="button" onClick={onSend} style={primaryBtn(th)}>
-                {t.send}
+              <button
+                type="button"
+                onClick={onSend}
+                disabled={!emailValid || sending}
+                style={primaryBtn(th, !emailValid || sending)}
+              >
+                {sending ? t.sending : t.send}
               </button>
             </div>
           </div>
@@ -259,17 +295,17 @@ function outlineBtn(th: ReturnType<typeof useTheme>) {
   };
 }
 
-function primaryBtn(th: ReturnType<typeof useTheme>) {
+function primaryBtn(th: ReturnType<typeof useTheme>, disabled = false) {
   return {
     flex: 1.4,
     padding: 11,
     borderRadius: 10,
     border: 'none',
-    background: th.accent,
+    background: disabled ? th.accentSoft : th.accent,
     color: 'white',
     fontFamily: 'inherit',
     fontWeight: 700,
     fontSize: 13,
-    cursor: 'pointer',
+    cursor: disabled ? 'not-allowed' : 'pointer',
   };
 }

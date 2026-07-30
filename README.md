@@ -294,6 +294,14 @@ Frontend: **Streamlit**. Czat, klikalne źródła, podgląd kroków na żywo.
 
 ---
 
+## Wysyłka maila do sprzedawcy (demo)
+
+Panel edycji maila w `frontend-next` ma prawdziwy przycisk wysyłki, nie tylko podgląd. Klient podaje swój adres, treść trafia jednym wywołaniem do stałej demo-skrzynki sprzedawcy (`.env`, poza repo) i drugim, z potwierdzeniem oraz numerem zgłoszenia, na adres klienta. `src/wysylka.py` generuje ticket (`secrets.token_hex`), woła REST Resend przez `httpx`, bez SMTP. Endpoint `POST /send-email` ma osobny, niższy limit zapytań niż `/chat` (prawdziwe wywołanie zewnętrzne, ryzyko spamu). Bez skonfigurowanego `RESEND_API_KEY` wysyłka zwraca czytelny błąd konfiguracji, nigdy fałszywy sukces. Log serwera zapisuje tylko ticket, kategorię i wynik, nie adres ani treść wiadomości.
+
+Pomiar (`pomiary/measure_send_email.py`, zamockowany httpx, zero kosztu i zero ryzyka spamu): 4/4 przypadków OK, generowanie ticketu, przenoszenie kategorii do obu wiadomości, odmowa bez konfiguracji, log serwera bez adresu email i treści.
+
+---
+
 ## Wersja dwujęzyczna (PL/EN)
 
 Druga, równoległa ścieżka dla klienta anglojęzycznego Wszystko sterowane parametrem `lang` (domyślnie `'pl'`), własny embedder, własny indeks, własny model odpowiadający, własne progi odmowy. Pełny log pomiarów: `src/POMIAR_DWUJEZYCZNOSC.md`.

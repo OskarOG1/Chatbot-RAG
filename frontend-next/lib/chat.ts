@@ -24,6 +24,17 @@ export interface ChatResponse {
   tryb: Tryb;
 }
 
+export interface WyslijZadanie {
+  email: string;
+  temat: string;
+  tresc: string;
+  kategoria: string | null;
+}
+
+export interface WyslijOdpowiedz {
+  ticket: string;
+}
+
 export type SseEvent =
   | { typ: 'krok'; tekst: string }
   | { typ: 'token'; tekst: string }
@@ -56,9 +67,16 @@ interface Teksty {
   saveTemplate: string;
   regenerate: string;
   send: string;
+  sending: string;
   toastCopied: string;
   toastSaved: string;
-  toastSent: string;
+  toastSent: (ticket: string) => string;
+  toastSendConfigError: string;
+  toastSendError: string;
+  toastInvalidEmail: string;
+  emailFieldLabel: string;
+  emailPlaceholder: string;
+  emailPrivacyNote: string;
   placeholder: string;
 }
 
@@ -82,9 +100,16 @@ export const TEKSTY: Record<Lang, Teksty> = {
     saveTemplate: 'Zapisz szablon',
     regenerate: 'Regeneruj',
     send: 'Wyślij wiadomość',
+    sending: 'Wysyłanie…',
     toastCopied: 'Skopiowano do schowka',
     toastSaved: 'Zapisano jako szablon',
-    toastSent: 'Funkcja wysyłki jest w przygotowaniu',
+    toastSent: (ticket) => `Wysłano, numer zgłoszenia: ${ticket}`,
+    toastSendConfigError: 'Wysyłka demo nie jest skonfigurowana, spróbuj ponownie później.',
+    toastSendError: 'Wysyłka się nie powiodła, spróbuj ponownie.',
+    toastInvalidEmail: 'Podaj poprawny adres email.',
+    emailFieldLabel: 'Twój adres email',
+    emailPlaceholder: 'np. jan.kowalski@poczta.pl',
+    emailPrivacyNote: 'Nie przechowujemy Twojego adresu ani treści wiadomości po wysyłce.',
     placeholder: 'Napisz wiadomość…',
   },
   en: {
@@ -106,9 +131,16 @@ export const TEKSTY: Record<Lang, Teksty> = {
     saveTemplate: 'Save template',
     regenerate: 'Regenerate',
     send: 'Send message',
+    sending: 'Sending…',
     toastCopied: 'Copied to clipboard',
     toastSaved: 'Saved as template',
-    toastSent: 'Sending is coming soon',
+    toastSent: (ticket) => `Sent, ticket number: ${ticket}`,
+    toastSendConfigError: 'Demo sending is not configured, try again later.',
+    toastSendError: 'Sending failed, try again.',
+    toastInvalidEmail: 'Enter a valid email address.',
+    emailFieldLabel: 'Your email address',
+    emailPlaceholder: 'e.g. jane.doe@mail.com',
+    emailPrivacyNote: 'We do not store your address or message content after sending.',
     placeholder: 'Type a message…',
   },
 };
