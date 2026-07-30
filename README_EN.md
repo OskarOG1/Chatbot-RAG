@@ -254,6 +254,14 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 **Result.** 42/42 tests green (20 new). Multi-turn: 22/30 to 24/30 after fixing a real gap in the English follow-up detector ("what if" was not recognized), with no regression. Embedding cache: median 67.7ms to 0.0ms on a hit. The smaller judge model measured almost four times slower on the available endpoint, so it was rejected and never shipped. Faithfulness: 30/30 golden answers with no contradictions detected against context in this run, a diagnostic measurement worth repeating after larger prompt or model changes. The `agents.py` refactor: the sanity import and the full test suite unchanged, zero change to prompt content or logic. Full logs: `pomiary/POMIAR_MULTITURA.md`, `pomiary/POMIAR_LATENCJA.md`, `pomiary/POMIAR_FAITHFULNESS.md`, `pomiary/POMIAR_REFAKTOR_AGENTS.md`.
 
+### 16. Fixes from demo reports: prompts, model fallback, chat and mail panel frontend
+
+**Problem.** Real demo usage surfaced 17 issues across three layers: dead markdown links in answers (`[here]()` after the URL was stripped), mail drafts defaulting to masculine phrasing and reading as a wall of text, general questions narrowed to a single special case (e.g. Allegro Smart), a pointless SSE step flashing even when no mail offer would follow, no fallback when the main model errored out, no live token streaming on the frontend (the answer only appeared at the very end), `[n]` markers not clickable, the source list showing every retrieved chunk instead of only the cited ones, raw URLs instead of readable titles, a closed mail panel with no way to reopen it, "Regenerate" expensively re-querying the model instead of simply undoing an edit, a dead "Save template" button, and no flag on the language switch.
+
+**Solution.** Backend (`agents_core.py`, `agents_generacja.py`, `pipeline.py`): a new `zwin_linki_markdown` function cleans up dead markdown links before URL stripping, the `email_system_*` prompts (PL/EN, all four categories) now require gender-neutral phrasing and paragraph structure, `grounding` now states the general-before-special ordering, the pointless SSE step was removed, and `MODEL_FALLBACK` retries on a backup model in `answer`/`answer_stream` when the main model raises. Frontend (`frontend-next/`): the SSE `token` event is now handled, with the streamed buffer swapped for the final `dane.answer` on completion; `[n]` becomes a clickable markdown link to its source; `lib/zrodla.ts` derives a readable title from the URL slug; the source list is built from `citations` instead of `sources`; the mail panel keeps the last draft after closing (an "Open draft" button reopens it); "Undo edits" restores the remembered original draft with no API call; "Save template" was removed; a PL/UK flag was added next to the language switch.
+
+**Result.** 42/42 backend tests green, `ruff` clean, `ocena_stylu` with no regression (4.33 → 4.67 on a small sample). The model fallback was confirmed with a live test that forced a 403 error on the main model: the answer still came through. Along the way, browser testing caught and fixed a real bug: reopening the panel showed an empty editor, because the `contentEditable` node was conditionally unmounted and lost sync with the restored state even though the React state itself was preserved. `tsc`/`eslint` clean. Full logs: `pomiary/POMIAR_PROMPTY_MAIL.md`, `pomiary/POMIAR_FALLBACK.md`, `pomiary/POMIAR_17_ZGLOSZEN_FRONT.md`.
+
 ---
 
 ## Security and robustness
@@ -272,7 +280,7 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 ## Citations, sources and conversation memory
 
-**Citations.** The prompt requires `[n]` markers and forbids bare URLs. A function strips links from the text and maps `[n]` to its source. The reason is in the data: all 141 articles contain links in their own body, so the smaller model would copy them out as a list and duplicate the "Sources" section. Citations serve display only: refusal uses coverage, not the presence of `[n]`.
+**Citations.** The prompt requires `[n]` markers and forbids bare URLs. A function strips links from the text and maps `[n]` to its source, and collapses dead markdown links (`[text](url)`, if the model inserts one despite the instructions) into plain text or a `[n]` citation before stripping. The reason is in the data: all 141 articles contain links in their own body, so the smaller model would copy them out as a list and duplicate the "Sources" section. Citations serve display only: refusal uses coverage, not the presence of `[n]`. On the frontend, `[n]` is a clickable link to its source, and the source list shows only what is actually cited, with a readable title instead of the raw URL.
 
 **Conversation memory.** A 3-turn window. Follow-ups caught by a cheap detector are rewritten into a standalone question by an LLM before retrieval (`przepisz_zapytanie`), so e.g. "and what if the seller does not respond?" after a complaint question lands correctly. One extra model call, only when a follow-up is actually detected, not on every turn.
 
@@ -280,9 +288,9 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 ## API and frontend
 
-Backend: **FastAPI**. `POST /chat` returns JSON (answer, sources, citations). `POST /chat/stream` is the same process over SSE, streaming each step as it happens.
+Backend: **FastAPI**. `POST /chat` returns JSON (answer, sources, citations). `POST /chat/stream` is the same process over SSE, streaming each step and each answer token as it happens, with automatic fallback to a backup model if the main one fails.
 
-Frontend: **Next.js** (`frontend-next/`). Chat, clickable sources, live step preview, mail edit panel.
+Frontend: **Next.js** (`frontend-next/`). Chat with live answer streaming, clickable citations and sources, mail edit panel that can be reopened after closing.
 
 ---
 

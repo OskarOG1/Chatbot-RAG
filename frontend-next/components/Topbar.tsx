@@ -65,6 +65,7 @@ export default function Topbar({ lang, theme, onToggleLang, onToggleTheme }: Pro
           {t.connected}
         </div>
         <button type="button" onClick={onToggleLang} style={ghostBtn(th)}>
+          <span style={{ marginRight: 6 }}>{lang === 'pl' ? '🇬🇧' : '🇵🇱'}</span>
           {t.langButtonLabel}
         </button>
         <button type="button" onClick={onToggleTheme} style={ghostBtn(th)}>

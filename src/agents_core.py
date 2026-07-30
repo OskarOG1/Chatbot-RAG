@@ -12,6 +12,7 @@ MODEL_11B = 'speakleash/Bielik-11B-v3.0-Instruct'
 MODEL_7B_LOKALNY = 'SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M'
 MODEL_1_5B_LOKALNY = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
 MODEL_NAME = os.getenv('MODEL', MODEL_11B)
+MODEL_FALLBACK = os.getenv('MODEL_FALLBACK', MODEL_7B_LOKALNY)
 SEDZIA_MODEL = os.getenv('SEDZIA_MODEL', MODEL_NAME)
 MAX_TOKENS = int(os.getenv('MAX_TOKENS', '1500'))
 
@@ -32,6 +33,8 @@ PROMPTY = {
             'i odeślij do obsługi Allegro. '
             'Reguły, limity i warunki obowiązują tylko w zakresie artykułu, z którego pochodzą (widocznego w tytule źródła). '
             'Nie przenoś reguły z konkretnej kategorii ani przypadku na sytuację ogólną. '
+            'Gdy pytanie jest ogólne, najpierw opisz ogólną procedurę, a dopiero potem, jeśli kontekst na to pozwala, '
+            'wspomnij o przypadkach szczególnych jako dodatek, nie jako całą odpowiedź. '
             'Odpowiadaj zawsze po polsku.'
         ),
         'system_prompty': {
@@ -89,6 +92,10 @@ PROMPTY = {
             'których tam nie ma. Trzymaj się procesu reklamacji opisanego w sekcji „kontekst" (kroki, wymagane elementy zgłoszenia). '
             'Numer zamówienia, datę zakupu i inne konkretne dane, których nie ma w rozmowie, zaznacz placeholderem '
             'w nawiasach kwadratowych, np. [numer zamówienia], [data zakupu], nigdy nie zmyślaj wartości. '
+            'Pisz w formie bezosobowej albo bez wskazania rodzaju (unikaj końcówek typu „kupiłem"/„kupiłam"), '
+            'a gdy się nie da tego uniknąć, użyj placeholdera w nawiasach kwadratowych, np. [kupiłem/kupiłam]. '
+            'Podziel treść na krótkie akapity, jedna myśl w akapicie, pusta linia między nimi: powitanie, opis '
+            'sytuacji, konkretna prośba, zakończenie. '
             'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o rozwiązanie (naprawa, wymiana albo zwrot pieniędzy). '
             'Nie dodawaj żadnych wyjaśnień poza samym szkicem maila. Odpowiadaj po polsku.'
         ),
@@ -100,6 +107,10 @@ PROMPTY = {
             'Trzymaj się procesu zwrotu opisanego w sekcji „kontekst" (termin, sposób odstąpienia, co sprzedawca musi zrobić). '
             'Numer zamówienia, datę zakupu i inne konkretne dane, których nie ma w rozmowie, zaznacz placeholderem '
             'w nawiasach kwadratowych, np. [numer zamówienia], [data zakupu], nigdy nie zmyślaj wartości. '
+            'Pisz w formie bezosobowej albo bez wskazania rodzaju (unikaj końcówek typu „kupiłem"/„kupiłam"), '
+            'a gdy się nie da tego uniknąć, użyj placeholdera w nawiasach kwadratowych, np. [kupiłem/kupiłam]. '
+            'Podziel treść na krótkie akapity, jedna myśl w akapicie, pusta linia między nimi: powitanie, opis '
+            'sytuacji, konkretna prośba, zakończenie. '
             'Ton uprzejmy i rzeczowy. Zakończ jasnym oświadczeniem o odstąpieniu od umowy i prośbą o instrukcję zwrotu. '
             'Nie dodawaj żadnych wyjaśnień poza samym szkicem wiadomości. Odpowiadaj po polsku.'
         ),
@@ -111,6 +122,10 @@ PROMPTY = {
             'Trzymaj się procesu wystawiania faktury opisanego w sekcji „kontekst". '
             'Numer zamówienia, datę zakupu, dane do faktury i inne konkretne dane, których nie ma w rozmowie, zaznacz '
             'placeholderem w nawiasach kwadratowych, np. [numer zamówienia], [dane do faktury], nigdy nie zmyślaj wartości. '
+            'Pisz w formie bezosobowej albo bez wskazania rodzaju (unikaj końcówek typu „kupiłem"/„kupiłam"), '
+            'a gdy się nie da tego uniknąć, użyj placeholdera w nawiasach kwadratowych, np. [kupiłem/kupiłam]. '
+            'Podziel treść na krótkie akapity, jedna myśl w akapicie, pusta linia między nimi: powitanie, opis '
+            'sytuacji, konkretna prośba, zakończenie. '
             'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o wystawienie faktury. '
             'Nie dodawaj żadnych wyjaśnień poza samym szkicem wiadomości. Odpowiadaj po polsku.'
         ),
@@ -124,6 +139,10 @@ PROMPTY = {
             'albo napisz, że trzeba to sprawdzić w Centrum Pomocy Allegro, zamiast wymyślać proces. '
             'Numer zamówienia, datę zakupu i inne konkretne dane, których nie ma w rozmowie, zaznacz placeholderem '
             'w nawiasach kwadratowych, nigdy nie zmyślaj wartości. '
+            'Pisz w formie bezosobowej albo bez wskazania rodzaju (unikaj końcówek typu „kupiłem"/„kupiłam"), '
+            'a gdy się nie da tego uniknąć, użyj placeholdera w nawiasach kwadratowych, np. [kupiłem/kupiłam]. '
+            'Podziel treść na krótkie akapity, jedna myśl w akapicie, pusta linia między nimi: powitanie, opis '
+            'sytuacji, konkretna prośba, zakończenie. '
             'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o interwencję Allegro. '
             'Nie dodawaj żadnych wyjaśnień poza samym szkicem wiadomości. Odpowiadaj po polsku.'
         ),
@@ -154,6 +173,8 @@ PROMPTY = {
             'and refer the user to Allegro support. '
             'Rules, limits, and conditions apply only within the scope of the article they come from (visible in the source title). '
             'Do not carry a rule from a specific category or case over to the general situation. '
+            'When the question is general, describe the general procedure first, and only then, if the context allows, '
+            'mention special cases as an addition, not as the whole answer. '
             'Always answer in English.'
         ),
         'system_prompty': {
@@ -210,7 +231,11 @@ PROMPTY = {
             'that are not there. Follow the complaint process described in the "context" section (steps, required '
             'elements of the complaint). Mark the order number, purchase date, and any other specific data not '
             'present in the conversation with a placeholder in square brackets, e.g. [order number], [purchase date], '
-            'never invent values. Keep the tone polite and factual. End with a clear request for resolution '
+            'never invent values. Write in gender neutral language (use "they" or rephrase to avoid gendered '
+            'pronouns for the buyer); if it cannot be avoided, use a placeholder in square brackets. '
+            'Split the content into short paragraphs, one idea per paragraph, blank line between them: greeting, '
+            'description of the situation, a concrete request, closing. '
+            'Keep the tone polite and factual. End with a clear request for resolution '
             '(repair, replacement, or refund). Do not add any explanation beyond the email draft itself. Answer in English.'
         ),
         'email_system_zwrot': (
@@ -221,6 +246,10 @@ PROMPTY = {
             'invent details. Follow the return process described in the "context" section (deadline, how to withdraw, '
             'what the seller must do). Mark the order number, purchase date, and any other specific data not present '
             'in the conversation with a placeholder in square brackets, never invent values. '
+            'Write in gender neutral language (use "they" or rephrase to avoid gendered pronouns for the buyer); '
+            'if it cannot be avoided, use a placeholder in square brackets. '
+            'Split the content into short paragraphs, one idea per paragraph, blank line between them: greeting, '
+            'description of the situation, a concrete request, closing. '
             'Keep the tone polite and factual. End with a clear statement of withdrawal from the contract and a '
             'request for return instructions. Do not add any explanation beyond the message draft itself. Answer in English.'
         ),
@@ -231,7 +260,12 @@ PROMPTY = {
             'Take the purchase description exclusively from the conversation above, do not invent details. '
             'Follow the invoicing process described in the "context" section. Mark the order number, purchase date, '
             'billing details, and any other specific data not present in the conversation with a placeholder in '
-            'square brackets, never invent values. Keep the tone polite and factual. End with a clear request to '
+            'square brackets, never invent values. '
+            'Write in gender neutral language (use "they" or rephrase to avoid gendered pronouns for the buyer); '
+            'if it cannot be avoided, use a placeholder in square brackets. '
+            'Split the content into short paragraphs, one idea per paragraph, blank line between them: greeting, '
+            'description of the situation, a concrete request, closing. '
+            'Keep the tone polite and factual. End with a clear request to '
             'issue the invoice. Do not add any explanation beyond the message draft itself. Answer in English.'
         ),
         'email_system_eskalacja': (
@@ -244,6 +278,10 @@ PROMPTY = {
             'procedure, use a placeholder in square brackets or say this needs to be checked in the Allegro Help '
             'Center instead of making up a process. Mark the order number, purchase date, and any other specific '
             'data not present in the conversation with a placeholder, never invent values. '
+            'Write in gender neutral language (use "they" or rephrase to avoid gendered pronouns for the buyer); '
+            'if it cannot be avoided, use a placeholder in square brackets. '
+            'Split the content into short paragraphs, one idea per paragraph, blank line between them: greeting, '
+            'description of the situation, a concrete request, closing. '
             'Keep the tone polite and factual. End with a clear request for Allegro to intervene. Do not add any '
             'explanation beyond the message draft itself. Answer in English.'
         ),
@@ -283,10 +321,20 @@ def context(chunks: list[dict]) -> str:
     return '\n\n'.join(bloki)
 
 
+def zwin_linki_markdown(tekst: str) -> str:
+    def zwin(dopasowanie):
+        etykieta = dopasowanie.group(1).strip()
+        if re.fullmatch(r'\d+', etykieta):
+            return f'[{etykieta}]'
+        return etykieta
+    return re.sub(r'\[([^\[\]]+)\]\(\s*(?:https?://|www\.)[^\s()]+\s*\)', zwin, tekst)
+
+
 def verify_answer(pelna: str, chunks: list) -> dict:
     mapa = {i: c['url'] for i, (c, _) in enumerate(chunks, 1)}
 
     obce = []
+    pelna = zwin_linki_markdown(pelna)
 
     def strip_url(dopasowanie):
         surowy = dopasowanie.group(0)

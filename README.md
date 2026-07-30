@@ -262,6 +262,14 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Wynik.** 42/42 testów zielonych (20 nowych). Wieloturowość: 22/30 do 24/30 po naprawie realnego braku w detektorze follow-up dla angielskiego („what if" nie było rozpoznawane), bez regresji. Cache embeddingu: mediana 67.7ms do 0.0ms na trafieniu. Mniejszy model sędziego zmierzony jako prawie czterokrotnie wolniejszy na dostępnym endpointcie, więc odrzucony i nie wdrożony. Faithfulness: 30/30 odpowiedzi golden bez wykrytych sprzeczności z kontekstem w tym przebiegu, pomiar diagnostyczny do powtarzania przy większych zmianach promptu. Refaktor `agents.py`: sanity import i cały zestaw testów bez zmian, zero zmiany treści promptów ani logiki. Pełne logi: `pomiary/POMIAR_MULTITURA.md`, `pomiary/POMIAR_LATENCJA.md`, `pomiary/POMIAR_FAITHFULNESS.md`, `pomiary/POMIAR_REFAKTOR_AGENTS.md`.
 
+### 17. Poprawki ze zgłoszeń z demo: prompty, fallback modelu, front czatu i panelu maila
+
+**Problem.** Realne użycie dema pokazało 17 usterek w trzech warstwach: martwe linki markdown w odpowiedzi (`[tutaj]()` po wycięciu URL), mail domyślnie w formie męskiej i jako bryła tekstu, odpowiedź na ogólne pytanie zawężona do jednego przypadku szczególnego (np. Allegro Smart), zbędny krok SSE migający nawet gdy oferta maila nie padnie, brak fallbacku gdy model główny odpowie błędem, front bez streamingu tokenów (odpowiedź pojawiała się dopiero na końcu), `[n]` w tekście nieklikalne, lista źródeł pokazująca wszystkie odzyskane chunki zamiast tylko cytowanych, surowe URL-e zamiast czytelnych tytułów, zamknięty panel maila bez możliwości ponownego otwarcia, „Regeneruj" kosztownie odpytujące model zamiast po prostu cofać edycję, martwy przycisk „Zapisz szablon", brak flagi przy przełączniku języka.
+
+**Rozwiązanie.** Backend (`agents_core.py`, `agents_generacja.py`, `pipeline.py`): nowa funkcja `zwin_linki_markdown` czyszcząca martwe linki przed cięciem URL, prompty `email_system_*` (PL/EN, cztery kategorie) dopisane o neutralność rodzajową i podział na akapity, `grounding` dopisany o kolejność „ogólne przed szczególnym", usunięty zbędny krok SSE, `MODEL_FALLBACK` z retry na model zapasowy w `answer`/`answer_stream` przy wyjątku modelu głównego. Front (`frontend-next/`): obsługa zdarzenia SSE `token` z podmianą na finalny `dane.answer`, `[n]` zamieniane na klikalny markdown-link do źródła, `lib/zrodla.ts` wyprowadza czytelny tytuł ze slugu URL, lista źródeł budowana z `citations` zamiast `sources`, panel maila trzyma ostatni szkic po zamknięciu (przycisk „Otwórz szkic wiadomości"), „Cofnij edycje" przywraca zapamiętaną oryginalną treść bez wywołania API, usunięte „Zapisz szablon", flaga PL/UK przy przełączniku języka.
+
+**Wynik.** 42/42 testów backendu zielonych, `ruff` czysto, `ocena_stylu` bez regresji (4.33 → 4.67 na próbce). Fallback modelu potwierdzony żywym testem z wymuszonym błędem 403 na modelu głównym: odpowiedź i tak wygenerowana. Po drodze w przeglądarce znaleziony i naprawiony realny bug: reopen panelu pokazywał pusty edytor, bo `contentEditable` był warunkowo odmontowywany i tracił synchronizację z odtworzonym stanem, mimo że stan Reacta był zachowany. `tsc`/`eslint` czysto. Pełne logi: `pomiary/POMIAR_PROMPTY_MAIL.md`, `pomiary/POMIAR_FALLBACK.md`, `pomiary/POMIAR_17_ZGLOSZEN_FRONT.md`.
+
 ---
 
 ## Bezpieczeństwo i odporność
@@ -280,7 +288,7 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 ## Cytaty, źródła i pamięć rozmowy
 
-**Cytaty.** Prompt każe wstawiać odnośniki `[n]` i zabrania gołych URL-i. Funkcja wycina linki z tekstu i mapuje `[n]` na źródło. Powód jest w danych: wszystkie 141 artykułów mają linki we własnej treści, więc mniejszy model przepisywał je jako listę i dublował sekcję „Źródła". Cytaty służą wyłącznie do wyświetlania, do odmowy używane jest pokrycie, nie obecność `[n]`.
+**Cytaty.** Prompt każe wstawiać odnośniki `[n]` i zabrania gołych URL-i. Funkcja wycina linki z tekstu i mapuje `[n]` na źródło, a martwe linki markdown (`[tekst](url)`, gdy model mimo instrukcji je wstawi) zwija do samego tekstu albo cytatu `[n]` przed cięciem. Powód jest w danych: wszystkie 141 artykułów mają linki we własnej treści, więc mniejszy model przepisywał je jako listę i dublował sekcję „Źródła". Cytaty służą wyłącznie do wyświetlania, do odmowy używane jest pokrycie, nie obecność `[n]`. We froncie `[n]` jest klikalnym odnośnikiem do źródła, lista źródeł pokazuje tylko faktycznie cytowane, z czytelnym tytułem zamiast surowego URL-a.
 
 **Pamięć rozmowy.** Okno 3 tur. Dopytania wykryte tanim detektorem są przepisywane przez LLM na samodzielne pytanie przed wyszukiwaniem (`przepisz_zapytanie`), więc np. „a co jeśli sprzedawca nie odpowiada?" po pytaniu o reklamację trafia poprawnie. Jedno dodatkowe wywołanie modelu, tylko przy wykrytym dopytaniu, nie przy każdej turze.
 
@@ -288,9 +296,9 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 ## API i frontend
 
-Backend: **FastAPI**. `POST /chat` zwraca JSON (odpowiedź, źródła, cytaty). `POST /chat/stream`, ten sam proces przez SSE, kolejne kroki na bieżąco.
+Backend: **FastAPI**. `POST /chat` zwraca JSON (odpowiedź, źródła, cytaty). `POST /chat/stream`, ten sam proces przez SSE, kolejne kroki i pojedyncze tokeny odpowiedzi na bieżąco, model główny z automatycznym fallbackiem na model zapasowy przy awarii.
 
-Frontend: **Next.js** (`frontend-next/`). Czat, klikalne źródła, podgląd kroków na żywo, panel edycji maila.
+Frontend: **Next.js** (`frontend-next/`). Czat ze streamingiem odpowiedzi na żywo, klikalne cytaty i źródła, panel edycji maila z możliwością ponownego otwarcia po zamknięciu.
 
 ---
 

@@ -16,6 +16,7 @@ import {
   rozdzielSzkic,
   zbudujZadanie,
   type ChatResponse,
+  type Cytat,
   type Lang,
   type Wiadomosc,
   type WyslijOdpowiedz,
@@ -27,7 +28,7 @@ interface WiadomoscUi {
   id: number;
   role: 'user' | 'assistant';
   content: string;
-  sources?: string[];
+  citations?: Cytat[];
   doprecyzowanie?: string | null;
   action?: string | null;
 }
@@ -36,6 +37,8 @@ interface PanelState {
   recipient: string;
   subject: string;
   body: string;
+  originalSubject: string;
+  originalBody: string;
   kategoria: string | null;
   trigger: string;
   clientEmail: string;
@@ -69,7 +72,7 @@ type Action =
       type: 'assistant_bubble';
       id: number;
       content: string;
-      sources?: string[];
+      citations?: Cytat[];
       doprecyzowanie?: string | null;
       action?: string | null;
     }
@@ -95,7 +98,7 @@ function reducer(state: State, action: Action): State {
             id: action.id,
             role: 'assistant',
             content: action.content,
-            sources: action.sources ?? [],
+            citations: action.citations ?? [],
             doprecyzowanie: action.doprecyzowanie ?? null,
             action: action.action ?? null,
           },
@@ -134,7 +137,9 @@ export default function Page() {
   const [themeName, setThemeName] = useState<ThemeName>('light');
   const [state, dispatch] = useReducer(reducer, stanPoczatkowy);
   const [panel, setPanel] = useState<PanelState | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [streamBuffor, setStreamBuffor] = useState('');
   const idCounter = useRef(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = TEKSTY[lang];
@@ -172,6 +177,8 @@ export default function Page() {
         for await (const ev of czytajSse(res.body)) {
           if (ev.typ === 'krok') {
             dispatch({ type: 'krok', tekst: ev.tekst });
+          } else if (ev.typ === 'token') {
+            setStreamBuffor((b) => b + ev.tekst);
           } else if (ev.typ === 'wynik') {
             dane = ev.dane;
           } else if (ev.typ === 'blad') {
@@ -191,11 +198,13 @@ export default function Page() {
     const wiadomosc = bezKorekty ? (state.ostatniaKorekta as string) : promptUser;
 
     dispatch({ type: 'busy_start' });
+    setStreamBuffor('');
     dispatch({ type: 'user_bubble', id: nextId(), content: promptUser });
 
     const { dane, bladTekst } = await poproszBackend(wiadomosc, bezKorekty);
 
     dispatch({ type: 'busy_end' });
+    setStreamBuffor('');
     dispatch({
       type: 'historia',
       wiadomoscWyslana: wiadomosc,
@@ -211,44 +220,29 @@ export default function Page() {
         recipient: lang === 'pl' ? 'Sprzedawca' : 'Seller',
         subject: temat,
         body: tresc,
+        originalSubject: temat,
+        originalBody: tresc,
         kategoria: dane.kategoria,
         trigger: wiadomosc,
         clientEmail: '',
         sending: false,
       });
+      setPanelOpen(true);
       dispatch({ type: 'assistant_bubble', id: nextId(), content: t.panelOpened });
     } else {
       dispatch({
         type: 'assistant_bubble',
         id: nextId(),
         content: dane?.answer ?? bladTekst ?? t.noResponse,
-        sources: dane?.sources ?? [],
+        citations: dane?.citations ?? [],
         doprecyzowanie: dane?.doprecyzowanie ?? null,
         action: dane?.oferta ?? null,
       });
     }
   }
 
-  async function regenerujPanel() {
-    if (!panel) return;
-    dispatch({ type: 'busy_start' });
-    const { dane, bladTekst } = await poproszBackend(panel.trigger, false);
-    dispatch({ type: 'busy_end' });
-
-    if (dane?.tryb === 'email') {
-      const { temat, tresc } = rozdzielSzkic(dane.answer);
-      setPanel((p) => (p ? { ...p, subject: temat, body: tresc, kategoria: dane.kategoria } : p));
-      dispatch({
-        type: 'historia',
-        wiadomoscWyslana: panel.trigger,
-        odpowiedz: dane.answer,
-        agent: dane.agent,
-        doprecyzowanie: null,
-        bezKorekty: true,
-      });
-    } else {
-      pokazToast(bladTekst ?? t.noResponse);
-    }
+  function cofnijEdycjePanelu() {
+    setPanel((p) => (p ? { ...p, subject: p.originalSubject, body: p.originalBody } : p));
   }
 
   function kopiujEmail() {
@@ -327,7 +321,7 @@ export default function Page() {
               <div style={{ width: '100%', maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 18, padding: '0 20px' }}>
                 {state.messages.map((m) => (
                   <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <ChatMessage role={m.role} content={m.content} sources={m.sources} action={m.action} onAction={wyslij} />
+                    <ChatMessage role={m.role} content={m.content} citations={m.citations} action={m.action} onAction={wyslij} />
                     {m.doprecyzowanie && (
                       <div style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                         <InfoBanner tekst={m.doprecyzowanie} />
@@ -335,9 +329,32 @@ export default function Page() {
                     )}
                   </div>
                 ))}
-                {state.wysylanie && <TypingBubble krok={state.aktualnyKrok} />}
+                {state.wysylanie && streamBuffor && <ChatMessage role="assistant" content={streamBuffor} />}
+                {state.wysylanie && !streamBuffor && <TypingBubble krok={state.aktualnyKrok} />}
               </div>
             </div>
+
+            {panel && !panelOpen && (
+              <div style={{ flex: '0 0 auto', padding: '0 20px 14px', display: 'flex', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setPanelOpen(true)}
+                  style={{
+                    border: `1.5px solid ${th.accent}`,
+                    background: th.bgSurface,
+                    color: th.accentText,
+                    fontFamily: 'inherit',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    padding: '9px 16px',
+                    borderRadius: 10,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t.openDraft}
+                </button>
+              </div>
+            )}
 
             <div style={{ flex: '0 0 auto', padding: '16px 20px 22px', display: 'flex', justifyContent: 'center' }}>
               <Composer placeholder={t.placeholder} disabled={state.wysylanie} onSend={wyslij} />
@@ -346,21 +363,19 @@ export default function Page() {
 
           <EmailPanel
             lang={lang}
-            open={panel !== null}
+            open={panelOpen && panel !== null}
             recipient={panel?.recipient ?? ''}
             subject={panel?.subject ?? ''}
             body={panel?.body ?? ''}
             clientEmail={panel?.clientEmail ?? ''}
             emailValid={EMAIL_WZORZEC.test(panel?.clientEmail ?? '')}
-            regenerating={state.wysylanie}
             sending={panel?.sending ?? false}
             onSubjectChange={(v) => setPanel((p) => (p ? { ...p, subject: v } : p))}
             onBodyChange={(v) => setPanel((p) => (p ? { ...p, body: v } : p))}
             onClientEmailChange={(v) => setPanel((p) => (p ? { ...p, clientEmail: v } : p))}
-            onClose={() => setPanel(null)}
+            onClose={() => setPanelOpen(false)}
             onCopy={kopiujEmail}
-            onSaveTemplate={() => pokazToast(t.toastSaved)}
-            onRegenerate={regenerujPanel}
+            onUndo={cofnijEdycjePanelu}
             onSend={wyslijEmail}
           />
 

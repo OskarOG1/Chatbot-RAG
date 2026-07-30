@@ -300,7 +300,6 @@ def run_stream(query:str, bielik_model:str | None=None,
     artykuly_maila = {kat['artykul'] for kat in cfg['mail_kategorie'].values()}
     if sygnal_maila(query, lang) or (chunks and chunks[0][0]['url'] and
                                       any(art in chunks[0][0]['url'] for art in artykuly_maila)):
-        yield krok('Sprawdzam, czy zaproponować pomoc z wiadomością do sprzedawcy')
         kategoria = sedzia_kategoria_mail(history + [{'role': 'user', 'content': query}], chunks, lang)
         if kategoria:
             oferta = cfg['mail_kategorie'][kategoria]['oferta']
