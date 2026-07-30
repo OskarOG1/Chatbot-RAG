@@ -60,7 +60,7 @@ interface Teksty {
   composerHint: string;
   newChatToast: string;
   threadFallbackTitle: string;
-  suggestions: string[];
+  suggestionsByAgent: Record<string, string[]>;
   welcome: string;
   connected: string;
   langButtonLabel: string;
@@ -68,12 +68,23 @@ interface Teksty {
   connectError: string;
   noResponse: string;
   negacje: Set<string>;
+  deleteChat: string;
+  deleteCurrent: string;
+  deleteAll: string;
+  deleteSelected: string;
+  selectMode: string;
+  cancelSelect: string;
+  confirmDeleteAll: string;
+  confirmDeleteSelected: (n: number) => string;
   panelOpened: string;
   panelTitle: string;
   to: string;
   subjectLabel: string;
   copy: string;
   undoEdits: string;
+  alignLeft: string;
+  alignCenter: string;
+  alignRight: string;
   openDraft: string;
   send: string;
   sending: string;
@@ -100,7 +111,12 @@ export const TEKSTY: Record<Lang, Teksty> = {
     composerHint: 'Enter wysyła · Shift + Enter nowa linia',
     newChatToast: 'Rozpoczęto nową rozmowę',
     threadFallbackTitle: 'Nowa rozmowa',
-    suggestions: ['Jak zgłosić brak dostawy?', 'Ile mam czasu na zwrot?', 'Kiedy dostanę pieniądze?'],
+    suggestionsByAgent: {
+      default: ['Jak zgłosić brak dostawy?', 'Ile mam czasu na zwrot?', 'Kiedy dostanę pieniądze?'],
+      konto: ['Jak zresetować hasło?', 'Jak zmienić dane konta?', 'Podejrzewam włamanie na konto, co robić?'],
+      zakupy: ['Jak zgłosić brak dostawy?', 'Ile mam czasu na zwrot?', 'Jak sprawdzić historię zakupów?'],
+      platnosci: ['Kiedy dostanę pieniądze za zwrot?', 'Jak sprawdzić status płatności?', 'Jak zapłacić przez Allegro Pay?'],
+    },
     welcome:
       'Witam, jestem Twoim asystentem Allegro. Mogę:\n\n* odpowiadać na pytania na podstawie bazy wiedzy centrum pomocy\n* przygotować wiadomość do sprzedawcy w sprawie reklamacji, zwrotu, faktury lub eskalacji sporu\n\nNapisz, w czym mogę pomóc.',
     connected: 'Połączono z bazą wiedzy',
@@ -109,12 +125,23 @@ export const TEKSTY: Record<Lang, Teksty> = {
     connectError: 'Backend nie odpowiada, spróbuj ponownie za chwilę.',
     noResponse: 'Backend nie odpowiedział, spróbuj ponownie za chwilę.',
     negacje: new Set(['nie', 'nie o to chodziło', 'nie o to mi chodziło', 'to nie to', 'źle']),
+    deleteChat: 'Usuń rozmowę',
+    deleteCurrent: 'Usuń bieżącą rozmowę',
+    deleteAll: 'Usuń wszystkie',
+    deleteSelected: 'Usuń wybrane',
+    selectMode: 'Wybierz',
+    cancelSelect: 'Anuluj',
+    confirmDeleteAll: 'Na pewno usunąć wszystkie rozmowy?',
+    confirmDeleteSelected: (n) => `Na pewno usunąć ${n} rozmów?`,
     panelOpened: 'Przygotowałem szkic wiadomości, zobacz panel obok.',
     panelTitle: 'Edytor wiadomości',
     to: 'Do:',
     subjectLabel: 'Temat',
     copy: 'Kopiuj',
     undoEdits: 'Cofnij edycje',
+    alignLeft: 'Wyrównaj do lewej',
+    alignCenter: 'Wyśrodkuj',
+    alignRight: 'Wyrównaj do prawej',
     openDraft: 'Otwórz szkic wiadomości',
     send: 'Wyślij wiadomość',
     sending: 'Wysyłanie…',
@@ -139,7 +166,12 @@ export const TEKSTY: Record<Lang, Teksty> = {
     composerHint: 'Enter sends · Shift + Enter for a new line',
     newChatToast: 'Started a new conversation',
     threadFallbackTitle: 'New conversation',
-    suggestions: ['How do I report a non delivery?', 'How long do I have to return it?', 'When will I get my money back?'],
+    suggestionsByAgent: {
+      default: ['How do I report a non delivery?', 'How long do I have to return it?', 'When will I get my money back?'],
+      konto: ['How do I reset my password?', 'How do I change my account details?', 'I suspect my account was hacked, what now?'],
+      zakupy: ['How do I report a non delivery?', 'How long do I have to return it?', 'How do I check my purchase history?'],
+      platnosci: ['When will I get my refund?', 'How do I check a payment status?', 'How do I pay with Allegro Pay?'],
+    },
     welcome:
       "Welcome, I am your Allegro assistant. I can:\n\n* answer questions using the help center knowledge base\n* prepare a message to the seller about a complaint, return, invoice, or dispute escalation\n\nTell me what you need help with.",
     connected: 'Connected to knowledge base',
@@ -148,12 +180,23 @@ export const TEKSTY: Record<Lang, Teksty> = {
     connectError: "Backend isn't responding, try again in a moment.",
     noResponse: "Backend didn't respond, try again in a moment.",
     negacje: new Set(['no', "that's not it", 'wrong']),
+    deleteChat: 'Delete chat',
+    deleteCurrent: 'Delete current chat',
+    deleteAll: 'Delete all',
+    deleteSelected: 'Delete selected',
+    selectMode: 'Select',
+    cancelSelect: 'Cancel',
+    confirmDeleteAll: 'Delete all conversations?',
+    confirmDeleteSelected: (n) => `Delete ${n} conversations?`,
     panelOpened: "I've prepared a draft message, see the panel on the right.",
     panelTitle: 'Message editor',
     to: 'To:',
     subjectLabel: 'Subject',
     copy: 'Copy',
     undoEdits: 'Undo edits',
+    alignLeft: 'Align left',
+    alignCenter: 'Align center',
+    alignRight: 'Align right',
     openDraft: 'Open message draft',
     send: 'Send message',
     sending: 'Sending…',

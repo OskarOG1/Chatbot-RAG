@@ -23,19 +23,23 @@ function zbudujZrodlo(url: string): Zrodlo {
   }
 }
 
-export function zrodlaZCytatow(citations: Cytat[]): Zrodlo[] {
-  const unikalne = new Map<string, Cytat>();
-  for (const c of citations) {
-    if (!unikalne.has(c.url)) unikalne.set(c.url, c);
-  }
-  return Array.from(unikalne.values()).map((c) => zbudujZrodlo(c.url));
-}
+export function przygotujOdpowiedz(tekst: string, citations: Cytat[]): { tekst: string; zrodla: Zrodlo[] } {
+  if (citations.length === 0) return { tekst, zrodla: [] };
 
-export function linkujCytaty(tekst: string, citations: Cytat[]): string {
-  if (citations.length === 0) return tekst;
-  const mapa = new Map(citations.map((c) => [c.n, c.url]));
-  return tekst.replace(/\[(\d+)\]/g, (dopasowanie, n) => {
-    const url = mapa.get(Number(n));
-    return url ? `[[${n}]](${url})` : dopasowanie;
+  const unikalneUrl: string[] = [];
+  const indeksUrl = new Map<string, number>();
+  for (const c of citations) {
+    if (!indeksUrl.has(c.url)) {
+      indeksUrl.set(c.url, unikalneUrl.length);
+      unikalneUrl.push(c.url);
+    }
+  }
+
+  const mapaN = new Map(citations.map((c) => [c.n, indeksUrl.get(c.url) as number]));
+  const przepisany = tekst.replace(/\[(\d+)\]/g, (dopasowanie, n) => {
+    const indeks = mapaN.get(Number(n));
+    return indeks === undefined ? dopasowanie : `[[${indeks + 1}]](${unikalneUrl[indeks]})`;
   });
+
+  return { tekst: przepisany, zrodla: unikalneUrl.map(zbudujZrodlo) };
 }
