@@ -86,7 +86,7 @@ LANG = {
         ),
         'nie_zrozumialem': "Sorry, I didn't understand the question — could you rephrase it?",
         'zaimki': {'it', 'that', 'this', 'those', 'them', 'one'},
-        'followup_prefiksy': ('and ', 'what about', 'how about'),
+        'followup_prefiksy': ('and ', 'what about', 'how about', 'what if'),
         'mail_czasowniki': {'write', 'draft', 'prepare', 'help'},
         'mail_obiekty': {'email', 'e-mail', 'mail', 'message', 'complaint', 'return', 'invoice', 'receipt'},
         'router_model': os.getenv('ROUTER_MODEL_EN', os.getenv('SEDZIA_MODEL_EN', os.getenv('MODEL_EN', 'allenai/Olmo-3-7B-Instruct'))),

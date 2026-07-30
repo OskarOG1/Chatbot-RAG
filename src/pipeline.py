@@ -14,6 +14,7 @@ import pickle
 import re
 import simplemma
 from collections import Counter
+from functools import lru_cache
 
 MODELE = {lang: SentenceTransformer(cfg['embedder']) for lang, cfg in LANG.items()}
 model = MODELE['pl']
@@ -73,6 +74,16 @@ def _lematy(tekst: str, lang: str = 'pl') -> set:
     lemma_lang = LANG[lang]['lemma_lang']
     return {simplemma.lemmatize(t, lang=lemma_lang)
             for t in tokenize_words(tekst) if len(t) >= MIN_DLUGOSC}
+
+
+EMBED_CACHE_MAX = int(os.getenv('EMBED_CACHE_MAX', '512'))
+
+
+@lru_cache(maxsize=EMBED_CACHE_MAX)
+def embed_query(lang: str, tekst: str):
+    emb = MODELE[lang].encode([LANG[lang]['query_prefix'] + tekst]).astype('float32')
+    faiss.normalize_L2(emb)
+    return emb
 
 
 def _chunks_path(lang: str) -> Path:
@@ -223,8 +234,7 @@ def run_stream(query:str, bielik_model:str | None=None,
             ostatnia_tresc = next((w['content'] for w in reversed(history)
                                    if w.get('role') == 'user' and w.get('content')), '')
             tekst_ret = f'{ostatnia_tresc} {query}'.strip()
-            router_emb = MODELE[lang].encode([cfg['query_prefix'] + tekst_ret]).astype('float32')
-            faiss.normalize_L2(router_emb)
+            router_emb = embed_query(lang, tekst_ret)
             router_chunks = search_reranked_multi(tekst_ret, router_emb, ['all'], k=5, k_surowe=20, lang=lang)
             kategoria = sedzia_kategoria_mail(history + [{'role': 'user', 'content': query}], router_chunks, lang)
         if kategoria is None:
@@ -232,8 +242,7 @@ def run_stream(query:str, bielik_model:str | None=None,
                          'sources': [], 'citations': [], 'doprecyzowanie': None, 'oferta': None, 'tryb': 'rag'})
             return
         kat_cfg = cfg['mail_kategorie'][kategoria]
-        mail_emb = MODELE[lang].encode([cfg['query_prefix'] + kat_cfg['zapytanie']]).astype('float32')
-        faiss.normalize_L2(mail_emb)
+        mail_emb = embed_query(lang, kat_cfg['zapytanie'])
         mail_chunks = search_reranked_multi(kat_cfg['zapytanie'], mail_emb, ['all'], k=3, k_surowe=20, lang=lang)
         szkic = napisz_email(history + [{'role': 'user', 'content': query}], mail_chunks, lang, kategoria)
         yield wynik({'agent': 'email', 'answer': szkic['tekst'],
@@ -249,8 +258,7 @@ def run_stream(query:str, bielik_model:str | None=None,
         zapytanie_ret = query
 
     yield krok('Zamieniam pytanie na wektor')
-    query_emb = MODELE[lang].encode([cfg['query_prefix'] + zapytanie_ret]).astype('float32')
-    faiss.normalize_L2(query_emb)
+    query_emb = embed_query(lang, zapytanie_ret)
 
     yield krok('Przeszukuję bazę wiedzy i porządkuję wyniki')
     chunks = search_reranked_multi(zapytanie_ret, query_emb, ['all'], k=5, k_surowe=20, lang=lang)

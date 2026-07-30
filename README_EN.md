@@ -246,6 +246,14 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 
 **Result.** End-to-end verification in the browser: a PL and EN RAG question streams tokens and finishes rendering from `wynik.dane.answer`, the offer button generates a correct draft with the category-specific header (e.g. "Draft complaint email"), a typo triggers the confirmation banner, and a correct "no" reverts to the original question without re-looping the correction. Parity measurement (`src/measure_frontend.py`, 8 PL/EN queries: RAG, offer, explicit mail request, typo, refusal) between the proxy and calling `/chat/stream` directly: **8/8 matching** on `agent`/`tryb`/`oferta`. Proxy-only overhead measured separately on a warmed cache (to isolate it from generation-time variance): median **21.7ms**, negligible.
 
+### 15. Backend hardening: tests on critical paths, a bigger multi-turn sample, embedding cache, faithfulness measurement
+
+**Problem.** The RAG core had a green measurement suite, but a review focused on hardening (not new features) found five weak spots: lexical coverage mistaken for answer faithfulness, multi-turn accuracy measured on too small a sample (10 pairs), no deliberate latency optimization loop, no unit tests on critical functions (citation mapping, the coverage gate, the mail router), and a single 507 line `agents.py` mixing generation, judges, and mail drafting.
+
+**Solution.** Five independent points, each closed with a test or a measurement, tracked in `pomiary/PLAN_TWARDOSC_BACKEND.md`. Three new unit test files (`test_verify_answer.py`, `test_pokrycie.py`, `test_router_mail.py`), zero LLM calls. The multi-turn set grew from 10 to 30 pairs (proportional PL/EN, seven distinct intents). A query embedding cache (`functools.lru_cache`) for repeated queries, confirmation by measurement that the reranker warmup at server startup was already in place, and an honest test of the hypothesis that a smaller judge model would lower latency (rejected with numbers, not taken on faith). A new faithfulness measurement: an LLM judge checks each golden answer for claims that contradict the retrieved context, kept separate from the cheap lexical coverage gate. `agents.py` split into four modules (`agents_core`, `agents_generacja`, `agents_sedzia`, `agents_mail`) plus a thin facade, so no existing import had to change.
+
+**Result.** 42/42 tests green (20 new). Multi-turn: 22/30 to 24/30 after fixing a real gap in the English follow-up detector ("what if" was not recognized), with no regression. Embedding cache: median 67.7ms to 0.0ms on a hit. The smaller judge model measured almost four times slower on the available endpoint, so it was rejected and never shipped. Faithfulness: 30/30 golden answers with no contradictions detected against context in this run, a diagnostic measurement worth repeating after larger prompt or model changes. The `agents.py` refactor: the sanity import and the full test suite unchanged, zero change to prompt content or logic. Full logs: `pomiary/POMIAR_MULTITURA.md`, `pomiary/POMIAR_LATENCJA.md`, `pomiary/POMIAR_FAITHFULNESS.md`, `pomiary/POMIAR_REFAKTOR_AGENTS.md`.
+
 ---
 
 ## Security and robustness
@@ -275,6 +283,14 @@ Bielik as the compromise. EuroLLM held in reserve for a client where "never answ
 Backend: **FastAPI**. `POST /chat` returns JSON (answer, sources, citations). `POST /chat/stream` is the same process over SSE, streaming each step as it happens.
 
 Frontend: **Streamlit**. Chat, clickable sources, live step preview.
+
+---
+
+## Sending the message to the seller (demo)
+
+The email panel in `frontend-next` has a real send button, not just a preview. The customer enters their address, the message goes out in one call to a fixed demo seller inbox (`.env`, outside the repo) and a second call, with a confirmation and a ticket number, to the customer's address. `src/wysylka.py` generates the ticket (`secrets.token_hex`), calls the Resend REST API through `httpx`, no SMTP involved. The `POST /send-email` endpoint has its own, lower rate limit than `/chat` (a real external call, spam risk). Without a configured `RESEND_API_KEY`, sending returns a clear configuration error, never a fake success. The server log only stores the ticket, category, and outcome, never the address or the message body.
+
+Measurement (`pomiary/measure_send_email.py`, mocked httpx, zero cost and zero spam risk): 4/4 cases pass, ticket generation, category carried into both messages, rejection without configuration, server log free of the email address and body.
 
 ---
 

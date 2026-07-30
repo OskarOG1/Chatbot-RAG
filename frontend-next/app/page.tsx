@@ -18,7 +18,10 @@ import {
   type ChatResponse,
   type Lang,
   type Wiadomosc,
+  type WyslijOdpowiedz,
 } from '@/lib/chat';
+
+const EMAIL_WZORZEC = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface WiadomoscUi {
   id: number;
@@ -35,6 +38,8 @@ interface PanelState {
   body: string;
   kategoria: string | null;
   trigger: string;
+  clientEmail: string;
+  sending: boolean;
 }
 
 interface State {
@@ -208,6 +213,8 @@ export default function Page() {
         body: tresc,
         kategoria: dane.kategoria,
         trigger: wiadomosc,
+        clientEmail: '',
+        sending: false,
       });
       dispatch({ type: 'assistant_bubble', id: nextId(), content: t.panelOpened });
     } else {
@@ -248,6 +255,39 @@ export default function Page() {
     if (!panel) return;
     navigator.clipboard?.writeText(`${panel.subject}\n\n${panel.body}`).catch(() => {});
     pokazToast(t.toastCopied);
+  }
+
+  async function wyslijEmail() {
+    if (!panel || !EMAIL_WZORZEC.test(panel.clientEmail)) return;
+    setPanel((p) => (p ? { ...p, sending: true } : p));
+
+    try {
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: panel.clientEmail,
+          temat: panel.subject,
+          tresc: panel.body,
+          kategoria: panel.kategoria,
+        }),
+      });
+
+      if (res.status === 503) {
+        pokazToast(t.toastSendConfigError);
+      } else if (res.status === 422) {
+        pokazToast(t.toastInvalidEmail);
+      } else if (!res.ok) {
+        pokazToast(t.toastSendError);
+      } else {
+        const dane: WyslijOdpowiedz = await res.json();
+        pokazToast(t.toastSent(dane.ticket));
+      }
+    } catch {
+      pokazToast(t.toastSendError);
+    }
+
+    setPanel((p) => (p ? { ...p, sending: false } : p));
   }
 
   return (
@@ -310,14 +350,18 @@ export default function Page() {
             recipient={panel?.recipient ?? ''}
             subject={panel?.subject ?? ''}
             body={panel?.body ?? ''}
+            clientEmail={panel?.clientEmail ?? ''}
+            emailValid={EMAIL_WZORZEC.test(panel?.clientEmail ?? '')}
             regenerating={state.wysylanie}
+            sending={panel?.sending ?? false}
             onSubjectChange={(v) => setPanel((p) => (p ? { ...p, subject: v } : p))}
             onBodyChange={(v) => setPanel((p) => (p ? { ...p, body: v } : p))}
+            onClientEmailChange={(v) => setPanel((p) => (p ? { ...p, clientEmail: v } : p))}
             onClose={() => setPanel(null)}
             onCopy={kopiujEmail}
             onSaveTemplate={() => pokazToast(t.toastSaved)}
             onRegenerate={regenerujPanel}
-            onSend={() => pokazToast(t.toastSent)}
+            onSend={wyslijEmail}
           />
 
           <Toast tekst={toast} />

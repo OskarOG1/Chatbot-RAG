@@ -8,16 +8,23 @@ from rankings import get_reranker, get_bm25, get_faiss
 from spell import detect_lang
 from guards import MAX_ZNAKI, normalizuj
 from lang_config import LANG, DOMYSLNY_JEZYK
+from wysylka import wyslij_potwierdzenie
 from collections import deque, OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
+import httpx
 import os
+import re
 import time
 import json
 
 LIMIT_MIN = int(os.getenv('LIMIT_MIN', '15'))
 LIMIT_DZIEN = int(os.getenv('LIMIT_DZIEN', '200'))
 _zapytania = deque()
+
+LIMIT_WYSYLKA_MIN = int(os.getenv('LIMIT_WYSYLKA_MIN', '5'))
+_wysylki = deque()
+EMAIL_WZORZEC = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+')
 
 CACHE_MAX = int(os.getenv('CACHE_MAX', '200'))
 _cache: 'OrderedDict[tuple, dict]' = OrderedDict()
@@ -81,6 +88,16 @@ def efektywny_jezyk(message: str, podpowiedz: str | None) -> str:
     return detect_lang(message) or podpowiedz or DOMYSLNY_JEZYK
 
 
+def w_limicie_wysylki() -> bool:
+    teraz = time.time()
+    while _wysylki and _wysylki[0] < teraz - 60:
+        _wysylki.popleft()
+    if len(_wysylki) >= LIMIT_WYSYLKA_MIN:
+        return False
+    _wysylki.append(teraz)
+    return True
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
@@ -121,6 +138,15 @@ class ChatRequest(BaseModel):
 class Cytat(BaseModel):
    n: int
    url: str
+
+class WyslijZadanie(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    temat: str = Field(min_length=1, max_length=200)
+    tresc: str = Field(min_length=1, max_length=8000)
+    kategoria: str | None = None
+
+class WyslijOdpowiedz(BaseModel):
+    ticket: str
 
 class ChatResponse(BaseModel):
    agent: str
@@ -195,3 +221,19 @@ def chat_stream(request: ChatRequest):
             print(f'blad /chat/stream: {type(e).__name__}: {e}')
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': 'Model chwilowo niedostępny — spróbuj ponownie.'}, ensure_ascii=False)}\n\n"
     return StreamingResponse(gen(), media_type='text/event-stream')
+
+
+@app.post('/send-email', response_model=WyslijOdpowiedz)
+def send_email(request: WyslijZadanie):
+    if not w_limicie_wysylki():
+        raise HTTPException(status_code=429, detail='Limit wysyłek demo osiągnięty, spróbuj później.')
+    if not EMAIL_WZORZEC.match(request.email):
+        raise HTTPException(status_code=422, detail='Podaj poprawny adres email.')
+    try:
+        ticket = wyslij_potwierdzenie(request.email, request.kategoria, request.temat, request.tresc)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail='Wysyłka się nie powiodła, spróbuj ponownie.')
+    print(f'wysylka: ticket={ticket} kategoria={request.kategoria} sukces=True')
+    return WyslijOdpowiedz(ticket=ticket)
