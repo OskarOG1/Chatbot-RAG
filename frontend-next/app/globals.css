@@ -25,6 +25,16 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.email-body-editor ul {
+  list-style: disc;
+  margin: 0 0 0 1.3em;
+  padding: 0;
+}
+
+.email-body-editor li {
+  margin: 2px 0;
+}
+
 @keyframes dcFadeUp {
   from {
     opacity: 0;

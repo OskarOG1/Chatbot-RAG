@@ -168,6 +168,7 @@ export default function EmailPanel({
               contentEditable
               suppressContentEditableWarning
               onInput={synchronizujBody}
+              className="email-body-editor"
               style={{
                 width: '100%',
                 height: '100%',
