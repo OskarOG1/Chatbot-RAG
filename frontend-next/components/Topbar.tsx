@@ -7,11 +7,11 @@ import { TEKSTY, type Lang } from '@/lib/chat';
 interface Props {
   lang: Lang;
   theme: ThemeName;
-  onToggleLang: () => void;
+  onSetLang: (lang: Lang) => void;
   onToggleTheme: () => void;
 }
 
-export default function Topbar({ lang, theme, onToggleLang, onToggleTheme }: Props) {
+export default function Topbar({ lang, theme, onSetLang, onToggleTheme }: Props) {
   const th = useTheme();
   const t = TEKSTY[lang];
 
@@ -64,15 +64,70 @@ export default function Topbar({ lang, theme, onToggleLang, onToggleTheme }: Pro
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: th.success }} />
           {t.connected}
         </div>
-        <button type="button" onClick={onToggleLang} style={ghostBtn(th)}>
-          <span style={{ marginRight: 6 }}>{lang === 'pl' ? '🇬🇧' : '🇵🇱'}</span>
-          {t.langButtonLabel}
-        </button>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 3,
+            padding: 3,
+            border: `1px solid ${th.border}`,
+            borderRadius: 11,
+          }}
+        >
+          <LangPill active={lang === 'pl'} onClick={() => onSetLang('pl')} th={th} src="/flags/pl.png" label="PL" />
+          <LangPill active={lang === 'en'} onClick={() => onSetLang('en')} th={th} src="/flags/gb.svg" label="EN" />
+        </div>
         <button type="button" onClick={onToggleTheme} style={ghostBtn(th)}>
           {t.themeButtonLabel[theme]}
         </button>
       </div>
     </div>
+  );
+}
+
+function LangPill({
+  active,
+  onClick,
+  th,
+  src,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  th: ReturnType<typeof useTheme>;
+  src: string;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        border: 'none',
+        borderRadius: 8,
+        padding: '5px 10px 5px 6px',
+        fontFamily: 'inherit',
+        fontWeight: 700,
+        fontSize: 12,
+        cursor: 'pointer',
+        background: active ? th.accentSoft : 'transparent',
+        color: active ? th.accentText : th.textSecondary,
+        transition: 'background 0.15s ease, color 0.15s ease',
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        width={16}
+        height={16}
+        style={{ borderRadius: 4, objectFit: 'cover', boxShadow: `0 0 0 1px ${th.border}` }}
+      />
+      {label}
+    </button>
   );
 }
 
