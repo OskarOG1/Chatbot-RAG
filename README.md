@@ -88,7 +88,7 @@ Odpowiedź + Źródła
 | Baza wektorowa | FAISS | Lokalna, szybka, wystarcza na tej skali |
 | Wyszukiwanie po słowach | BM25 + lematyzacja + trigramy | Sam embedding gubił pytania zbudowane wokół konkretnych słów |
 | Reranker | mmarco-mMiniLMv2 (118M) | 26× szybszy od bge-v2-m3 przy stracie jednego trafienia |
-| Model odpowiadający | apertus-v1.5-8b | Na pomiarze 25 pytań PL + 25 EN dorównuje lub przewyższa Bielika-11B/Olmo-3-7B jakością (pokrycie kontekstu, brak sprzeczności), bez błędów API, ~3.4× szybszy (patrz `Pomiary/jakosc_modeli.md`, `Pomiary/latencja.md`) |
+| Model odpowiadający | apertus-v1.5-8b | Na pomiarze 25 pytań PL + 25 EN dorównuje lub przewyższa Bielika-11B/Olmo-3-7B jakością (pokrycie kontekstu, brak sprzeczności), bez błędów API, ~3,4× szybszy (patrz `Pomiary/jakosc_modeli.md`, `Pomiary/latencja.md`). Decyzja potwierdzona ponownym pomiarem po utwardzeniu promptu przeciw dublowaniu źródeł: PL remis w granicach szumu, EN i latencja nadal wyraźnie na korzyść apertusa (3,5 razy mniej sprzeczności z kontekstem, ~3× szybszy), patrz `Pomiary/POMIAR_APERTUS_VS_BIELIK.md` |
 
 ---
 
