@@ -11,9 +11,10 @@ load_dotenv(Path(__file__).resolve().parent / '.env')
 MODEL_11B = 'speakleash/Bielik-11B-v3.0-Instruct'
 MODEL_7B_LOKALNY = 'SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M'
 MODEL_1_5B_LOKALNY = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
-MODEL_NAME = os.getenv('MODEL', MODEL_11B)
+MODEL_DOMYSLNY = 'swiss-ai/apertus-v1.5-8b'
+MODEL_NAME = os.getenv('MODEL', MODEL_DOMYSLNY)
 MODEL_FALLBACK = os.getenv('MODEL_FALLBACK', MODEL_7B_LOKALNY)
-SEDZIA_MODEL = os.getenv('SEDZIA_MODEL', MODEL_NAME)
+SEDZIA_MODEL = os.getenv('SEDZIA_MODEL', MODEL_11B)
 MAX_TOKENS = int(os.getenv('MAX_TOKENS', '1500'))
 
 klient = InferenceClient(

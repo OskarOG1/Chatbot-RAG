@@ -302,7 +302,7 @@ export default function Page() {
         <Topbar
           lang={lang}
           theme={themeName}
-          onToggleLang={() => setLang((l) => (l === 'pl' ? 'en' : 'pl'))}
+          onSetLang={setLang}
           onToggleTheme={() => setThemeName((th2) => (th2 === 'light' ? 'dark' : 'light'))}
         />
 
