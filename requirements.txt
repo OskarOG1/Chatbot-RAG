@@ -13,3 +13,4 @@ uvicorn==0.51.0
 wordfreq==3.1.1
 python-dotenv
 pytest==9.1.1
+playwright==1.61.0

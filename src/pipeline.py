@@ -248,7 +248,7 @@ def run_stream(query:str, bielik_model:str | None=None,
         yield wynik({'agent': 'email', 'answer': szkic['tekst'],
                      'sources': list(dict.fromkeys(c['url'] for c, _ in mail_chunks)),
                      'citations': [], 'doprecyzowanie': None, 'oferta': None, 'tryb': 'email',
-                     'kategoria': kategoria})
+                     'kategoria': kategoria, 'naglowek_ui': kat_cfg['naglowek_ui']})
         return
 
     if history and (przepisz or _followup(query, lang)):
@@ -282,7 +282,8 @@ def run_stream(query:str, bielik_model:str | None=None,
                          'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
             return
 
-    yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=agent_odp))
+    etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
+    yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=etykieta_sekcji))
     odpowiedz = None
     for ev in answer_stream(query, agent_odp, chunks, bielik_model, history, lang):
         if ev['typ'] == 'token':

@@ -205,7 +205,7 @@ export default function Rail({
           </button>
         </div>
         <Link href="/prywatnosc" style={privacyLink(th)}>
-          {lang === 'pl' ? 'Jak przetwarzamy dane' : 'How we handle data'}
+          {lang === 'pl' ? 'Jak przetwarzam dane' : 'How I handle data'}
         </Link>
       </div>
     </aside>
