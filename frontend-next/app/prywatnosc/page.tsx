@@ -10,6 +10,12 @@ interface TrescPrywatnosci {
   title: string;
   who: string;
   whoText: string;
+  system: string;
+  systemText: string;
+  model: string;
+  modelText: string[];
+  compliance: string;
+  complianceText: string;
   outbound: string;
   outboundText: string;
   stored: string;
@@ -26,12 +32,24 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
   pl: {
     back: '← Wróć',
     title: 'Jak przetwarzam dane',
-    who: 'Kto prowadzi to demo',
+    who: 'Administrator',
     whoText:
-      'Prowadzę to demo sam, jako projekt niekomercyjny i nieoficjalny, bez żadnego związku z Allegro.',
+      'Administratorem danych przetwarzanych w tym demo jest Oskar Grohman, kontakt: grohmanoskar@gmail.com. Projekt ma charakter niekomercyjny i nieoficjalny, bez żadnego związku z Allegro.',
+    system: 'Charakter systemu i ograniczenia',
+    systemText:
+      'System został zaprojektowany tak, aby móc działać w całości lokalnie, bez wysyłania jakichkolwiek danych poza infrastrukturę, na której jest uruchomiony. W obecnej konfiguracji demonstracyjnej, ze względu na ograniczenia sprzętowe środowiska testowego (brak lokalnego GPU o wystarczającej mocy), część obliczeń jest zlecana zewnętrznemu dostawcy inferencji modelu językowego. To ograniczenie infrastrukturalne tej instancji demo, nie architektury systemu.',
+    model: 'Model i infrastruktura',
+    modelText: [
+      'Model generujący odpowiedzi: Apertus v1.5 8B (swiss-ai/apertus-v1.5-8b), udostępniany przez Public AI (publicai.co).',
+      'Model oceniający trafność odpowiedzi (drugi etap weryfikacji, niewidoczny dla użytkownika): Bielik 11B v3.0 dla języka polskiego i Olmo 3 7B dla języka angielskiego, ten sam dostawca inferencji.',
+      'Serwer aplikacji (backend, frontend, indeks wyszukiwania) jest hostowany w Finlandii, na terenie Unii Europejskiej.',
+    ],
+    compliance: 'Zgodność z AI Act',
+    complianceText:
+      'System stanowi chatbota w rozumieniu art. 50 unijnego rozporządzenia w sprawie sztucznej inteligencji (AI Act) i podlega obowiązkowi przejrzystości wynikającemu z tego przepisu. Niniejsza informacja stanowi jego realizację: informuję jawnie, że rozmawiasz z systemem sztucznej inteligencji, a nie z człowiekiem, a wygenerowane odpowiedzi mogą zawierać błędy.',
     outbound: 'Co wychodzi na zewnątrz',
     outboundText:
-      'Treść pytania razem z pasującymi fragmentami artykułów trafia do zewnętrznego dostawcy inferencji modelu językowego. Jeśli poprosisz o wysyłkę wiadomości do sprzedawcy, jej treść i podany przeze Ciebie adres email trafiają jednorazowo do usługi Resend, która dostarcza obie wiadomości (do demo skrzynki sprzedawcy i do Ciebie z potwierdzeniem).',
+      'Treść pytania razem z pasującymi fragmentami artykułów trafia do dostawcy inferencji wskazanego w sekcji powyżej. Jeśli poprosisz o wysyłkę wiadomości do sprzedawcy, jej treść i podany przez Ciebie adres email trafiają jednorazowo do usługi Resend, która dostarcza obie wiadomości: do demo skrzynki sprzedawcy oraz do Ciebie, z potwierdzeniem.',
     stored: 'Co zapisuję',
     storedText: [
       'Log zapytań: czas, język, sekcja tematyczna, informacja czy padła odpowiedź czy odmowa, czas odpowiedzi, informacja o trafieniu w pamięć podręczną oraz treść pytania po redakcji, czyli z zamaskowanymi adresami email, numerami telefonów, tokenami alfanumerycznymi (np. numerami zamówień) i adresami URL.',
@@ -56,12 +74,24 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
   en: {
     back: '← Back',
     title: 'How I handle data',
-    who: 'Who runs this demo',
+    who: 'Data controller',
     whoText:
-      'I run this demo on my own, as a non commercial, unofficial project with no affiliation to Allegro.',
+      'The data controller for this demo is Oskar Grohman, contact: grohmanoskar@gmail.com. The project is non commercial and unofficial, with no affiliation to Allegro.',
+    system: 'System design and current limitations',
+    systemText:
+      'This system is designed to run entirely on local infrastructure, without sending any data outside the environment it runs on. In its current demo configuration, due to hardware limits of the test environment (no local GPU with sufficient capacity), part of the computation is delegated to an external language model inference provider. This is a limitation of this particular demo instance, not of the system architecture.',
+    model: 'Model and infrastructure',
+    modelText: [
+      'Answer generation model: Apertus v1.5 8B (swiss-ai/apertus-v1.5-8b), served by Public AI (publicai.co).',
+      'Answer quality judge model (a second, internal verification step not shown to the user): Bielik 11B v3.0 for Polish and Olmo 3 7B for English, same inference provider.',
+      'The application server (backend, frontend, search index) is hosted in Finland, within the European Union.',
+    ],
+    compliance: 'AI Act compliance',
+    complianceText:
+      'This system is a chatbot within the meaning of Article 50 of the EU Artificial Intelligence Act (AI Act) and is subject to the transparency obligation set out there. This notice fulfils that obligation: I am informing you explicitly that you are interacting with an artificial intelligence system, not a human, and that generated answers may contain errors.',
     outbound: 'What leaves the server',
     outboundText:
-      'Your question, together with the matching article excerpts, is sent to an external language model inference provider. If you ask me to draft a message to the seller, its content and the email address you enter are sent once to the Resend service, which delivers both messages, one to the demo seller inbox and one to you with a confirmation.',
+      'Your question, together with the matching article excerpts, is sent to the inference provider named in the section above. If you ask me to draft a message to the seller, its content and the email address you enter are sent once to the Resend service, which delivers both messages: one to the demo seller inbox and one to you, with a confirmation.',
     stored: 'What I store',
     storedText: [
       'A request log: time, language, topic section, whether the request got an answer or a refusal, response time, whether it was served from cache, and the question text after redaction, meaning email addresses, phone numbers, alphanumeric tokens (such as order numbers) and URLs are masked out.',
@@ -102,6 +132,25 @@ export default function PrywatnoscPage() {
       <section style={{ marginTop: 24 }}>
         <h2 style={{ fontSize: 15 }}>{t.who}</h2>
         <p style={{ marginTop: 8, color: '#666' }}>{t.whoText}</p>
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <h2 style={{ fontSize: 15 }}>{t.system}</h2>
+        <p style={{ marginTop: 8, color: '#666' }}>{t.systemText}</p>
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <h2 style={{ fontSize: 15 }}>{t.model}</h2>
+        <ul style={{ marginTop: 8, color: '#666', paddingLeft: 20 }}>
+          {t.modelText.map((linia) => (
+            <li key={linia} style={{ marginTop: 6 }}>{linia}</li>
+          ))}
+        </ul>
+      </section>
+
+      <section style={{ marginTop: 24 }}>
+        <h2 style={{ fontSize: 15 }}>{t.compliance}</h2>
+        <p style={{ marginTop: 8, color: '#666' }}>{t.complianceText}</p>
       </section>
 
       <section style={{ marginTop: 24 }}>
