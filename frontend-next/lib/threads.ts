@@ -1,4 +1,4 @@
-import { TEKSTY, type Cytat, type Lang, type Wiadomosc } from './chat';
+import { TEKSTY, type Cytat, type Lang, type Strona, type Wiadomosc } from './chat';
 
 export interface WiadomoscUi {
   id: number;
@@ -42,6 +42,7 @@ interface Zapis {
 
 const STORAGE_KEY = 'allegro-rag-threads-v1';
 const LANG_KEY = 'allegro-rag-lang-v1';
+const STRONA_KEY = 'allegro-rag-strona-v1';
 const VERSION = 1;
 
 export function wczytajJezyk(): Lang | null {
@@ -56,6 +57,23 @@ export function wczytajJezyk(): Lang | null {
 export function zapiszJezyk(lang: Lang): void {
   try {
     localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    return;
+  }
+}
+
+export function wczytajStrone(): Strona | null {
+  try {
+    const zapis = localStorage.getItem(STRONA_KEY);
+    return zapis === 'auto' || zapis === 'kupujacy' || zapis === 'sprzedajacy' ? zapis : null;
+  } catch {
+    return null;
+  }
+}
+
+export function zapiszStrone(strona: Strona): void {
+  try {
+    localStorage.setItem(STRONA_KEY, strona);
   } catch {
     return;
   }

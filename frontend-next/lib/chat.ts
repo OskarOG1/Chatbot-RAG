@@ -2,6 +2,8 @@ export type Lang = 'pl' | 'en';
 
 export type Tryb = 'rag' | 'email';
 
+export type Strona = 'auto' | 'kupujacy' | 'sprzedajacy';
+
 export interface Wiadomosc {
   role: 'user' | 'assistant';
   content: string;
@@ -50,6 +52,7 @@ export interface ChatRequestBody {
   agent_poprzedni: string | null;
   bez_korekty: boolean;
   lang: Lang;
+  strona: Strona;
 }
 
 interface Teksty {
@@ -101,6 +104,9 @@ interface Teksty {
   placeholder: string;
   recipientSeller: string;
   sendShort: string;
+  sideAuto: string;
+  sideBuying: string;
+  sideSelling: string;
 }
 
 function odmianaRozmow(n: number): string {
@@ -167,6 +173,9 @@ export const TEKSTY: Record<Lang, Teksty> = {
     placeholder: 'Napisz wiadomość…',
     recipientSeller: 'Sprzedawca',
     sendShort: 'Wyślij',
+    sideAuto: 'Auto',
+    sideBuying: 'Kupuję',
+    sideSelling: 'Sprzedaję',
   },
   en: {
     title: 'Allegro Assistant',
@@ -223,6 +232,9 @@ export const TEKSTY: Record<Lang, Teksty> = {
     placeholder: 'Type a message…',
     recipientSeller: 'Seller',
     sendShort: 'Send',
+    sideAuto: 'Auto',
+    sideBuying: 'Buying',
+    sideSelling: 'Selling',
   },
 };
 
@@ -263,7 +275,8 @@ export function zbudujZadanie(
   historia: Wiadomosc[],
   agentPoprzedni: string | null,
   bezKorekty: boolean,
-  lang: Lang
+  lang: Lang,
+  strona: Strona
 ): ChatRequestBody {
   return {
     message: wiadomosc,
@@ -271,5 +284,6 @@ export function zbudujZadanie(
     agent_poprzedni: agentPoprzedni,
     bez_korekty: bezKorekty,
     lang,
+    strona,
   };
 }

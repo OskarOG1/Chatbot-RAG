@@ -40,7 +40,8 @@ def search_reranked(query, query_emb, agent, k=3, k_surowe=20, lang='pl'):
 def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl'):
     linki = []
     for agent in agenci:
-        linki.extend(NO_dedup(query, query_emb, agent, k_surowe, lang))
+        k_surowe_agenta = k_surowe[agent] if isinstance(k_surowe, dict) else k_surowe
+        linki.extend(NO_dedup(query, query_emb, agent, k_surowe_agenta, lang))
 
     if not linki:
         return []

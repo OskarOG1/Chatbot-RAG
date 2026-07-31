@@ -36,8 +36,8 @@ def cache_zdatny(request: 'ChatRequest') -> bool:
             and request.bielik_model is None and request.sedzia is None)
 
 
-def cache_klucz(lang: str, message: str) -> tuple:
-    return (lang, normalizuj(message), corpus_stamp(lang))
+def cache_klucz(lang: str, message: str, strona: str) -> tuple:
+    return (lang, normalizuj(message), corpus_stamp(lang), strona)
 
 
 def cache_pobierz(klucz: tuple) -> dict | None:
@@ -56,11 +56,12 @@ def cache_zapisz(klucz: tuple, wynik: dict) -> None:
         _cache.popitem(last=False)
 
 
-def loguj_zapytanie(lang: str, agent: str, latencja: float, cache_hit: bool, query: str) -> None:
+def loguj_zapytanie(lang: str, agent: str, latencja: float, cache_hit: bool, query: str, strona: str) -> None:
     try:
         wpis = {
             'czas': datetime.now(timezone.utc).isoformat(),
             'lang': lang,
+            'strona': strona,
             'sekcja': agent or None,
             'wynik': 'odpowiedz' if agent else 'odmowa',
             'latencja_s': round(latencja, 3),
@@ -134,6 +135,7 @@ class ChatRequest(BaseModel):
     bez_korekty: bool = False
     sedzia: bool | None = None
     lang: Literal['pl', 'en'] | None = None
+    strona: Literal['auto', 'kupujacy', 'sprzedajacy'] = 'auto'
 
 class Cytat(BaseModel):
    n: int
@@ -174,19 +176,20 @@ def chat(request: ChatRequest):
     if not w_limicie():
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     start = time.perf_counter()
+    strona = None if request.strona == 'auto' else request.strona
     try:
         uzyj_cache = cache_zdatny(request)
-        klucz = cache_klucz(lang, request.message) if uzyj_cache else None
+        klucz = cache_klucz(lang, request.message, request.strona) if uzyj_cache else None
         wynik = cache_pobierz(klucz) if klucz else None
         cache_hit = wynik is not None
         if wynik is None:
             wynik = run(request.message, bielik_model=request.bielik_model,
                         history=[w.model_dump() for w in request.history],
                         agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
-                        bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang)
+                        bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang, strona=strona)
             if klucz:
                 cache_zapisz(klucz, wynik)
-        loguj_zapytanie(lang, wynik.get('agent', ''), time.perf_counter() - start, cache_hit, request.message)
+        loguj_zapytanie(lang, wynik.get('agent', ''), time.perf_counter() - start, cache_hit, request.message, request.strona)
         return wynik
     except Exception as e:
         print(f'blad /chat: {type(e).__name__}: {e}')
@@ -197,6 +200,8 @@ def chat(request: ChatRequest):
 def chat_stream(request: ChatRequest):
     lang = efektywny_jezyk(request.message, request.lang)
 
+    strona = None if request.strona == 'auto' else request.strona
+
     def gen():
         if not w_limicie():
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 429, 'tekst': LANG[lang]['bledy']['limit_zapytan']}, ensure_ascii=False)}\n\n"
@@ -204,23 +209,23 @@ def chat_stream(request: ChatRequest):
         start = time.perf_counter()
         try:
             uzyj_cache = cache_zdatny(request)
-            klucz = cache_klucz(lang, request.message) if uzyj_cache else None
+            klucz = cache_klucz(lang, request.message, request.strona) if uzyj_cache else None
             cached = cache_pobierz(klucz) if klucz else None
             if cached is not None:
                 yield f"data: {json.dumps({'typ': 'wynik', 'dane': cached}, ensure_ascii=False)}\n\n"
-                loguj_zapytanie(lang, cached.get('agent', ''), time.perf_counter() - start, True, request.message)
+                loguj_zapytanie(lang, cached.get('agent', ''), time.perf_counter() - start, True, request.message, request.strona)
                 return
             wynik = {}
             for ev in run_stream(request.message, bielik_model=request.bielik_model,
                                  history=[w.model_dump() for w in request.history],
                                  agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
-                                 bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang):
+                                 bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang, strona=strona):
                 if ev['typ'] == 'wynik':
                     wynik = ev['dane']
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
             if klucz:
                 cache_zapisz(klucz, wynik)
-            loguj_zapytanie(lang, wynik.get('agent', ''), time.perf_counter() - start, False, request.message)
+            loguj_zapytanie(lang, wynik.get('agent', ''), time.perf_counter() - start, False, request.message, request.strona)
         except Exception as e:
             print(f'blad /chat/stream: {type(e).__name__}: {e}')
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': LANG[lang]['bledy']['model_niedostepny']}, ensure_ascii=False)}\n\n"

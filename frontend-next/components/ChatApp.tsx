@@ -19,6 +19,7 @@ import {
   zbudujZadanie,
   type ChatResponse,
   type Lang,
+  type Strona,
   type Wiadomosc,
   type WyslijOdpowiedz,
 } from '@/lib/chat';
@@ -29,8 +30,10 @@ import {
   usunWatki,
   wczytajJezyk,
   wczytajStan,
+  wczytajStrone,
   zapiszJezyk,
   zapiszStan,
+  zapiszStrone,
   type Thread,
 } from '@/lib/threads';
 import { oczyscPodglad } from '@/lib/zrodla';
@@ -69,6 +72,7 @@ function stanPoczatkowy(): { threads: Thread[]; activeId: string } {
 
 export default function ChatApp() {
   const [lang, setLangState] = useState<Lang>(() => wczytajJezyk() ?? 'pl');
+  const [strona, setStronaState] = useState<Strona>(() => wczytajStrone() ?? 'auto');
   const [themeName, setThemeName] = useState<ThemeName>('light');
   const [seed] = useState(stanPoczatkowy);
   const [threads, setThreads] = useState<Thread[]>(seed.threads);
@@ -107,6 +111,11 @@ export default function ChatApp() {
     setLangState(nowyLang);
     zapiszJezyk(nowyLang);
     setThreads((ts) => podmienPowitanie(ts, nowyLang));
+  }
+
+  function setStrona(nowaStrona: Strona) {
+    setStronaState(nowaStrona);
+    zapiszStrone(nowaStrona);
   }
 
   const active = threads.find((x) => x.id === activeId) ?? null;
@@ -204,7 +213,7 @@ export default function ChatApp() {
     tid: string,
     signal: AbortSignal
   ): Promise<{ dane: ChatResponse | null; bladTekst: string | null }> {
-    const body = zbudujZadanie(wiadomosc, historiaApi, ostatniAgent, bezKorekty, lang);
+    const body = zbudujZadanie(wiadomosc, historiaApi, ostatniAgent, bezKorekty, lang, strona);
     let dane: ChatResponse | null = null;
     let bladTekst: string | null = null;
 
@@ -426,10 +435,12 @@ export default function ChatApp() {
         <Rail
           lang={lang}
           theme={themeName}
+          strona={strona}
           items={railItems}
           onNew={nowaRozmowa}
           onSelect={wybierzThread}
           onSetLang={setLang}
+          onSetStrona={setStrona}
           onToggleTheme={() => setThemeName((x) => (x === 'light' ? 'dark' : 'light'))}
           selectMode={selectMode}
           selectedIds={selectedIds}

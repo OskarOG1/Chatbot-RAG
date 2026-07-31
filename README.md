@@ -288,6 +288,16 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Wynik.** 169 artykułów PL (1287 fragmentów) i 173 artykuły EN (801 fragmentów) dołożone bez naruszenia istniejących 822 (PL) i 641 (EN) fragmentów kupujących. Nowa sekcja w pełni odnajdywalna: hit@5 = 1,000 na nowym golden secie (20 pytań PL, 19 EN). Regresja na pytaniach kupujących: hit@5 PL bez zmian (0,840), hit@5 EN spadło z 0,920 do 0,800. Przyczyna zmierzona wprost: sekcje kupujących i sprzedających realnie konkurują o miejsce w top 5 (średnio 30% PL i 41% EN miejsc na pytaniach kupujących trafia teraz w chunk sprzedażowy), bo Allegro opisuje konto, logowanie i RODO niemal równolegle dla obu grup odbiorców. To potwierdza przewidywane ryzyko: najważniejszym następnym krokiem jest jawny routing pytań między sekcją kupujących i sprzedających, nie poleganie wyłącznie na wspólnym indeksie i rerankerze. Progi bramek (`prog_rerank`, `prog_pokrycia`) sprawdzone po scaleniu i pozostawione bez zmian, IDF się przesunęło, ale nie na tyle, żeby zagrozić trafnym pytaniom. Pełny log z liczbami: `Pomiary/POMIAR_SEKCJA_SPRZEDAJACY.md`.
 
+### 20. Routing kupujący / sprzedający: dwie odrzucone wersje, jedna wdrożona
+
+**Problem.** Kontynuacja rekomendacji z sekcji 19: sekcje kupujących i sprzedających realnie konkurują o miejsce w top 5, więc pytania kupujących coraz częściej trafiają w artykuł ze złej sekcji.
+
+**Pierwsza próba, odrzucona pomiarem.** Zgodnie z planem: przy braku sygnału o stronie pytania system i tak wymuszał jedną stronę, porównując surowy wynik rerankera między pulą kupujących a sprzedających. Zmierzone: hit@5 kupujący PL spadł do 0,540, EN do 0,600, gorzej niż stan przed tą zmianą. Druga wersja z sumą trzech najlepszych wyników zamiast jednego nie poprawiła sytuacji (kupujący EN nawet spadł do 0,560). Przyczyna: sygnał leksykalny albo kontynuacji rozmowy pokrywa tylko od 10 do 26% pytań, więc dla większości ruchu system i tak zgadywał stronę wyłącznie po wyniku rerankera, na dokładnie tych samych bliźniaczych artykułach o koncie i logowaniu, które już wcześniej myliły ranking.
+
+**Wdrożona wersja.** Routing i homogenizacja kontekstu do jednej strony włączają się wyłącznie, gdy jest realny sygnał: jawna deklaracja w interfejsie, kontynuacja rozmowy albo trafiony marker leksykalny w pytaniu. Bez żadnego z tych sygnałów system przeszukuje cały korpus dokładnie tak, jak przed tą zmianą, bez zgadywania strony.
+
+**Wynik.** Kupujący PL: hit@5 = 0,840, bramka planu spełniona. Sprzedaż PL: hit@5 = 1,000, sufit. Kupujący EN: hit@5 = 0,800, parytet z dzisiejszą produkcją, bez powrotu do 0,920 sprzed scalenia korpusu sprzedających, bo większość pytań EN nie ma żadnego sygnału. Sprzedaż EN: hit@5 = 0,947, minus jedno pytanie względem stanu sprzed tej zmiany. Zero pytań zwrotnych na wszystkich czterech zestawach golden. Największa realna wartość zmiany to jawny przełącznik w panelu bocznym (Auto, Kupuję, Sprzedaję): darmowy, zerowego ryzyka, domyka całą lukę do sufitu dla użytkownika, który wie, po której jest stronie. Pełny log z liczbami, dwiema odrzuconymi wersjami i siatką kalibracji: `Pomiary/POMIAR_ROUTING_STRONY.md`.
+
 ---
 
 ## Bezpieczeństwo i odporność

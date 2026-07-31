@@ -27,6 +27,7 @@ LANG = {
             'przepisuje_pytanie': 'Przepisuję pytanie z kontekstu rozmowy',
             'zamieniam_na_wektor': 'Zamieniam pytanie na wektor',
             'przeszukuje_baze': 'Przeszukuję bazę wiedzy i porządkuję wyniki',
+            'wybieram_strone': 'Rozstrzygam stronę pytania: {strona}',
             'poza_zakresem': 'Poza zakresem bazy pomocy, odmawiam',
             'sprawdzam_kontekst': 'Sprawdzam, czy kontekst odpowiada na pytanie',
             'generuje_odpowiedz': 'Generuję odpowiedź (sekcja: {agent})',
@@ -37,6 +38,11 @@ LANG = {
             'platnosci': 'płatności',
             'sprzedaz': 'sprzedaż',
         },
+        'nazwy_stron': {
+            'kupujacy': 'kupujący',
+            'sprzedajacy': 'sprzedający',
+        },
+        'strona_doprecyzuj': 'Pytasz jako kupujący czy jako sprzedający na Allegro?',
         'guardy': {
             'za_krotkie': 'Napisz proszę pełne pytanie.',
             'za_dlugie': 'Pytanie jest za długie, opisz jeden problem na raz.',
@@ -103,6 +109,25 @@ LANG = {
                 'naglowek_ui': 'Szkic zgłoszenia braku odpowiedzi sprzedawcy',
             },
         },
+        'markery_stron': {
+            'kupujacy': {
+                'slowa': {'kupiłem', 'kupilem', 'kupiłam', 'kupilam', 'zamówiłem', 'zamowilem',
+                          'zamówiłam', 'zamowilam', 'zamówienie', 'zamowienie', 'zamówienia', 'zamowienia',
+                          'zamówień', 'zamowien', 'przesyłka', 'przesylka', 'przesyłkę', 'przesylke',
+                          'przesyłki', 'przesylki', 'paczka', 'paczke', 'paczkę', 'paczki'},
+                'frazy': ('moja przesyłka', 'moja przesylka', 'moje zamówienie', 'moje zamowienie',
+                          'sprzedawca nie', 'moja paczka'),
+            },
+            'sprzedajacy': {
+                'slowa': {'sprzedaję', 'sprzedaje', 'sprzedajesz', 'wystawiam', 'wystawiłem', 'wystawilem',
+                          'wystawić', 'wystawic', 'prowizja', 'prowizję', 'prowizje', 'prowizji',
+                          'wypłata', 'wyplata', 'wypłatę', 'wyplate', 'wypłaty', 'wyplaty', 'aukcje',
+                          'aukcja', 'aukcji'},
+                'frazy': ('moja oferta', 'moje oferty', 'mój kupujący', 'moj kupujacy', 'moi kupujący',
+                          'moi kupujacy', 'allegro ads', 'moje aukcje', 'wystawić przedmiot',
+                          'wystawic przedmiot', 'moja sprzedaż', 'moja sprzedaz', 'mój sklep', 'moj sklep'),
+            },
+        },
     },
     'en': {
         'embedder': 'intfloat/multilingual-e5-base',
@@ -127,6 +152,7 @@ LANG = {
             'przepisuje_pytanie': 'Rewriting the question from the conversation context',
             'zamieniam_na_wektor': 'Turning the question into a vector',
             'przeszukuje_baze': 'Searching the knowledge base and ranking results',
+            'wybieram_strone': 'Deciding the side of the question: {strona}',
             'poza_zakresem': 'Outside the help base scope, declining',
             'sprawdzam_kontekst': 'Checking whether the context answers the question',
             'generuje_odpowiedz': 'Generating the answer (section: {agent})',
@@ -137,6 +163,11 @@ LANG = {
             'platnosci': 'payments',
             'sprzedaz': 'selling',
         },
+        'nazwy_stron': {
+            'kupujacy': 'buyer',
+            'sprzedajacy': 'seller',
+        },
+        'strona_doprecyzuj': 'Are you asking as a buyer or as a seller on Allegro?',
         'guardy': {
             'za_krotkie': 'Please write a complete question.',
             'za_dlugie': 'The question is too long, please describe one issue at a time.',
@@ -196,6 +227,19 @@ LANG = {
                           'never arrived', "hasn't arrived", 'has not arrived', 'didn\'t arrive',
                           'did not arrive', 'lost package'),
                 'naglowek_ui': 'Draft escalation message',
+            },
+        },
+        'markery_stron': {
+            'kupujacy': {
+                'slowa': {'bought', 'ordered', 'purchase', 'purchased', 'purchasing'},
+                'frazy': ('my package', 'my order', 'my shipment', 'my parcel', 'seller is not',
+                          "seller isn't", "seller won't", 'seller refuses', 'seller does not'),
+            },
+            'sprzedajacy': {
+                'slowa': {'sell', 'selling', 'sold', 'sells', 'list', 'listing', 'listed',
+                          'commission', 'commissions', 'payout', 'payouts'},
+                'frazy': ('my offer', 'my offers', 'my listing', 'my listings', 'my buyer',
+                          'my buyers', 'allegro ads', 'my shop', 'my store', 'my payout'),
             },
         },
     },
