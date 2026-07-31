@@ -3,6 +3,8 @@ docs/
 docs_en/
 docs_en_off/
 docs_en_trial/
+docs_sprzedaz/
+docs_sprzedaz_en/
 __pycache__/
 *.json
 !frontend-next/package.json
@@ -16,6 +18,7 @@ chunks*.json
 .pytest_cache
 pytest.ini
 *.pkl
+*.json.bak
 1_Analytics.py
 confest.py
 measure.py

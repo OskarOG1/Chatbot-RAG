@@ -1,0 +1,102 @@
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 5785.01it/s]
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 3643.40it/s]
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 3185.77it/s]
+PROG_POKRYCIA_EN dzis = 0.35   tryb retrievalu: all (lang=en)
+
+--- GOLDEN EN (powinny PRZEJSC) (50 pytan) ---
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|##########| 201/201 [00:00<00:00, 3361.22it/s]
+  0.737  How do I change my password
+  0.445  I can't log in
+  0.664  How do I delete my account
+  0.509  I forgot my username
+  0.707  How do I change the email address attached to my acc
+  0.298  Someone hacked into my account <-- ODMOWA
+  0.856  How do I set up a business account
+  0.859  How do I track a shipment
+  0.776  The item didn't arrive
+  0.946  I want to return a purchased product
+  0.943  How do I leave a review of a seller
+  0.921  What does Allegro Smart! give
+  0.786  The package arrived damaged
+  0.879  How do I submit a complaint
+  1.000  How do I pay with BLIK
+  0.964  What is Allegro Pay
+  0.830  My card isn't working
+  0.940  How do I split the purchase into installments
+  1.000  When will I get a refund
+  0.955  How do I pay with a transfer
+  0.692  Can I have two accounts on Allegro
+  0.502  I want my data to disappear from Allegro
+  0.745  How do I enable two-factor authentication
+  0.903  Where can I see when the package will arrive
+  0.660  How do I return an item bought with Allegro Smart!
+  0.526  Is the seller trustworthy
+  0.597  I didn't pay for the order on time
+  0.779  Does Allegro Pay cost anything
+  1.000  I want to remove a card from my account
+  0.797  How much do installments cost
+  0.631  Can a child have their own account
+  0.664  Is it possible to log in without entering the passwo
+  0.859  I want to register
+  0.865  How do I turn off all these notifications
+  0.618  Why did they block my account
+  0.698  What does the status of my payment mean
+  0.762  I need an invoice for my purchase
+  0.564  Is Allegro Pay safe
+  0.784  Where is the CVV code on the card
+  0.657  How do I enable Allegro Pay
+  1.000  How do I pay off what I bought with Allegro Pay
+  0.803  I bought something on installments and want to retur
+  0.899  Why can't I buy on installments
+  0.755  What do the statuses of discussions mean
+  0.807  What is the shopping cart for
+  1.000  What can I use Smart! coins for
+  0.956  What does the guarantee of the lowest price give
+  0.942  How does bidding work
+  0.842  I got a gift card, how do I use it
+  0.728  How do I use a coupon
+
+--- OOD EN (powinny miec NISKIE pokrycie) (29 pytan) ---
+  0.000  what is two plus two <-- ODMOWA
+  0.459  what is the capital of France
+  0.512  give me a recipe for pierogi
+  0.196  who won the world cup in football <-- ODMOWA
+  0.753  how to change oil in a car
+  0.481  write a poem about autumn
+  0.398  what is the weather like today
+  0.207  translate 'dzien dobry' to English <-- ODMOWA
+  0.417  who is the president of Poland
+  0.686  tell me a joke
+  0.489  how to lose ten kilograms
+  0.434  write a Python code to sort a list
+  0.301  how to sell on OLX <-- ODMOWA
+  0.513  how much does the newest iPhone cost
+  0.861  how to start your own company
+  0.423  what is the best graphics card for gaming
+  0.518  how to cook rice so it doesn't stick
+  0.344  advice for a cold <-- ODMOWA
+  0.851  what commission does Allegro take from a seller
+  0.809  how to list an item for sale
+  0.801  what is the phone number to Allegro
+  0.586  when will there be promotions on Black Friday
+  0.545  does Allegro have physical stores
+  0.424  the Allegro app freezes on my phone
+  1.000  who is the owner of Allegro
+  0.602  can I buy Allegro stocks on the stock exchange
+  0.683  is Amazon cheaper than Allegro
+  0.811  how to promote your offer to make it appear higher
+  0.419  how much does an Allegro courier earn
+
+--- rozklady ---
+ legit  min 0.298  p5 0.502  mediana 0.791  max 1.000
+   OOD  min 0.000  p5 0.196  mediana 0.512  max 1.000
+
+--- tabela decyzyjna ---
+  prog |  falsz. odmowy (legit) |  OOD zlapane
+  0.45 |    2/50                |   11/29     
+  0.40 |    1/50                |    6/29     
+  0.35 |    1/50                |    5/29       <- dzis
+  0.30 |    1/50                |    3/29     
+  0.25 |    0/50                |    3/29     
+  0.20 |    0/50                |    2/29     
+zapisano: C:\Dev\allegro-rag-agents\outputs\measure_pokrycie_en.json

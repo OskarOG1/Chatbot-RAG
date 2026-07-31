@@ -40,7 +40,7 @@ def main(lang: str = 'pl'):
     chunki, embeddings = wczytaj_chunki(sciezka_chunks, suffix)
 
     if lang == 'pl':
-        nazwy_agentow = ['konto', 'zakupy', 'platnosci']
+        nazwy_agentow = ['konto', 'zakupy', 'platnosci', 'sprzedaz']
 
         for nazwa in nazwy_agentow:
 
