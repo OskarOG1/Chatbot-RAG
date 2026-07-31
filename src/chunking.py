@@ -1,8 +1,10 @@
+import argparse
 from pathlib import Path
 import tiktoken
 import json
 import yaml
 from collections import Counter
+from lang_config import LANG
 
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 50
@@ -86,9 +88,10 @@ def chunk_document(sciezka: Path) -> list[dict]:
     return chunki
 
 
-if __name__ == '__main__':
+def main(lang: str = 'pl'):
 
-    docs_dir = RAG_DIR / 'docs'
+    suffix = LANG[lang]['suffix']
+    docs_dir = RAG_DIR / f'docs{suffix}'
     wszystkie_chunki = []
     pliki = 0
 
@@ -104,9 +107,16 @@ if __name__ == '__main__':
     print(f'plików: {pliki} chunków łącznie: {len(wszystkie_chunki)}')
 
     licznik = Counter(c['agent'] for c in wszystkie_chunki)
-    sciezka_json = RAG_DIR / 'chunks.json'
+    sciezka_json = RAG_DIR / f'chunks{suffix}.json'
 
     with open(sciezka_json, 'w', encoding='utf-8') as w:
         json.dump(wszystkie_chunki, w, ensure_ascii=False, indent=2)
 
     print(licznik)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--lang', default='pl', choices=list(LANG))
+    args = parser.parse_args()
+    main(args.lang)
