@@ -22,6 +22,7 @@ export interface ChatResponse {
   oferta: string | null;
   oferta_kategoria: string | null;
   kategoria: string | null;
+  naglowek_ui: string | null;
   tryb: Tryb;
 }
 
@@ -162,7 +163,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     toastInvalidEmail: 'Podaj poprawny adres email.',
     emailFieldLabel: 'Twój adres email',
     emailPlaceholder: 'np. jan.kowalski@poczta.pl',
-    emailPrivacyNote: 'Nie przechowujemy Twojego adresu po wysyłce; treść pytania trafia do logu w formie zredagowanej.',
+    emailPrivacyNote: 'Nie przechowuję Twojego adresu po wysyłce; treść pytania trafia do logu w formie zredagowanej.',
     placeholder: 'Napisz wiadomość…',
     recipientSeller: 'Sprzedawca',
     sendShort: 'Wyślij',
@@ -218,7 +219,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     toastInvalidEmail: 'Please enter a valid email address.',
     emailFieldLabel: 'Your email address',
     emailPlaceholder: 'e.g. jane.doe@mail.com',
-    emailPrivacyNote: 'We don\'t store your address after sending; the question text is kept in the log in redacted form.',
+    emailPrivacyNote: 'I don\'t store your address after sending; the question text is kept in the log in redacted form.',
     placeholder: 'Type a message…',
     recipientSeller: 'Seller',
     sendShort: 'Send',
@@ -234,15 +235,27 @@ export function rozdzielSzkic(tekst: string): { temat: string; tresc: string } {
     /^(?:Szkic wiadomości do .+?\(uzupełnij dane przed wysłaniem\):|Draft message to .+?\(fill in your details before sending\):)\s*\n+/;
   const reszta = tekst.replace(preambula, '');
 
-  const wzorzecTematu = /^(?:Temat|Subject):\s*(.+)$/m;
-  const dopasowanie = wzorzecTematu.exec(reszta);
-  if (!dopasowanie) {
+  const linie = reszta.split('\n');
+  let indeksLinii = -1;
+  let temat = '';
+  for (let i = 0; i < linie.length; i++) {
+    const oczyszczona = linie[i].replace(/^[ \t]*#{0,6}[ \t]*/, '').replace(/\*\*/g, '').trim();
+    const dopasowanie = /^(?:Temat|Subject):\s*(.+)$/.exec(oczyszczona);
+    if (dopasowanie) {
+      indeksLinii = i;
+      temat = dopasowanie[1].trim();
+      break;
+    }
+  }
+
+  if (indeksLinii === -1) {
     return { temat: '', tresc: reszta.trim() };
   }
-  const przed = reszta.slice(0, dopasowanie.index);
-  const po = reszta.slice(dopasowanie.index + dopasowanie[0].length);
-  const tresc = (przed + po).replace(/\n{3,}/g, '\n\n').trim();
-  return { temat: dopasowanie[1].trim(), tresc };
+  const tresc = [...linie.slice(0, indeksLinii), ...linie.slice(indeksLinii + 1)]
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  return { temat, tresc };
 }
 
 export function zbudujZadanie(

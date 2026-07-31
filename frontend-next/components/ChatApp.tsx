@@ -75,14 +75,23 @@ export default function ChatApp() {
   const [activeId, setActiveId] = useState<string>(seed.activeId);
   const [draft, setDraft] = useState('');
   const [streamBuffor, setStreamBuffor] = useState('');
-  const [wysylanie, setWysylanie] = useState(false);
+  const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
   const [aktualnyKrok, setAktualnyKrok] = useState<string | null>(null);
-  const [sendingId, setSendingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const msgSub = useRef(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllers = useRef<Map<string, AbortController>>(new Map());
+
+  function oznaczWysylke(id: string, wysyla: boolean) {
+    setSendingIds((ids) => {
+      const kopia = new Set(ids);
+      if (wysyla) kopia.add(id);
+      else kopia.delete(id);
+      return kopia;
+    });
+  }
   const t = TEKSTY[lang];
   const th = THEMES[themeName];
 
@@ -158,7 +167,7 @@ export default function ChatApp() {
   }
 
   function usunThread(id: string) {
-    if (id === sendingId) return;
+    if (sendingIds.has(id)) return;
     usunPozostale(usunWatki(threads, new Set([id])), id === activeId);
   }
 
@@ -191,7 +200,9 @@ export default function ChatApp() {
     wiadomosc: string,
     bezKorekty: boolean,
     historiaApi: Wiadomosc[],
-    ostatniAgent: string | null
+    ostatniAgent: string | null,
+    tid: string,
+    signal: AbortSignal
   ): Promise<{ dane: ChatResponse | null; bladTekst: string | null }> {
     const body = zbudujZadanie(wiadomosc, historiaApi, ostatniAgent, bezKorekty, lang);
     let dane: ChatResponse | null = null;
@@ -202,15 +213,16 @@ export default function ChatApp() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
+        signal,
       });
       if (!res.body) {
         bladTekst = t.noResponse;
       } else {
         for await (const ev of czytajSse(res.body)) {
           if (ev.typ === 'krok') {
-            setAktualnyKrok(ev.tekst);
+            if (tid === activeId) setAktualnyKrok(ev.tekst);
           } else if (ev.typ === 'token') {
-            setStreamBuffor((b) => b + ev.tekst);
+            if (tid === activeId) setStreamBuffor((b) => b + ev.tekst);
           } else if (ev.typ === 'wynik') {
             dane = ev.dane;
           } else if (ev.typ === 'blad') {
@@ -229,15 +241,18 @@ export default function ChatApp() {
     if (!promptUser.trim()) return;
     const tid = activeId;
     const thread = threads.find((x) => x.id === tid);
-    if (!thread || wysylanie) return;
+    if (!thread || sendingIds.has(tid)) return;
 
     const bezKorekty = jestNegacja(promptUser, lang) && Boolean(thread.ostatniaKorekta);
     const wiadomosc = bezKorekty ? (thread.ostatniaKorekta as string) : promptUser;
 
-    setWysylanie(true);
-    setSendingId(tid);
-    setAktualnyKrok(null);
-    setStreamBuffor('');
+    const controller = new AbortController();
+    abortControllers.current.set(tid, controller);
+    oznaczWysylke(tid, true);
+    if (tid === activeId) {
+      setAktualnyKrok(null);
+      setStreamBuffor('');
+    }
     setDraft('');
 
     updateThread(tid, (x) => {
@@ -246,12 +261,21 @@ export default function ChatApp() {
       return { ...x, messages, title };
     });
 
-    const { dane, bladTekst } = await poproszBackend(wiadomosc, bezKorekty, thread.historiaApi, thread.ostatniAgent);
+    const { dane, bladTekst } = await poproszBackend(
+      wiadomosc,
+      bezKorekty,
+      thread.historiaApi,
+      thread.ostatniAgent,
+      tid,
+      controller.signal
+    );
 
-    setWysylanie(false);
-    setSendingId(null);
-    setAktualnyKrok(null);
-    setStreamBuffor('');
+    abortControllers.current.delete(tid);
+    oznaczWysylke(tid, false);
+    if (tid === activeId) {
+      setAktualnyKrok(null);
+      setStreamBuffor('');
+    }
 
     updateThread(tid, (x) => {
       let historiaApi = x.historiaApi;
@@ -274,7 +298,9 @@ export default function ChatApp() {
     });
 
     if (dane?.tryb === 'email') {
-      const { temat, tresc } = rozdzielSzkic(dane.answer);
+      const rozdzielone = rozdzielSzkic(dane.answer);
+      const temat = rozdzielone.temat || dane.naglowek_ui || '';
+      const tresc = rozdzielone.tresc;
       updateThread(tid, (x) => ({
         ...x,
         panel: {
@@ -380,7 +406,7 @@ export default function ChatApp() {
     }));
 
   const panelOtwarty = active.panelOpen && active.panel !== null;
-  const pokazTyping = wysylanie && sendingId === activeId;
+  const pokazTyping = sendingIds.has(activeId);
 
   return (
     <ThemeContext.Provider value={th}>
@@ -503,7 +529,7 @@ export default function ChatApp() {
                 placeholder={t.placeholder}
                 hint={t.composerHint}
                 sendLabel={t.sendShort}
-                disabled={wysylanie}
+                disabled={pokazTyping}
                 onChange={setDraft}
                 onSend={() => wyslij(draft.trim())}
               />
