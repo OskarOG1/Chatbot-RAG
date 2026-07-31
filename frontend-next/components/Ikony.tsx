@@ -76,3 +76,11 @@ export function IkonaKsiezyc({ color = 'currentColor' }: { color?: string }) {
     </svg>
   );
 }
+
+export function IkonaWyslij({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width={14} height={14} viewBox="0 0 16 16" fill="none" aria-hidden focusable="false">
+      <path d="M8 13V3M8 3 3.5 7.5M8 3l4.5 4.5" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

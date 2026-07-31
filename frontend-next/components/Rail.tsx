@@ -3,7 +3,7 @@
 import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import { useTheme, DISPLAY, BODY, MONO } from '@/lib/theme';
-import { TEKSTY, type Lang, type Strona } from '@/lib/chat';
+import { TEKSTY, type Lang } from '@/lib/chat';
 import type { ThemeName } from '@/lib/theme';
 import { FlagaPl, FlagaGb, IkonaKosz, IkonaSlonce, IkonaKsiezyc } from './Ikony';
 
@@ -17,12 +17,10 @@ export interface RailItem {
 interface Props {
   lang: Lang;
   theme: ThemeName;
-  strona: Strona;
   items: RailItem[];
   onNew: () => void;
   onSelect: (id: string) => void;
   onSetLang: (lang: Lang) => void;
-  onSetStrona: (strona: Strona) => void;
   onToggleTheme: () => void;
   selectMode: boolean;
   selectedIds: Set<string>;
@@ -36,12 +34,10 @@ interface Props {
 export default function Rail({
   lang,
   theme,
-  strona,
   items,
   onNew,
   onSelect,
   onSetLang,
-  onSetStrona,
   onToggleTheme,
   selectMode,
   selectedIds,
@@ -206,17 +202,6 @@ export default function Rail({
           </div>
           <button type="button" aria-label={t.themeButtonLabel[theme]} onClick={onToggleTheme} style={themeIconBtn(th)}>
             {theme === 'light' ? <IkonaKsiezyc color={th.ink2} /> : <IkonaSlonce color={th.ink2} />}
-          </button>
-        </div>
-        <div style={{ display: 'flex', padding: 2, borderRadius: 8, background: th.raised, border: `1px solid ${th.line}` }}>
-          <button type="button" onClick={() => onSetStrona('auto')} style={segBtn(th, strona === 'auto')}>
-            {t.sideAuto}
-          </button>
-          <button type="button" onClick={() => onSetStrona('kupujacy')} style={segBtn(th, strona === 'kupujacy')}>
-            {t.sideBuying}
-          </button>
-          <button type="button" onClick={() => onSetStrona('sprzedajacy')} style={segBtn(th, strona === 'sprzedajacy')}>
-            {t.sideSelling}
           </button>
         </div>
         <Link href="/prywatnosc" style={privacyLink(th)}>
