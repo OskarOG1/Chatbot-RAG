@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { wczytajJezyk } from '@/lib/threads';
 import type { Lang } from '@/lib/chat';
@@ -116,11 +116,7 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
 };
 
 export default function PrywatnoscPage() {
-  const [lang, setLang] = useState<Lang>('pl');
-
-  useEffect(() => {
-    setLang(wczytajJezyk() ?? 'pl');
-  }, []);
+  const [lang] = useState<Lang>(() => wczytajJezyk() ?? 'pl');
 
   const t = TRESC[lang];
 

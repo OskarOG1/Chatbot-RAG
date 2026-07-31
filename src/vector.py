@@ -62,6 +62,29 @@ def main(lang: str = 'pl'):
 
             print(f'agent [{nazwa}]: zapisano {len(indeksy)} chunkow i wektorow')
 
+    strony_agentow = {
+        'kupujacy': lambda c: str(c.get('agent', '')).strip().lower() != 'sprzedaz',
+        'sprzedaz': lambda c: str(c.get('agent', '')).strip().lower() == 'sprzedaz',
+    }
+    for strona, pasuje in strony_agentow.items():
+        indeksy = [i for i, c in enumerate(chunki) if pasuje(c)]
+
+        if not indeksy:
+            print(f'Strona [{strona}]: Brak pasujących chunków w pliku.')
+            continue
+
+        strona_chunki = [chunki[i] for i in indeksy]
+        strona_embeddings = embeddings[indeksy]
+
+        nazwa_strony = f'{strona}{suffix}'
+        zapisz_indeks(nazwa_strony, strona_chunki, strona_embeddings, lang)
+
+        vector_json = RAG_DIR / f'chunks_{nazwa_strony}.json'
+        with open(vector_json, 'w', encoding='utf-8') as w:
+            json.dump(strona_chunki, w, ensure_ascii=False, indent=4)
+
+        print(f'strona [{strona}]: zapisano {len(indeksy)} chunkow i wektorow')
+
     nazwa_all = f'all{suffix}'
     zapisz_indeks(nazwa_all, chunki, embeddings, lang)
     print(f'{nazwa_all}: zapisano {len(chunki)} chunkow (faiss + bm25)')

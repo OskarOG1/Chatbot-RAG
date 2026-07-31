@@ -5,6 +5,7 @@ from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada, na
 from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
 from lang_config import LANG
+import strony
 from pathlib import Path
 from datetime import datetime, timezone
 import json
@@ -194,7 +195,7 @@ pytania = [
 def run_stream(query:str, bielik_model:str | None=None,
                history:list[dict] | None=None, agent_poprzedni:str | None=None,
                przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
-               lang:str='pl'):
+               lang:str='pl', strona:str | None=None):
 
     cfg = LANG[lang]
 
@@ -235,7 +236,7 @@ def run_stream(query:str, bielik_model:str | None=None,
                                    if w.get('role') == 'user' and w.get('content')), '')
             tekst_ret = f'{ostatnia_tresc} {query}'.strip()
             router_emb = embed_query(lang, tekst_ret)
-            router_chunks = search_reranked_multi(tekst_ret, router_emb, ['all'], k=5, k_surowe=20, lang=lang)
+            router_chunks = search_reranked_multi(tekst_ret, router_emb, ['kupujacy'], k=5, k_surowe=20, lang=lang)
             kategoria = sedzia_kategoria_mail(history + [{'role': 'user', 'content': query}], router_chunks, lang)
         if kategoria is None:
             yield wynik({'agent': '', 'answer': cfg['mail_doprecyzuj'],
@@ -243,7 +244,7 @@ def run_stream(query:str, bielik_model:str | None=None,
             return
         kat_cfg = cfg['mail_kategorie'][kategoria]
         mail_emb = embed_query(lang, kat_cfg['zapytanie'])
-        mail_chunks = search_reranked_multi(kat_cfg['zapytanie'], mail_emb, ['all'], k=3, k_surowe=20, lang=lang)
+        mail_chunks = search_reranked_multi(kat_cfg['zapytanie'], mail_emb, ['kupujacy'], k=3, k_surowe=20, lang=lang)
         szkic = napisz_email(history + [{'role': 'user', 'content': query}], mail_chunks, lang, kategoria)
         yield wynik({'agent': 'email', 'answer': szkic['tekst'],
                      'sources': list(dict.fromkeys(c['url'] for c, _ in mail_chunks)),
@@ -261,13 +262,31 @@ def run_stream(query:str, bielik_model:str | None=None,
     query_emb = embed_query(lang, zapytanie_ret)
 
     yield krok(cfg['kroki']['przeszukuje_baze'])
-    chunks = search_reranked_multi(zapytanie_ret, query_emb, ['all'], k=5, k_surowe=20, lang=lang)
 
-    agenci_chunkow = [c['agent'] for c, _ in chunks]
-    if agent_poprzedni and agent_poprzedni in agenci_chunkow:
-        agent_odp = agent_poprzedni
+    if strona in strony.STRONY:
+        chunks = search_reranked_multi(zapytanie_ret, query_emb, [strony.STRONA_DO_AGENTA[strona]],
+                                        k=5, k_surowe=20, lang=lang)
+        strona_wybrana, czy_pytac = strona, False
     else:
-        agent_odp = chunks[0][0]['agent'] if chunks else ''
+        prior, sila = strony.prior_strony(zapytanie_ret, agent_poprzedni, lang)
+        if prior is None:
+            chunks = search_reranked_multi(zapytanie_ret, query_emb, ['all'], k=5, k_surowe=20, lang=lang)
+            strona_wybrana, czy_pytac = None, False
+        else:
+            kwoty = strony.przydzial_kandydatow(prior, sila)
+            chunks_szerokie = search_reranked_multi(zapytanie_ret, query_emb, list(kwoty),
+                                                      k=10, k_surowe=kwoty, lang=lang)
+            strona_wybrana, chunks, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=5)
+
+    if czy_pytac:
+        yield wynik({'agent': '', 'answer': cfg['strona_doprecyzuj'],
+                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
+        return
+
+    if strona_wybrana:
+        yield krok(cfg['kroki']['wybieram_strone'].format(strona=cfg['nazwy_stron'][strona_wybrana]))
+
+    agent_odp = chunks[0][0]['agent'] if chunks else ''
 
     if not chunks or chunks[0][1] < cfg['prog_rerank']:
         yield krok(cfg['kroki']['poza_zakresem'])
@@ -320,10 +339,10 @@ def run_stream(query:str, bielik_model:str | None=None,
 def run(query:str, bielik_model:str | None=None,
         history:list[dict] | None=None, agent_poprzedni:str | None=None,
         przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
-        lang:str='pl') -> dict:
+        lang:str='pl', strona:str | None=None) -> dict:
     dane = {}
     for ev in run_stream(query, bielik_model, history,
-                         agent_poprzedni, przepisz, bez_korekty, sedzia, lang):
+                         agent_poprzedni, przepisz, bez_korekty, sedzia, lang, strona):
         if ev['typ'] == 'wynik':
             dane = ev['dane']
     return dane

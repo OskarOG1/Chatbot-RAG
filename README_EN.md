@@ -280,6 +280,16 @@ When the answering model was switched to apertus-v1.5-8b (see the technology cho
 
 **Result.** 169 PL articles (1,287 chunks) and 173 EN articles (801 chunks) added without disturbing the existing 822 (PL) and 641 (EN) buyer chunks. The new section is fully retrievable: hit@5 = 1.000 on the new golden set (20 PL questions, 19 EN). Regression on buyer questions: PL hit@5 unchanged (0.840), EN hit@5 dropped from 0.920 to 0.800. The cause was measured directly: the buyer and seller sections genuinely compete for top 5 slots (on average 30% of PL and 41% of EN top 5 slots on buyer questions are now seller chunks), because Allegro documents account, sign in, and GDPR topics almost in parallel for both audiences. This confirms the risk flagged going in: the most important next step is explicit routing between the buyer and seller sections, not relying solely on a shared index and reranker to sort it out. The gate thresholds (`prog_rerank`, `prog_pokrycia`) were checked after the merge and left unchanged, the IDF weights shifted but not enough to threaten legitimate questions. Full log with numbers: `Pomiary/POMIAR_SEKCJA_SPRZEDAJACY.md`.
 
+### 20. Buyer versus seller routing: two rejected versions, one shipped
+
+**Problem.** Continuation of the recommendation from section 19: the buyer and seller sections genuinely compete for top 5 slots, so buyer questions increasingly land on an article from the wrong section.
+
+**First attempt, rejected by measurement.** Per the plan: when there was no signal about which side a question belonged to, the system still forced a side by comparing the raw reranker score between the buyer pool and the seller pool. Measured result: buyer PL hit@5 dropped to 0.540, EN to 0.600, worse than the state before this change. A second version summing the top three scores instead of one did not help (buyer EN even dropped further to 0.560). The cause: a lexical or conversation-continuity signal covers only 10 to 26% of questions, so for most traffic the system was still guessing the side purely from the reranker score, on the exact same near-duplicate account and sign-in articles that already confused ranking before.
+
+**Shipped version.** Routing and homogenizing the context to one side kicks in only when there is a real signal: an explicit declaration in the UI, conversation continuity, or a matched lexical marker in the question. Without any of those signals, the system searches the whole corpus exactly as it did before this change, with no guessing.
+
+**Result.** Buyer PL: hit@5 = 0.840, the plan's gate met. Seller PL: hit@5 = 1.000, the ceiling. Buyer EN: hit@5 = 0.800, parity with today's production, without returning to the pre-merge 0.920, because most EN questions carry no signal at all. Seller EN: hit@5 = 0.947, one question below the pre-change state. Zero clarifying questions across all four golden sets. The change's biggest real value is the explicit switch in the side panel (Auto, Buying, Selling): free, zero risk, and it closes the entire gap to the ceiling for a user who knows which side they're on. Full log with numbers, the two rejected versions, and the calibration grid: `Pomiary/POMIAR_ROUTING_STRONY.md`.
+
 ---
 
 ## Security and robustness
