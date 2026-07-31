@@ -88,10 +88,10 @@ def chunk_document(sciezka: Path) -> list[dict]:
     return chunki
 
 
-def main(lang: str = 'pl'):
+def main(lang: str = 'pl', docs_dir: Path | None = None, out: Path | None = None):
 
     suffix = LANG[lang]['suffix']
-    docs_dir = RAG_DIR / f'docs{suffix}'
+    docs_dir = docs_dir or RAG_DIR / f'docs{suffix}'
     wszystkie_chunki = []
     pliki = 0
 
@@ -107,7 +107,7 @@ def main(lang: str = 'pl'):
     print(f'plików: {pliki} chunków łącznie: {len(wszystkie_chunki)}')
 
     licznik = Counter(c['agent'] for c in wszystkie_chunki)
-    sciezka_json = RAG_DIR / f'chunks{suffix}.json'
+    sciezka_json = out or RAG_DIR / f'chunks{suffix}.json'
 
     with open(sciezka_json, 'w', encoding='utf-8') as w:
         json.dump(wszystkie_chunki, w, ensure_ascii=False, indent=2)
@@ -118,5 +118,7 @@ def main(lang: str = 'pl'):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--lang', default='pl', choices=list(LANG))
+    parser.add_argument('--docs-dir', type=Path, default=None)
+    parser.add_argument('--out', type=Path, default=None)
     args = parser.parse_args()
-    main(args.lang)
+    main(args.lang, args.docs_dir, args.out)
