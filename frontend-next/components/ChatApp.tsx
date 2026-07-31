@@ -435,12 +435,10 @@ export default function ChatApp() {
         <Rail
           lang={lang}
           theme={themeName}
-          strona={strona}
           items={railItems}
           onNew={nowaRozmowa}
           onSelect={wybierzThread}
           onSetLang={setLang}
-          onSetStrona={setStrona}
           onToggleTheme={() => setThemeName((x) => (x === 'light' ? 'dark' : 'light'))}
           selectMode={selectMode}
           selectedIds={selectedIds}
@@ -541,8 +539,13 @@ export default function ChatApp() {
                 hint={t.composerHint}
                 sendLabel={t.sendShort}
                 disabled={pokazTyping}
+                strona={strona}
+                sideAutoLabel={t.sideAuto}
+                sideBuyingLabel={t.sideBuying}
+                sideSellingLabel={t.sideSelling}
                 onChange={setDraft}
                 onSend={() => wyslij(draft.trim())}
+                onSetStrona={setStrona}
               />
             </div>
           </div>

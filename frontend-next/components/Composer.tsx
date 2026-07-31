@@ -1,7 +1,9 @@
 'use client';
 
-import { type KeyboardEvent } from 'react';
+import { type CSSProperties, type KeyboardEvent } from 'react';
 import { useTheme, BODY, MONO } from '@/lib/theme';
+import { type Strona } from '@/lib/chat';
+import { IkonaWyslij } from './Ikony';
 
 interface Props {
   value: string;
@@ -9,11 +11,29 @@ interface Props {
   hint: string;
   sendLabel: string;
   disabled: boolean;
+  strona: Strona;
+  sideAutoLabel: string;
+  sideBuyingLabel: string;
+  sideSellingLabel: string;
   onChange: (v: string) => void;
   onSend: () => void;
+  onSetStrona: (strona: Strona) => void;
 }
 
-export default function Composer({ value, placeholder, hint, sendLabel, disabled, onChange, onSend }: Props) {
+export default function Composer({
+  value,
+  placeholder,
+  hint,
+  sendLabel,
+  disabled,
+  strona,
+  sideAutoLabel,
+  sideBuyingLabel,
+  sideSellingLabel,
+  onChange,
+  onSend,
+  onSetStrona,
+}: Props) {
   const th = useTheme();
   const pusty = !value.trim();
 
@@ -48,7 +68,20 @@ export default function Composer({ value, placeholder, hint, sendLabel, disabled
         }}
       />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px 11px 17px' }}>
-        <span style={{ fontFamily: MONO, fontSize: 10.5, color: th.ink3 }}>{hint}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <span style={{ fontFamily: MONO, fontSize: 10.5, color: th.ink3 }}>{hint}</span>
+          <div style={{ display: 'flex', padding: 2, borderRadius: 8, background: th.raised, border: `1px solid ${th.line}` }}>
+            <button type="button" onClick={() => onSetStrona('kupujacy')} style={segBtn(th, strona === 'kupujacy')}>
+              {sideBuyingLabel}
+            </button>
+            <button type="button" onClick={() => onSetStrona('auto')} style={segBtn(th, strona === 'auto')}>
+              {sideAutoLabel}
+            </button>
+            <button type="button" onClick={() => onSetStrona('sprzedajacy')} style={segBtn(th, strona === 'sprzedajacy')}>
+              {sideSellingLabel}
+            </button>
+          </div>
+        </div>
         <button
           type="button"
           onClick={onSend}
@@ -70,9 +103,29 @@ export default function Composer({ value, placeholder, hint, sendLabel, disabled
           }}
         >
           {sendLabel}
-          <span style={{ fontFamily: MONO, fontSize: 12, opacity: 0.75 }}>↵</span>
+          <IkonaWyslij color="#FFFFFF" />
         </button>
       </div>
     </div>
   );
+}
+
+function segBtn(th: ReturnType<typeof useTheme>, active: boolean): CSSProperties {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '5px 9px',
+    border: 'none',
+    borderRadius: 6,
+    fontFamily: MONO,
+    fontSize: 10.5,
+    fontWeight: 500,
+    lineHeight: 1,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    background: active ? th.surface : 'transparent',
+    color: active ? th.ink : th.ink3,
+    boxShadow: active ? th.shadow : 'none',
+  };
 }

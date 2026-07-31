@@ -24,8 +24,6 @@ interface TrescPrywatnosci {
   notStoredText: string[];
   limits: string;
   limitsText: string[];
-  deletion: string;
-  deletionText: string;
 }
 
 const TRESC: Record<Lang, TrescPrywatnosci> = {
@@ -67,9 +65,6 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
       '15 pytań na minutę i 200 na dobę na całe demo.',
       '5 wysyłek wiadomości na minutę na całe demo.',
     ],
-    deletion: 'Jak usunąć swoje dane',
-    deletionText:
-      'Przycisk „Usuń wszystkie" w panelu rozmów czyści historię zapisaną w Twojej przeglądarce. Wpis w logu serwera, jeśli chcesz, żebym go usunął, mogę skasować na żądanie, napisz do mnie przez kontakt podany w repozytorium projektu na GitHubie.',
   },
   en: {
     back: '← Back',
@@ -109,9 +104,6 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
       '15 questions per minute and 200 per day across the whole demo.',
       '5 message sends per minute across the whole demo.',
     ],
-    deletion: 'How to delete your data',
-    deletionText:
-      'The "Delete all" button in the conversation panel clears the history stored in your browser. If you want me to remove a server log entry, I can do that on request, reach out through the contact listed in the project repository on GitHub.',
   },
 };
 
@@ -179,11 +171,6 @@ export default function PrywatnoscPage() {
             <li key={linia} style={{ marginTop: 6 }}>{linia}</li>
           ))}
         </ul>
-      </section>
-
-      <section style={{ marginTop: 24 }}>
-        <h2 style={{ fontSize: 15 }}>{t.deletion}</h2>
-        <p style={{ marginTop: 8, color: '#666' }}>{t.deletionText}</p>
       </section>
     </div>
   );
