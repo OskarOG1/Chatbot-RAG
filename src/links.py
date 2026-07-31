@@ -20,6 +20,7 @@ KATEGORIE = {
         "logowanie-i-haslo",
         "dane-i-ustawienia-konta",
         "bezpieczenstwo-zasady-i-naruszenia",
+        "konto",
     ],
     "zakupy": [
         "wyszukiwanie-i-ulubione",
@@ -34,6 +35,14 @@ KATEGORIE = {
         "zakupy-i-zwroty-z-allegro-smart-",
         "allegro-smart-na-allegro-lokalnie",
         "rezygnacja-z-allegro-smart",
+        "allegro-smart",
+        "dostawa-zwrot-przesylki-i-reklamacja",
+        "zasady-zwrotow-i-reklamacji",
+        "allegro-lokalnie-kupuje",
+        "sprzedaz-na-allegro-lokalnie",
+        "zakupy-na-allegro-lokalnie",
+        "oplaty-za-sprzedaz-na-allegro-lokalnie",
+        "zakup",
     ],
     "platnosci": [
         "status-platnosci",
@@ -45,6 +54,7 @@ KATEGORIE = {
         "allegro-klik",
         "raty-i-leasing-w-allegro",
         "allegro-cash",
+        "platnosc",
     ],
 }
 
@@ -78,6 +88,14 @@ PODSLUG_DO_AGENTA = {
     "wyjatki-i-zasady-dla-wybranych-kategorii": "zakupy",
     "zakupy-firmowe": "zakupy",
     "allegro-charytatywni-kupuje": "zakupy",
+    "allegro-dla-wosp": "zakupy",
+    "zakupy-na-allegro-lokalnie": "zakupy",
+    "sprzedaz-na-allegro-lokalnie": "zakupy",
+    "allegro-care-ubezpieczenie-produktu": "zakupy",
+    "wplaty-od-kupujacych-z-allegro-lokalnie": "zakupy",
+    "zasady-i-bezpieczenstwo-na-allegro-lokalnie": "zakupy",
+    "oplaty-za-sprzedaz-na-allegro-lokalnie": "zakupy",
+    "allegro-odzyskaj": "zakupy",
 
     "status-platnosci": "platnosci",
     "allegro-pay": "platnosci",
