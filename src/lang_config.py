@@ -101,7 +101,7 @@ LANG = {
         'passage_prefix': 'passage: ',
         'lemma_lang': 'en',
         'freq_lang': 'en',
-        'suffix': '_en',
+        'suffix': os.getenv('SUFFIX_EN', '_en'),
         'model': os.getenv('MODEL_EN', MODEL_DOMYSLNY),
         'sedzia_model': os.getenv('SEDZIA_MODEL_EN', 'allenai/Olmo-3-7B-Instruct'),
         'prog_rerank': -3.6,

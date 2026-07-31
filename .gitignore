@@ -1,5 +1,8 @@
 venv/
 docs/
+docs_en/
+docs_en_off/
+docs_en_trial/
 __pycache__/
 *.json
 !frontend-next/package.json
