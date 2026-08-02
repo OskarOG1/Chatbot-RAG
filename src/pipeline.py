@@ -1,7 +1,7 @@
 from sentence_transformers import SentenceTransformer
 import faiss
 from rankings import search_reranked_multi
-from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada, napisz_email, sedzia_kategoria_mail
+from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada, napisz_email, sedzia_kategoria_mail, strona_pytania
 from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
 from lang_config import LANG
@@ -21,6 +21,7 @@ MODELE = {lang: SentenceTransformer(cfg['embedder']) for lang, cfg in LANG.items
 model = MODELE['pl']
 OKNO_HISTORII = 3
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
+KLASYFIKATOR_ON = os.getenv('KLASYFIKATOR_STRONY', '0') == '1'
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 PII_WZORCE = (
     re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+'),
@@ -269,6 +270,10 @@ def run_stream(query:str, bielik_model:str | None=None,
         strona_wybrana, czy_pytac = strona, False
     else:
         prior, sila = strony.prior_strony(zapytanie_ret, agent_poprzedni, lang)
+        if prior is None and KLASYFIKATOR_ON:
+            yield krok(cfg['kroki']['rozpoznaje_strone'])
+            prior = strona_pytania(zapytanie_ret, history, lang)
+            sila = 'llm' if prior else None
         if prior is None:
             chunks = search_reranked_multi(zapytanie_ret, query_emb, ['all'], k=5, k_surowe=20, lang=lang)
             strona_wybrana, czy_pytac = None, False

@@ -165,6 +165,25 @@ PROMPTY = {
             'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o interwencję Allegro. '
             'Nie dodawaj żadnych wyjaśnień poza samym szkicem wiadomości. Odpowiadaj po polsku.'
         ),
+        'strona_system': (
+            'Klasyfikujesz, czy PYTANIE zadaje kupujący czy sprzedający na Allegro, na podstawie samej treści '
+            'pytania, bez dodatkowego kontekstu. Kupujący: kupuje, płaci, odbiera przesyłkę, śledzi przesyłkę, '
+            'reklamuje zakupiony towar, zwraca zakupiony towar, ocenia sprzedawcę, korzysta z promocji i '
+            'oznaczeń jakości oferty przy wyborze zakupu, pyta o swoje zamówienie. Sprzedający: wystawia '
+            'oferty, wystawia faktury i rozlicza VAT do ofert, ustala cenniki wysyłki i rabaty hurtowe, '
+            'rozlicza prowizje i wypłaty za zamówienia, wysyła zamówienia klientom, obsługuje reklamacje od '
+            'kupujących, prowadzi sklep. Przykłady KUPUJACY: „kiedy dostanę zwrot pieniędzy za zakup", „paczka '
+            'nie dotarła", „jak zareklamować wadliwy telefon", „gdzie jest moja przesyłka", „chcę ocenić '
+            'sprzedawcę". Przykłady SPRZEDAJACY: „jak wystawić przedmiot na sprzedaż", „ile wynosi prowizja od '
+            'sprzedaży", „kupujący zgłasza reklamację, co robić", „jak dodać VAT do oferty", „jak ustawić '
+            'rabat hurtowy". Pytania o konto, logowanie, hasło, dwustopniowe logowanie, dane osobowe, RODO, '
+            'rodzaje lub ustawienia konta i bezpieczeństwo konta NIE wskazują strony, bo dotyczą obu ról '
+            'jednakowo, chyba że pytanie wprost nazywa konkretne działanie sprzedażowe: faktura do oferty, '
+            'VAT, cennik wysyłki, rabat hurtowy, prowizja, wypłata za zamówienia. Tylko takie pytania to '
+            'zawsze SPRZEDAJACY. Dla pozostałych pytań o konto bez takiego wskazania odpowiedz NIEPEWNE, nie '
+            'zgaduj. Odpowiedz WYŁĄCZNIE jednym słowem z listy: KUPUJACY, SPRZEDAJACY, NIEPEWNE.'
+        ),
+        'strona_pytanie': 'Strona (KUPUJACY/SPRZEDAJACY/NIEPEWNE):',
         'router_system': (
             'Klasyfikujesz, jakiej pomocy z wiadomością do sprzedawcy/Allegro potrzebuje kupujący, na podstawie ROZMOWY. '
             'Kategorie: REKLAMACJA (towar wadliwy, uszkodzony, niezgodny z opisem), ZWROT (kupujący chce oddać '
@@ -324,6 +343,26 @@ PROMPTY = {
             'Keep the tone polite and factual. End with a clear request for Allegro to intervene. Do not add any '
             'explanation beyond the message draft itself. Answer in English.'
         ),
+        'strona_system': (
+            'You classify whether the QUESTION is being asked by a buyer or a seller on Allegro, based only on '
+            'the question text, without extra context. Buyer: buys, pays, receives a shipment, tracks a '
+            'shipment, files a complaint about a purchased item, returns a purchased item, rates a seller, uses '
+            'promotions and offer quality badges when choosing a purchase, asks about their own order. Seller: '
+            'lists offers, issues invoices and settles VAT on offers, sets shipping price lists and wholesale '
+            'discounts, settles commissions and payouts for orders, ships orders to customers, handles '
+            'complaints from buyers, runs a shop. Examples BUYER: "when will I get my refund", "my package '
+            'didn\'t arrive", "how do I file a complaint about a defective phone", "where is my shipment", "I '
+            'want to rate the seller". Examples SELLER: "how do I list an item for sale", "what is the selling '
+            'commission", "a buyer filed a complaint, what do I do", "how do I add VAT to an offer", "how do I '
+            'set up a wholesale discount". Questions about the account, logging in, password, two step '
+            'verification, personal data, GDPR, account types or settings, and account security do NOT '
+            'indicate a side, because they apply to both roles equally, unless the question explicitly names a '
+            'specific selling action: invoice for an offer, VAT, shipping price list, wholesale discount, '
+            'commission, payout for orders. Only such questions are always SELLER. For other account questions '
+            'with no such indication, answer UNSURE, do not guess. Reply with EXACTLY ONE WORD from this list: '
+            'BUYER, SELLER, UNSURE.'
+        ),
+        'strona_pytanie': 'Side (BUYER/SELLER/UNSURE):',
         'router_system': (
             'You classify what kind of help with a message to the seller/Allegro the buyer needs, based on the '
             'CONVERSATION. Categories: REKLAMACJA (item is defective, damaged, or not as described), ZWROT (buyer '
@@ -348,6 +387,10 @@ PROMPTY = {
 URL_REGEX = re.compile(r'https?://\S+|\bwww\.\S+', re.IGNORECASE)
 KONCOWKA = '.,;:!?)]}>"\''
 KATEGORIE_MAIL = ('reklamacja', 'zwrot', 'faktura', 'eskalacja')
+ETYKIETY_STRON = {
+    'pl': {'KUPUJACY': 'kupujacy', 'SPRZEDAJACY': 'sprzedajacy'},
+    'en': {'BUYER': 'kupujacy', 'SELLER': 'sprzedajacy'},
+}
 
 NAGLOWEK_ZRODEL = re.compile(
     r'^[ \t]*\**(?:źródła|źródło|zrodla|zrodlo|sources|source|references|bibliografia)\**'

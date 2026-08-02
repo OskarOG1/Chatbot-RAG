@@ -6,30 +6,23 @@ Chatbot, który odpowiada na pytania **tylko na podstawie dostarczonych artykuł
 
 **Demo: [ogflow.pl](https://ogflow.pl)**
 
-Baza testowa: ponad 350 artykułów Allegro Pomoc (kupujący i sprzedający), ponad 2100 fragmentów. Projekt edukacyjny, niezwiązany z Allegro.
+Baza testowa: 667 artykułów Allegro Pomoc, dwie sekcje (kupujący, sprzedający) w dwóch językach. Projekt edukacyjny, niezwiązany z Allegro.
 
 ---
 
-## Wyniki
+## W skrócie (stan produkcyjny)
 
 | Co mierzone | Wynik |
 |---|---|
-| Właściwy artykuł w top 5 wyników | **0.918** (61 pytań) |
-| Właściwy artykuł w top 5, zestaw z literówkami | 0.840 (50 pytań) |
-| Fałszywe odmowy (odrzucone pytania, na które system umiał odpowiedzieć) | **0/61** |
-| Pytania nie na temat, poprawnie odrzucone | **7/8** |
-| Mediana czasu odpowiedzi (produkcja, Docker) | 6.31 s |
+| Baza wiedzy | 667 artykułów, 3551 fragmentów: PL 353 art./2109 frag. (184 kupujący, 169 sprzedaż), EN 314 art./1442 frag. (141 kupujący, 173 sprzedaż) |
+| Trafność wyszukiwania, top 5 (hit@5) | kupujący PL **0.840** (n=50) · sprzedaż PL **1.000** (n=20) · kupujący EN **0.800** (n=50) · sprzedaż EN **0.947** (n=19) |
+| Fałszywe odmowy na bramce pokrycia | PL 0/29 · EN 1/50 |
+| Pytania nie na temat złapane (reranker + sędzia LLM) | PL 29/29 · EN 29/29 |
+| Testy jednostkowe | **47/47** zielonych, CI na każdym pushu i PR |
+| Mediana czasu odpowiedzi (produkcja, Docker) | 6.31 s *(zmierzone z Bielik-11B jako modelem generacji; dzisiejszy model produkcyjny, apertus-v1.5-8b, jest ok. 3x szybszy w samej generacji, pełny pomiar end to end z nim nie powtórzony, patrz sekcja 21)* |
+| Model odpowiadający | apertus-v1.5-8b (PL i EN) |
 
-Przekrój na 100 pytaniach w 6 kategoriach: 76 odpowiedzi, 24 odmowy.
-
-| Kategoria pytań | Odpowiedzi |
-|---|---|
-| zwykłe | 25/26 |
-| z literówkami | 19/21 |
-| złożone, trzyczęściowe | 12/13 |
-| złożone, dwuczęściowe | 12/16 |
-| niejasne („jak to zmienić") | 7/16 |
-| nie na temat | 1/8 *(odrzucanie działa)* |
+Znany, nienaprawiony problem: trafność kupujący EN (0.800) zostaje ok. 12 punktów procentowych pod sufitem 0.920, bo artykuły o koncie/logowaniu/RODO nakładają się między sekcją kupujących i sprzedających (sekcja 20). Jawny przełącznik strony w UI zamyka tę lukę do zera dla użytkownika, który wie po której jest stronie.
 
 ---
 
@@ -52,32 +45,26 @@ Przekrój na 100 pytaniach w 6 kategoriach: 76 odpowiedzi, 24 odmowy.
 
 ## Jak to działa
 
-```
-Pytanie użytkownika
-      │
-      ▼  filtry wejścia: puste / za krótkie / za długie / obcy alfabet / wzorce injection
-      ▼  korektor literówek (Damerau-Levenshtein + próg częstości słowa)
-      ▼  embedding (mmlw, prefiks "zapytanie: ")
-      │
-      ▼
-WYSZUKIWANIE HYBRYDOWE, cały korpus
-  po słowach (BM25 z lematyzacją i trigramami) + po znaczeniu (FAISS)
-  rankingi łączone po pozycji (RRF), duplikaty wycinane po URL → 20 kandydatów
-      │
-      ▼
-RERANKER (cross-encoder ocenia parę pytanie–fragment, okno 20) → 5 linków
-      │
-      ▼  BRAMKA 1: wynik rerankera < −4.3 → odmowa bez wołania modelu
-      ▼  BRAMKA 2: sędzia LLM (TAK/NIE) na pytaniach granicznych
-      │
-      ▼
-GENERACJA (system prompt + historia rozmowy + kontekst → apertus-v1.5-8b przez API / lokalnie Ollama)
-      │
-      ▼  wycięcie URL-i z tekstu, mapowanie cytatów [n] → źródło
-      ▼  BRAMKA 3: pokrycie odpowiedzi kontekstem < 0.20 → odmowa
-      │
-      ▼
-Odpowiedź + Źródła
+```mermaid
+flowchart TD
+    Q["Pytanie użytkownika"] --> F["Filtry wejścia:<br/>puste / za krótkie / za długie / obcy alfabet / injection"]
+    F --> K["Korektor literówek<br/>Damerau-Levenshtein + próg częstości słowa"]
+    K --> E["Embedding mmlw<br/>prefiks 'zapytanie: '"]
+    E --> P{"Sygnał strony?<br/>deklaracja w UI, lepkość rozmowy, marker leksykalny"}
+    P -- "brak sygnału (większość ruchu)" --> S1["Szukaj: cały korpus, pula 'all'"]
+    P -- "jest sygnał" --> S2["Szukaj: pula strony + homogenizacja"]
+    S1 --> H["Wyszukiwanie hybrydowe<br/>BM25 (lematyzacja, trigramy) + FAISS, RRF → 20 kandydatów"]
+    S2 --> H
+    H --> RR["Reranker: cross-encoder na parach pytanie/fragment → top 5"]
+    RR --> G1{"Bramka 1<br/>wynik rerankera poniżej progu?"}
+    G1 -- tak --> D1["Odmowa, model nie jest wołany"]
+    G1 -- nie --> G2{"Bramka 2<br/>sędzia LLM: da się odpowiedzieć z kontekstu?"}
+    G2 -- NIE --> D2["Odmowa"]
+    G2 -- TAK --> GEN["Generacja: apertus v1.5 8B<br/>system prompt + historia rozmowy + kontekst"]
+    GEN --> C["Mapowanie cytatów [n] → źródło, czyszczenie linków"]
+    C --> G3{"Bramka 3<br/>pokrycie odpowiedzi kontekstem poniżej progu?"}
+    G3 -- tak --> D3["Odmowa"]
+    G3 -- nie --> A["Odpowiedź + Źródła"]
 ```
 
 ### Dobór technologii
@@ -298,6 +285,25 @@ Wybrany 0.20, nie 0.25: najniższe trafne pytanie ma 0.253, a generacja jest lek
 
 **Wynik.** Kupujący PL: hit@5 = 0,840, bramka planu spełniona. Sprzedaż PL: hit@5 = 1,000, sufit. Kupujący EN: hit@5 = 0,800, parytet z dzisiejszą produkcją, bez powrotu do 0,920 sprzed scalenia korpusu sprzedających, bo większość pytań EN nie ma żadnego sygnału. Sprzedaż EN: hit@5 = 0,947, minus jedno pytanie względem stanu sprzed tej zmiany. Zero pytań zwrotnych na wszystkich czterech zestawach golden. Największa realna wartość zmiany to jawny przełącznik w panelu bocznym (Auto, Kupuję, Sprzedaję): darmowy, zerowego ryzyka, domyka całą lukę do sufitu dla użytkownika, który wie, po której jest stronie. Pełny log z liczbami, dwiema odrzuconymi wersjami i siatką kalibracji: `Pomiary/POMIAR_ROUTING_STRONY.md`.
 
+### 21. Czwarty sygnał routingu: klasyfikator LLM, zmierzony i odrzucony
+
+**Problem.** Od 74 do 90% pytań golden nie dostaje żadnego sygnału strony (sekcja 20) i trafia do wspólnej puli `all`. Hipoteza: tani, jednosłowny klasyfikator LLM (KUPUJACY / SPRZEDAJACY / NIEPEWNE) jako czwarty sygnał mógłby domknąć lukę kupujący EN (0,800 wobec sufitu 0,920).
+
+**Rozwiązanie.** Dwuetapowy pomiar. Etap 1: klasyfikator sam w sobie, cztery iteracje promptu, porównanie modeli. Po drodze naprawione dwa realne bugi w kodzie produkcyjnym (`max_tokens=6` obcinający etykietę „SPRZEDAJACY" do niedopasowanej formy, limit 100 wywołań/min na koncie dostawcy) i dodany fallback na apertus przy awarii modelu głównego. Apertus i Olmo jako klasyfikator nie przeszły nawet obniżonych bramek etapu 1, Bielik-11B przeszedł (pokrycie średnie 0,493, precyzja 0,90 do 1,00, mediana latencji 0,74 s). Etap 2: klasyfikator wpięty end to end za flagą `KLASYFIKATOR_STRONY`, zestrojony na 162-punktowej siatce kalibracji.
+
+**Wynik.** Etap 2 nie przeszedł.
+
+| | hit@5 bez klasyfikatora | hit@5 z klasyfikatorem | bramka |
+|---|---|---|---|
+| kupujący PL | 0,840 | 0,840 | przeszła |
+| sprzedaż PL | 1,000 | 1,000 | przeszła |
+| kupujący EN | 0,800 | **0,760** | **nie przeszła** (cel co najmniej 0,860) |
+| sprzedaż EN | 0,947 | **0,895** | **nie przeszła** (cel co najmniej 0,947) |
+
+Jedyna metryka, dla której ten eksperyment powstał (kupujący EN), spadła zamiast wzrosnąć, sprzedaż EN dostała nową regresję, a latencja PL wzrosła o 52,4% (bramka poniżej 25%). Klasyfikator zawęża pulę kandydatów skuteczniej niż wcześniej, ale to zawężenie częściej wypycha właściwe źródło poza top 5, niż je chroni, zwłaszcza po stronie EN.
+
+**Decyzja: klasyfikator zostaje wyłączony**, `KLASYFIKATOR_STRONY` pozostaje na domyślnym `0`, bez zmiany na produkcji. Kod zostaje w repo jako gotowa, przetestowana, domyślnie wyłączona infrastruktura, na wypadek przyszłej rewizji promptu albo innego modelu. Przy okazji znaleziony, osobny i wciąż niezamknięty problem: `strony.rozstrzygnij()` potrafi odwrócić poprawny prior leksykalny, gdy surowy wynik rerankera dla drugiej strony przewyższa bonus prioru, niezależnie od tej flagi. Pełny log: `Pomiary/POMIAR_KLASYFIKATOR_STRONY.md`.
+
 ---
 
 ## Bezpieczeństwo i odporność
@@ -342,6 +348,8 @@ Pomiar (`pomiary/measure_send_email.py`, zamockowany httpx, zero kosztu i zero r
 
 Druga, równoległa ścieżka dla klienta anglojęzycznego Wszystko sterowane parametrem `lang` (domyślnie `'pl'`), własny embedder, własny indeks, własny model odpowiadający, własne progi odmowy. Pełny log pomiarów: `src/POMIAR_DWUJEZYCZNOSC.md`.
 
+Poniższe liczby korpusu i trafności opisują stan sprzed dołożenia sekcji dla sprzedających (sekcja 19). Aktualny stan produkcyjny, po scaleniu korpusu i wdrożeniu routingu strony, jest w tabeli „W skrócie" na górze i w sekcjach 19 do 21.
+
 **Korpus.** 641 fragmentów przetłumaczonych na angielski (model `Bielik-11B` mimo że polski, tłumaczenie wyszło czystsze i szybsze niż u kandydatów wyspecjalizowanych w EN). Spot-check 10 fragmentów: sens i terminologia (`Allegro Pay`, `Allegro Smart!`, `BLIK`) zachowane.
 
 **Wyszukiwanie.** Embedder `multilingual-e5-base` (768-wym., jak polski), własny indeks FAISS/BM25. Hit@5 na angielskim zestawie golden: 0,920, porównywalne z polskim 0,940.
@@ -365,8 +373,7 @@ Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe": krót
 
 ---
 
-**Czas odpowiedzi w kontenerze** (5 pytań × 3 powtórzenia):
-
+**Czas odpowiedzi w kontenerze** (5 pytań × 3 powtórzenia, model generacji: Bielik-11B, ówczesny domyślny; dzisiejszy domyślny model, apertus-v1.5-8b, jest ok. 3x szybszy w samej generacji, patrz sekcja 21, pełny pomiar E2E z nim nie powtórzony):
 
 | mediana do pierwszego fragmentu | 5.61 s |
 |---|---|

@@ -1,0 +1,35 @@
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 24058.64it/s]
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 6618.93it/s]
+=== trafnosc klasyfikatora (router_model domyslny) ===
+  [kupujacy_pl] pokrycie=0.420 precyzja=1.0 trafienia=21 zle=0 brak=29/50
+  [sprzedaz_pl] pokrycie=0.500 precyzja=0.9 trafienia=9 zle=1 brak=10/20
+  [kupujacy_en] pokrycie=0.420 precyzja=1.0 trafienia=21 zle=0 brak=29/50
+  [sprzedaz_en] pokrycie=0.632 precyzja=0.9166666666666666 trafienia=11 zle=1 brak=7/19
+  pokrycie srednie = 0.493
+
+--- rozklad na OOD (poprawna odpowiedz: NIEPEWNE/UNSURE) ---
+  [pl] udzial_niepewne=0.793 niepewne=23/29 kupujacy=2 sprzedajacy=4
+  [en] udzial_niepewne=0.759 niepewne=22/29 kupujacy=3 sprzedajacy=4
+
+--- porownanie modeli (alt=speakleash/Bielik-11B-v3.0-Instruct) ---
+  [kupujacy_pl] domyslny == alt (speakleash/Bielik-11B-v3.0-Instruct), pomijam duplikat wywolan
+  [kupujacy_pl][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.420 precyzja=1.0
+  [kupujacy_pl][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.420 precyzja=1.0
+  [sprzedaz_pl] domyslny == alt (speakleash/Bielik-11B-v3.0-Instruct), pomijam duplikat wywolan
+  [sprzedaz_pl][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.500 precyzja=0.9
+  [sprzedaz_pl][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.500 precyzja=0.9
+  [kupujacy_en] domyslny == alt (speakleash/Bielik-11B-v3.0-Instruct), pomijam duplikat wywolan
+  [kupujacy_en][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.420 precyzja=1.0
+  [kupujacy_en][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.420 precyzja=1.0
+  [sprzedaz_en] domyslny == alt (speakleash/Bielik-11B-v3.0-Instruct), pomijam duplikat wywolan
+  [sprzedaz_en][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.632 precyzja=0.9166666666666666
+  [sprzedaz_en][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.632 precyzja=0.9166666666666666
+
+--- latencja jednego wywolania ---
+  [pl] mediana=0.743s p95=6.209s
+  [en] mediana=0.736s p95=3.537s
+
+=== bramki etapu 1 ===
+wszystkie bramki etapu 1 przeszly
+
+zapisano: C:\Dev\allegro-rag-agents\outputs\measure_klasyfikator_strony.json

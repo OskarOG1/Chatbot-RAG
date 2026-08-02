@@ -1,0 +1,114 @@
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 8288.40it/s]
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 7190.69it/s]
+--- jakosc PL (n=20) ---
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|##########| 201/201 [00:00<00:00, 4097.37it/s]
+  [pl][swiss-ai/apertus-v1.5-8b] jak zmieniæ has³o                   pokrycie=0.623 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] jak zmieniæ has³o                   pokrycie=0.677 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] nie mogê siê zalogowaæ              pokrycie=0.629 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] nie mogê siê zalogowaæ              pokrycie=0.962 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] jak usun¹æ konto                    pokrycie=0.619 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] jak usun¹æ konto                    pokrycie=0.540 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] zapomnia³em loginu                  pokrycie=0.824 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] zapomnia³em loginu                  pokrycie=0.663 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] jak zmieniæ adres e-mail przypisany pokrycie=1.000 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] jak zmieniæ adres e-mail przypisany pokrycie=0.867 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] ktoœ w³ama³ siê na moje konto       pokrycie=0.199 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] ktoœ w³ama³ siê na moje konto       pokrycie=0.399 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] jak za³o¿yæ konto firmowe           pokrycie=0.784 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] jak za³o¿yæ konto firmowe           pokrycie=0.665 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] jak œledziæ przesy³kê               pokrycie=0.836 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] jak œledziæ przesy³kê               pokrycie=0.775 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] towar nie dotar³                    pokrycie=0.611 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] towar nie dotar³                    pokrycie=0.702 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] chcê zwróciæ kupiony produkt        pokrycie=0.876 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] chcê zwróciæ kupiony produkt        pokrycie=0.919 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] jak wystawiæ opiniê sprzedawcy      pokrycie=0.759 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] jak wystawiæ opiniê sprzedawcy      pokrycie=0.660 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] co daje allegro smart               pokrycie=0.562 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] co daje allegro smart               pokrycie=0.679 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] paczka przysz³a uszkodzona          pokrycie=0.704 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] paczka przysz³a uszkodzona          pokrycie=0.587 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] jak z³o¿yæ reklamacjê               pokrycie=0.763 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] jak z³o¿yæ reklamacjê               pokrycie=0.794 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] jak zap³aciæ blikiem                pokrycie=0.928 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] jak zap³aciæ blikiem                pokrycie=0.834 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] czym jest allegro pay               pokrycie=0.872 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] czym jest allegro pay               pokrycie=0.665 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] nie dzia³a moja karta               pokrycie=0.251 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] nie dzia³a moja karta               pokrycie=0.499 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] jak roz³o¿yæ zakup na raty          pokrycie=0.847 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] jak roz³o¿yæ zakup na raty          pokrycie=0.881 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] kiedy dostanê zwrot pieniêdzy       pokrycie=0.637 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] kiedy dostanê zwrot pieniêdzy       pokrycie=0.753 sprzecznosci=0
+  [pl][swiss-ai/apertus-v1.5-8b] jak zap³aciæ przelewem              pokrycie=0.801 sprzecznosci=0
+  [pl][speakleash/Bielik-11B-v3.0-Instruct] jak zap³aciæ przelewem              pokrycie=0.885 sprzecznosci=0
+
+--- jakosc EN (n=20) ---
+  [en][swiss-ai/apertus-v1.5-8b] How do I change my password         pokrycie=0.723 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] How do I change my password         pokrycie=0.745 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] I can't log in                      pokrycie=0.255 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] I can't log in                      pokrycie=0.227 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] How do I delete my account          pokrycie=0.712 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] How do I delete my account          pokrycie=0.671 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] I forgot my username                pokrycie=0.592 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] I forgot my username                pokrycie=0.771 sprzecznosci=4
+  [en][swiss-ai/apertus-v1.5-8b] How do I change the email address a pokrycie=0.816 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] How do I change the email address a pokrycie=0.962 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] Someone hacked into my account      pokrycie=0.449 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] Someone hacked into my account      pokrycie=0.296 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] How do I set up a business account  pokrycie=0.854 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] How do I set up a business account  pokrycie=0.960 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] How do I track a shipment           pokrycie=0.954 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] How do I track a shipment           pokrycie=0.929 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] The item didn't arrive              pokrycie=0.841 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] The item didn't arrive              pokrycie=0.832 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] I want to return a purchased produc pokrycie=0.805 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] I want to return a purchased produc pokrycie=0.825 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] How do I leave a review of a seller pokrycie=1.000 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] How do I leave a review of a seller pokrycie=0.848 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] What does Allegro Smart! give       pokrycie=0.934 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] What does Allegro Smart! give       pokrycie=0.777 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] The package arrived damaged         pokrycie=0.779 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] The package arrived damaged         pokrycie=0.804 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] How do I submit a complaint         pokrycie=1.000 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] How do I submit a complaint         pokrycie=0.865 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] How do I pay with BLIK              pokrycie=1.000 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] How do I pay with BLIK              pokrycie=1.000 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] What is Allegro Pay                 pokrycie=0.768 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] What is Allegro Pay                 pokrycie=0.861 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] My card isn't working               pokrycie=0.854 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] My card isn't working               pokrycie=0.969 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] How do I split the purchase into in pokrycie=0.954 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] How do I split the purchase into in pokrycie=0.928 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] When will I get a refund            pokrycie=0.913 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] When will I get a refund            pokrycie=0.768 sprzecznosci=0
+  [en][swiss-ai/apertus-v1.5-8b] How do I pay with a transfer        pokrycie=0.899 sprzecznosci=0
+  [en][speakleash/Bielik-11B-v3.0-Instruct] How do I pay with a transfer        pokrycie=0.900 sprzecznosci=0
+
+--- latencja PL ---
+  [latencja] swiss-ai/apertus-v1.5-8b                 mediana=1.442s (n=6)
+  [latencja] speakleash/Bielik-11B-v3.0-Instruct      mediana=4.402s (n=6)
+
+--- latencja EN ---
+  [latencja] swiss-ai/apertus-v1.5-8b                 mediana=1.515s (n=6)
+  [latencja] speakleash/Bielik-11B-v3.0-Instruct      mediana=7.168s (n=6)
+
+=== PODSUMOWANIE ===
+
+jakosc_pl:
+  swiss-ai/apertus-v1.5-8b                 n=20 bledy=0 pokrycie_idf=0.706 sprzecznosci/odp=0.00
+  speakleash/Bielik-11B-v3.0-Instruct      n=20 bledy=0 pokrycie_idf=0.720 sprzecznosci/odp=0.00
+
+jakosc_en:
+  swiss-ai/apertus-v1.5-8b                 n=20 bledy=0 pokrycie_idf=0.805 sprzecznosci/odp=0.00
+  speakleash/Bielik-11B-v3.0-Instruct      n=20 bledy=0 pokrycie_idf=0.797 sprzecznosci/odp=0.20
+
+latencja_pl:
+  swiss-ai/apertus-v1.5-8b                 n=6 bledy=0 mediana=1.442s
+  speakleash/Bielik-11B-v3.0-Instruct      n=6 bledy=0 mediana=4.402s
+
+latencja_en:
+  swiss-ai/apertus-v1.5-8b                 n=6 bledy=0 mediana=1.515s
+  speakleash/Bielik-11B-v3.0-Instruct      n=6 bledy=0 mediana=7.168s
+
+zapisano: C:\Dev\allegro-rag-agents\outputs\measure_apertus_vs_bielik.json

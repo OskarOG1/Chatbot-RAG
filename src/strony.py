@@ -39,6 +39,8 @@ def przydzial_kandydatow(prior: str | None, sila: str | None) -> dict[str, int]:
         preferowana, inna = 20, 8
     elif sila == 'lepka':
         preferowana, inna = 20, 6
+    elif sila == 'llm':
+        preferowana, inna = 18, 10
     else:
         preferowana = inna = 13
 

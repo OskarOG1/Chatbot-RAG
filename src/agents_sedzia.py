@@ -1,5 +1,5 @@
 from lang_config import LANG
-from agents_core import PROMPTY, klient, context, KATEGORIE_MAIL
+from agents_core import PROMPTY, klient, context, KATEGORIE_MAIL, ETYKIETY_STRON, MODEL_DOMYSLNY
 import re
 
 
@@ -46,4 +46,33 @@ def sedzia_kategoria_mail(history: list[dict], chunks: list, lang: str = 'pl') -
     for kategoria in KATEGORIE_MAIL:
         if tekst.startswith(kategoria.upper()):
             return kategoria
+    return None
+
+
+def strona_pytania(query: str, history: list[dict] | None = None, lang: str = 'pl') -> str | None:
+    p = PROMPTY[lang]
+    ostatnia = next((w['content'] for w in reversed(history or [])
+                     if w.get('role') == 'user' and w.get('content')), '')
+    tresc = f'{ostatnia} {query}'.strip()
+    nazwa = LANG[lang]['router_model']
+    wiadomosci = [
+        {'role': 'system', 'content': p['strona_system']},
+        {'role': 'user', 'content': f"{p['pytanie_label']}: {tresc}\n\n{p['strona_pytanie']}"},
+    ]
+    try:
+        odp = klient.chat.completions.create(
+            model=nazwa, messages=wiadomosci, stream=False, stop=['\n'], max_tokens=12,
+        )
+    except Exception as e:
+        print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_DOMYSLNY}')
+        try:
+            odp = klient.chat.completions.create(
+                model=MODEL_DOMYSLNY, messages=wiadomosci, stream=False, stop=['\n'], max_tokens=12,
+            )
+        except Exception:
+            return None
+    tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip().upper()
+    for etykieta, strona in ETYKIETY_STRON[lang].items():
+        if tekst.startswith(etykieta):
+            return strona
     return None
