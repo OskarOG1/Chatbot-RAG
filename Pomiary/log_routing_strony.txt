@@ -1,0 +1,437 @@
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 7440.69it/s]
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 7651.38it/s]
+=== Przygotowanie retrievalu, BEZ klasyfikatora (dzisiejsze zachowanie) ===
+  [pl][1/50] jak zmieniæ has³o
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 7238.14it/s]
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|##########| 201/201 [00:00<00:00, 6999.39it/s]
+  [pl][2/50] nie mogê siê zalogowaæ
+  [pl][3/50] jak usun¹æ konto
+  [pl][4/50] zapomnia³em loginu
+  [pl][5/50] jak zmieniæ adres e-mail przypisany do konta
+  [pl][6/50] ktoœ w³ama³ siê na moje konto
+  [pl][7/50] jak za³o¿yæ konto firmowe
+  [pl][8/50] jak œledziæ przesy³kê
+  [pl][9/50] towar nie dotar³
+  [pl][10/50] chcê zwróciæ kupiony produkt
+  [pl][11/50] jak wystawiæ opiniê sprzedawcy
+  [pl][12/50] co daje allegro smart
+  [pl][13/50] paczka przysz³a uszkodzona
+  [pl][14/50] jak z³o¿yæ reklamacjê
+  [pl][15/50] jak zap³aciæ blikiem
+  [pl][16/50] czym jest allegro pay
+  [pl][17/50] nie dzia³a moja karta
+  [pl][18/50] jak roz³o¿yæ zakup na raty
+  [pl][19/50] kiedy dostanê zwrot pieniêdzy
+  [pl][20/50] jak zap³aciæ przelewem
+  [pl][21/50] czy mogê mieæ dwa konta na allegro
+  [pl][22/50] chcê ¿eby moje dane zniknê³y z allegro
+  [pl][23/50] jak w³¹czyæ dwuetapowe potwierdzanie logowania
+  [pl][24/50] gdzie zobaczê kiedy przyjdzie paczka
+  [pl][25/50] jak oddaæ rzecz kupion¹ ze smartem
+  [pl][26/50] czy sprzedawca jest wiarygodny
+  [pl][27/50] nie zap³aci³em na czas za zamówienie
+  [pl][28/50] czy allegro pay kosztuje
+  [pl][29/50] chcê usun¹æ kartê z konta
+  [pl][30/50] ile kosztuj¹ raty
+  [pl][31/50] czy dziecko mo¿e mieæ swoje konto
+  [pl][32/50] czy da siê zalogowaæ bez wpisywania has³a
+  [pl][33/50] chcê siê zarejestrowaæ
+  [pl][34/50] jak wy³¹czyæ te wszystkie powiadomienia
+  [pl][35/50] dlaczego zablokowali mi konto
+  [pl][36/50] co znaczy status mojej p³atnoœci
+  [pl][37/50] potrzebujê faktury do zakupu
+  [pl][38/50] czy allegro pay jest bezpieczne
+  [pl][39/50] gdzie na karcie jest kod cvv
+  [pl][40/50] jak w³¹czyæ allegro pay
+  [pl][41/50] jak sp³aciæ to co kupi³em z allegro pay
+  [pl][42/50] kupi³em na raty i chcê oddaæ towar
+  [pl][43/50] dlaczego nie mogê kupiæ na raty
+  [pl][44/50] co oznaczaj¹ statusy dyskusji
+  [pl][45/50] do czego s³u¿y koszyk
+  [pl][46/50] na co wydaæ monety smart
+  [pl][47/50] co daje gwarancja najni¿szej ceny
+  [pl][48/50] jak dzia³a licytowanie
+  [pl][49/50] dosta³em kartê podarunkow¹, jak jej u¿yæ
+  [pl][50/50] jak wykorzystaæ kupon
+  [pl][1/20] jak zarejestrowaæ konto firmowe
+  [pl][2/20] jak zmieniæ konto zwyk³e na firmowe
+  [pl][3/20] co to jest one fulfillment by allegro
+  [pl][4/20] jak dodaæ informacje o fakturze i stawce vat do of
+  [pl][5/20] kiedy dostanê pieni¹dze za zamówienie z p³atnoœci¹
+  [pl][6/20] jak utworzyæ rabat hurtowy
+  [pl][7/20] co zrobiæ gdy kupuj¹cy zg³asza reklamacjê przedmio
+  [pl][8/20] jak zamkn¹æ konto na allegro jako sprzedawca
+  [pl][9/20] czym s¹ cenniki dostawy i jak je utworzyæ
+  [pl][10/20] jak wystawiæ przedmiot na sprzeda¿
+  [pl][11/20] co to s¹ opcje promowania ofert
+  [pl][12/20] jak zmieniæ dane do wyp³at
+  [pl][13/20] jakie obowi¹zki nak³ada na sprzedawcê rozporz¹dzen
+  [pl][14/20] co znajdê w zak³adce jakoœæ mojej sprzeda¿y
+  [pl][15/20] jak sprawdziæ stany magazynowe w one fulfillment
+  [pl][16/20] jak dzia³a centrum wiadomoœci allegro
+  [pl][17/20] czym jest abonament i dlaczego warto z niego skorz
+  [pl][18/20] jak korzystaæ z szablonów ofert podczas wystawiani
+  [pl][19/20] jakie s¹ obowi¹zki sprzedaj¹cego wynikaj¹ce z rodo
+  [pl][20/20] jak korzystaæ z allegro kapita³
+  [en][1/50] How do I change my password
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 7615.50it/s]
+  [en][2/50] I can't log in
+  [en][3/50] How do I delete my account
+  [en][4/50] I forgot my username
+  [en][5/50] How do I change the email address attached to my a
+  [en][6/50] Someone hacked into my account
+  [en][7/50] How do I set up a business account
+  [en][8/50] How do I track a shipment
+  [en][9/50] The item didn't arrive
+  [en][10/50] I want to return a purchased product
+  [en][11/50] How do I leave a review of a seller
+  [en][12/50] What does Allegro Smart! give
+  [en][13/50] The package arrived damaged
+  [en][14/50] How do I submit a complaint
+  [en][15/50] How do I pay with BLIK
+  [en][16/50] What is Allegro Pay
+  [en][17/50] My card isn't working
+  [en][18/50] How do I split the purchase into installments
+  [en][19/50] When will I get a refund
+  [en][20/50] How do I pay with a transfer
+  [en][21/50] Can I have two accounts on Allegro
+  [en][22/50] I want my data to disappear from Allegro
+  [en][23/50] How do I enable two-factor authentication
+  [en][24/50] Where can I see when the package will arrive
+  [en][25/50] How do I return an item bought with Allegro Smart!
+  [en][26/50] Is the seller trustworthy
+  [en][27/50] I didn't pay for the order on time
+  [en][28/50] Does Allegro Pay cost anything
+  [en][29/50] I want to remove a card from my account
+  [en][30/50] How much do installments cost
+  [en][31/50] Can a child have their own account
+  [en][32/50] Is it possible to log in without entering the pass
+  [en][33/50] I want to register
+  [en][34/50] How do I turn off all these notifications
+  [en][35/50] Why did they block my account
+  [en][36/50] What does the status of my payment mean
+  [en][37/50] I need an invoice for my purchase
+  [en][38/50] Is Allegro Pay safe
+  [en][39/50] Where is the CVV code on the card
+  [en][40/50] How do I enable Allegro Pay
+  [en][41/50] How do I pay off what I bought with Allegro Pay
+  [en][42/50] I bought something on installments and want to ret
+  [en][43/50] Why can't I buy on installments
+  [en][44/50] What do the statuses of discussions mean
+  [en][45/50] What is the shopping cart for
+  [en][46/50] What can I use Smart! coins for
+  [en][47/50] What does the guarantee of the lowest price give
+  [en][48/50] How does bidding work
+  [en][49/50] I got a gift card, how do I use it
+  [en][50/50] How do I use a coupon
+  [en][1/19] how do I register a business account
+  [en][2/19] how do I convert a regular account into a business
+  [en][3/19] what is one fulfillment by allegro
+  [en][4/19] how do I add invoice and vat information to my off
+  [en][5/19] when will I get money for orders paid on delivery
+  [en][6/19] how do I create a wholesale discount
+  [en][7/19] what should I do if the buyer files a complaint ab
+  [en][8/19] how do I close an invoice account
+  [en][9/19] how do I create a shipping price list
+  [en][10/19] how do I list a product for sale
+  [en][11/19] what are the promotion options for my offers
+  [en][12/19] what obligations does the gpsr regulation impose o
+  [en][13/19] what will I find in the my sales quality tab
+  [en][14/19] how do I check my stock in one fulfillment by alle
+  [en][15/19] what is the allegro message center
+  [en][16/19] what does the allegro subscription offer and why s
+  [en][17/19] how do I use offer templates when listing an offer
+  [en][18/19] what are seller obligations under gdpr
+  [en][19/19] how do I use allegro kapital
+=== Przygotowanie retrievalu, Z klasyfikatorem (Etap 3 planu) ===
+  [pl][1/50] jak zmieniæ has³o
+  [pl][2/50] nie mogê siê zalogowaæ
+  [pl][3/50] jak usun¹æ konto
+  [pl][4/50] zapomnia³em loginu
+  [pl][5/50] jak zmieniæ adres e-mail przypisany do konta
+  [pl][6/50] ktoœ w³ama³ siê na moje konto
+  [pl][7/50] jak za³o¿yæ konto firmowe
+  [pl][8/50] jak œledziæ przesy³kê
+  [pl][9/50] towar nie dotar³
+  [pl][10/50] chcê zwróciæ kupiony produkt
+  [pl][11/50] jak wystawiæ opiniê sprzedawcy
+  [pl][12/50] co daje allegro smart
+  [pl][13/50] paczka przysz³a uszkodzona
+  [pl][14/50] jak z³o¿yæ reklamacjê
+  [pl][15/50] jak zap³aciæ blikiem
+  [pl][16/50] czym jest allegro pay
+  [pl][17/50] nie dzia³a moja karta
+  [pl][18/50] jak roz³o¿yæ zakup na raty
+  [pl][19/50] kiedy dostanê zwrot pieniêdzy
+  [pl][20/50] jak zap³aciæ przelewem
+  [pl][21/50] czy mogê mieæ dwa konta na allegro
+  [pl][22/50] chcê ¿eby moje dane zniknê³y z allegro
+  [pl][23/50] jak w³¹czyæ dwuetapowe potwierdzanie logowania
+  [pl][24/50] gdzie zobaczê kiedy przyjdzie paczka
+  [pl][25/50] jak oddaæ rzecz kupion¹ ze smartem
+  [pl][26/50] czy sprzedawca jest wiarygodny
+  [pl][27/50] nie zap³aci³em na czas za zamówienie
+  [pl][28/50] czy allegro pay kosztuje
+  [pl][29/50] chcê usun¹æ kartê z konta
+  [pl][30/50] ile kosztuj¹ raty
+  [pl][31/50] czy dziecko mo¿e mieæ swoje konto
+  [pl][32/50] czy da siê zalogowaæ bez wpisywania has³a
+  [pl][33/50] chcê siê zarejestrowaæ
+  [pl][34/50] jak wy³¹czyæ te wszystkie powiadomienia
+  [pl][35/50] dlaczego zablokowali mi konto
+  [pl][36/50] co znaczy status mojej p³atnoœci
+  [pl][37/50] potrzebujê faktury do zakupu
+  [pl][38/50] czy allegro pay jest bezpieczne
+  [pl][39/50] gdzie na karcie jest kod cvv
+  [pl][40/50] jak w³¹czyæ allegro pay
+  [pl][41/50] jak sp³aciæ to co kupi³em z allegro pay
+  [pl][42/50] kupi³em na raty i chcê oddaæ towar
+  [pl][43/50] dlaczego nie mogê kupiæ na raty
+  [pl][44/50] co oznaczaj¹ statusy dyskusji
+  [pl][45/50] do czego s³u¿y koszyk
+  [pl][46/50] na co wydaæ monety smart
+  [pl][47/50] co daje gwarancja najni¿szej ceny
+  [pl][48/50] jak dzia³a licytowanie
+  [pl][49/50] dosta³em kartê podarunkow¹, jak jej u¿yæ
+  [pl][50/50] jak wykorzystaæ kupon
+  [pl][1/20] jak zarejestrowaæ konto firmowe
+  [pl][2/20] jak zmieniæ konto zwyk³e na firmowe
+  [pl][3/20] co to jest one fulfillment by allegro
+  [pl][4/20] jak dodaæ informacje o fakturze i stawce vat do of
+  [pl][5/20] kiedy dostanê pieni¹dze za zamówienie z p³atnoœci¹
+  [pl][6/20] jak utworzyæ rabat hurtowy
+  [pl][7/20] co zrobiæ gdy kupuj¹cy zg³asza reklamacjê przedmio
+  [pl][8/20] jak zamkn¹æ konto na allegro jako sprzedawca
+  [pl][9/20] czym s¹ cenniki dostawy i jak je utworzyæ
+  [pl][10/20] jak wystawiæ przedmiot na sprzeda¿
+  [pl][11/20] co to s¹ opcje promowania ofert
+  [pl][12/20] jak zmieniæ dane do wyp³at
+  [pl][13/20] jakie obowi¹zki nak³ada na sprzedawcê rozporz¹dzen
+  [pl][14/20] co znajdê w zak³adce jakoœæ mojej sprzeda¿y
+  [pl][15/20] jak sprawdziæ stany magazynowe w one fulfillment
+  [pl][16/20] jak dzia³a centrum wiadomoœci allegro
+  [pl][17/20] czym jest abonament i dlaczego warto z niego skorz
+  [pl][18/20] jak korzystaæ z szablonów ofert podczas wystawiani
+  [pl][19/20] jakie s¹ obowi¹zki sprzedaj¹cego wynikaj¹ce z rodo
+  [pl][20/20] jak korzystaæ z allegro kapita³
+  [en][1/50] How do I change my password
+  [en][2/50] I can't log in
+  [en][3/50] How do I delete my account
+  [en][4/50] I forgot my username
+  [en][5/50] How do I change the email address attached to my a
+  [en][6/50] Someone hacked into my account
+  [en][7/50] How do I set up a business account
+  [en][8/50] How do I track a shipment
+  [en][9/50] The item didn't arrive
+  [en][10/50] I want to return a purchased product
+  [en][11/50] How do I leave a review of a seller
+  [en][12/50] What does Allegro Smart! give
+  [en][13/50] The package arrived damaged
+  [en][14/50] How do I submit a complaint
+  [en][15/50] How do I pay with BLIK
+  [en][16/50] What is Allegro Pay
+  [en][17/50] My card isn't working
+  [en][18/50] How do I split the purchase into installments
+  [en][19/50] When will I get a refund
+  [en][20/50] How do I pay with a transfer
+  [en][21/50] Can I have two accounts on Allegro
+  [en][22/50] I want my data to disappear from Allegro
+  [en][23/50] How do I enable two-factor authentication
+  [en][24/50] Where can I see when the package will arrive
+  [en][25/50] How do I return an item bought with Allegro Smart!
+  [en][26/50] Is the seller trustworthy
+  [en][27/50] I didn't pay for the order on time
+  [en][28/50] Does Allegro Pay cost anything
+  [en][29/50] I want to remove a card from my account
+  [en][30/50] How much do installments cost
+  [en][31/50] Can a child have their own account
+  [en][32/50] Is it possible to log in without entering the pass
+  [en][33/50] I want to register
+  [en][34/50] How do I turn off all these notifications
+  [en][35/50] Why did they block my account
+  [en][36/50] What does the status of my payment mean
+  [en][37/50] I need an invoice for my purchase
+  [en][38/50] Is Allegro Pay safe
+  [en][39/50] Where is the CVV code on the card
+  [en][40/50] How do I enable Allegro Pay
+  [en][41/50] How do I pay off what I bought with Allegro Pay
+  [en][42/50] I bought something on installments and want to ret
+  [en][43/50] Why can't I buy on installments
+  [en][44/50] What do the statuses of discussions mean
+  [en][45/50] What is the shopping cart for
+  [en][46/50] What can I use Smart! coins for
+  [en][47/50] What does the guarantee of the lowest price give
+  [en][48/50] How does bidding work
+  [en][49/50] I got a gift card, how do I use it
+  [en][50/50] How do I use a coupon
+  [en][1/19] how do I register a business account
+  [en][2/19] how do I convert a regular account into a business
+  [en][3/19] what is one fulfillment by allegro
+  [en][4/19] how do I add invoice and vat information to my off
+  [en][5/19] when will I get money for orders paid on delivery
+  [en][6/19] how do I create a wholesale discount
+  [en][7/19] what should I do if the buyer files a complaint ab
+  [en][8/19] how do I close an invoice account
+  [en][9/19] how do I create a shipping price list
+  [en][10/19] how do I list a product for sale
+  [en][11/19] what are the promotion options for my offers
+  [en][12/19] what obligations does the gpsr regulation impose o
+  [en][13/19] what will I find in the my sales quality tab
+  [en][14/19] how do I check my stock in one fulfillment by alle
+  [en][15/19] what is the allegro message center
+  [en][16/19] what does the allegro subscription offer and why s
+  [en][17/19] how do I use offer templates when listing an offer
+  [en][18/19] what are seller obligations under gdpr
+  [en][19/19] how do I use allegro kapital
+=== Trafnosc prioru leksykalnego (bez klasyfikatora) ===
+  [kupujacy_pl] pokrycie=0.140 precyzja=0.8571428571428571  brak=43/50
+  [sprzedaz_pl] pokrycie=0.100 precyzja=0.5  brak=18/20
+  [kupujacy_en] pokrycie=0.120 precyzja=1.0  brak=44/50
+  [sprzedaz_en] pokrycie=0.263 precyzja=1.0  brak=14/19
+=== Siatka kalibracji (z klasyfikatorem): 9x6x3 punktow ===
+wybrany punkt: bonus=0.75 margines=5.0 poziom_llm=(16, 12) suma_hit5=3.495 pytania_zwrotne_srednia=0.015
+=== Wynik BEZ klasyfikatora (dzisiejsze zachowanie, ten sam bonus/margines) ===
+  [kupujacy_pl] hit3=0.700 hit5=0.840 pytania_zwrotne=0.000 zla_strona_po=65
+  [sprzedaz_pl] hit3=0.950 hit5=1.000 pytania_zwrotne=0.000 zla_strona_po=25
+  [kupujacy_en] hit3=0.760 hit5=0.800 pytania_zwrotne=0.000 zla_strona_po=94
+  [sprzedaz_en] hit3=0.947 hit5=0.947 pytania_zwrotne=0.000 zla_strona_po=19
+=== Wynik Z klasyfikatorem (po kalibracji, poziom_llm wybrany) ===
+  [kupujacy_pl] hit3=0.720 hit5=0.840 pytania_zwrotne=0.000 zla_strona_po=54
+  [sprzedaz_pl] hit3=0.950 hit5=1.000 pytania_zwrotne=0.000 zla_strona_po=15
+  [kupujacy_en] hit3=0.760 hit5=0.760 pytania_zwrotne=0.060 zla_strona_po=72
+  [sprzedaz_en] hit3=0.895 hit5=0.895 pytania_zwrotne=0.000 zla_strona_po=19
+=== Oracle (strona wymuszona) ===
+  [oracle kupujacy_pl] hit5=0.840
+  [oracle sprzedaz_pl] hit5=1.000
+  [oracle kupujacy_en] hit5=0.920
+  [oracle sprzedaz_en] hit5=0.947
+=== Odmowy OOD: BEZ klasyfikatora vs Z klasyfikatorem ===
+  [pl][1/29] ile to jest dwa plus dwa
+  [pl][2/29] jaka jest stolica Francji
+  [pl][3/29] podaj przepis na pierogi
+  [pl][4/29] kto wygral mistrzostwa swiata w pilce noznej
+  [pl][5/29] jak zmienic olej w samochodzie
+  [pl][6/29] napisz wiersz o jesieni
+  [pl][7/29] jaka jest dzisiaj pogoda
+  [pl][8/29] przetlumacz dzien dobry na angielski
+  [pl][9/29] kto jest prezydentem Polski
+  [pl][10/29] opowiedz mi dowcip
+  [pl][11/29] jak schudnac dziesiec kilogramow
+  [pl][12/29] napisz kod w pythonie sortujacy liste
+  [pl][13/29] jak sprzedawac na olx
+  [pl][14/29] ile kosztuje najnowszy iphone
+  [pl][15/29] jak zalozyc wlasna firme
+  [pl][16/29] jaka jest najlepsza karta graficzna do gier
+  [pl][17/29] jak ugotowac ryz zeby sie nie kleil
+  [pl][18/29] poradz mi cos na przeziebienie
+  [pl][19/29] ile allegro bierze prowizji od sprzedawcy
+  [pl][20/29] jak wystawic przedmiot na sprzedaz
+  [pl][21/29] jaki jest numer telefonu do allegro
+  [pl][22/29] kiedy beda promocje na black friday
+  [pl][23/29] czy allegro ma sklepy stacjonarne
+  [pl][24/29] aplikacja allegro zawiesza sie na moim telefonie
+  [pl][25/29] kto jest wlascicielem allegro
+  [pl][26/29] czy moge kupic akcje allegro na gieldzie
+  [pl][27/29] czy amazon jest tanszy niz allegro
+  [pl][28/29] jak promowac swoja oferte zeby byla wyzej
+  [pl][29/29] ile zarabia kurier allegro
+  [en][1/29] what is two plus two
+  [en][2/29] what is the capital of France
+  [en][3/29] give me a recipe for pierogi
+  [en][4/29] who won the world cup in football
+  [en][5/29] how to change oil in a car
+  [en][6/29] write a poem about autumn
+  [en][7/29] what is the weather like today
+  [en][8/29] translate 'dzien dobry' to English
+  [en][9/29] who is the president of Poland
+  [en][10/29] tell me a joke
+  [en][11/29] how to lose ten kilograms
+  [en][12/29] write a Python code to sort a list
+  [en][13/29] how to sell on OLX
+  [en][14/29] how much does the newest iPhone cost
+  [en][15/29] how to start your own company
+  [en][16/29] what is the best graphics card for gaming
+  [en][17/29] how to cook rice so it doesn't stick
+  [en][18/29] advice for a cold
+  [en][19/29] what commission does Allegro take from a seller
+  [en][20/29] how to list an item for sale
+  [en][21/29] what is the phone number to Allegro
+  [en][22/29] when will there be promotions on Black Friday
+  [en][23/29] does Allegro have physical stores
+  [en][24/29] the Allegro app freezes on my phone
+  [en][25/29] who is the owner of Allegro
+  [en][26/29] can I buy Allegro stocks on the stock exchange
+  [en][27/29] is Amazon cheaper than Allegro
+  [en][28/29] how to promote your offer to make it appear higher
+  [en][29/29] how much does an Allegro courier earn
+  [pl][1/29] ile to jest dwa plus dwa
+  [pl][2/29] jaka jest stolica Francji
+  [pl][3/29] podaj przepis na pierogi
+  [pl][4/29] kto wygral mistrzostwa swiata w pilce noznej
+  [pl][5/29] jak zmienic olej w samochodzie
+  [pl][6/29] napisz wiersz o jesieni
+  [pl][7/29] jaka jest dzisiaj pogoda
+  [pl][8/29] przetlumacz dzien dobry na angielski
+  [pl][9/29] kto jest prezydentem Polski
+  [pl][10/29] opowiedz mi dowcip
+  [pl][11/29] jak schudnac dziesiec kilogramow
+  [pl][12/29] napisz kod w pythonie sortujacy liste
+  [pl][13/29] jak sprzedawac na olx
+  [pl][14/29] ile kosztuje najnowszy iphone
+  [pl][15/29] jak zalozyc wlasna firme
+  [pl][16/29] jaka jest najlepsza karta graficzna do gier
+  [pl][17/29] jak ugotowac ryz zeby sie nie kleil
+  [pl][18/29] poradz mi cos na przeziebienie
+  [pl][19/29] ile allegro bierze prowizji od sprzedawcy
+  [pl][20/29] jak wystawic przedmiot na sprzedaz
+  [pl][21/29] jaki jest numer telefonu do allegro
+  [pl][22/29] kiedy beda promocje na black friday
+  [pl][23/29] czy allegro ma sklepy stacjonarne
+  [pl][24/29] aplikacja allegro zawiesza sie na moim telefonie
+  [pl][25/29] kto jest wlascicielem allegro
+  [pl][26/29] czy moge kupic akcje allegro na gieldzie
+  [pl][27/29] czy amazon jest tanszy niz allegro
+  [pl][28/29] jak promowac swoja oferte zeby byla wyzej
+  [pl][29/29] ile zarabia kurier allegro
+  [en][1/29] what is two plus two
+  [en][2/29] what is the capital of France
+  [en][3/29] give me a recipe for pierogi
+  [en][4/29] who won the world cup in football
+  [en][5/29] how to change oil in a car
+  [en][6/29] write a poem about autumn
+  [en][7/29] what is the weather like today
+  [en][8/29] translate 'dzien dobry' to English
+  [en][9/29] who is the president of Poland
+  [en][10/29] tell me a joke
+  [en][11/29] how to lose ten kilograms
+  [en][12/29] write a Python code to sort a list
+  [en][13/29] how to sell on OLX
+  [en][14/29] how much does the newest iPhone cost
+  [en][15/29] how to start your own company
+  [en][16/29] what is the best graphics card for gaming
+  [en][17/29] how to cook rice so it doesn't stick
+  [en][18/29] advice for a cold
+  [en][19/29] what commission does Allegro take from a seller
+  [en][20/29] how to list an item for sale
+  [en][21/29] what is the phone number to Allegro
+  [en][22/29] when will there be promotions on Black Friday
+  [en][23/29] does Allegro have physical stores
+  [en][24/29] the Allegro app freezes on my phone
+  [en][25/29] who is the owner of Allegro
+  [en][26/29] can I buy Allegro stocks on the stock exchange
+  [en][27/29] is Amazon cheaper than Allegro
+  [en][28/29] how to promote your offer to make it appear higher
+  [en][29/29] how much does an Allegro courier earn
+  [pl] bez=2/29 z_llm=2/29
+  [en] bez=3/29 z_llm=5/29
+=== Latencja retrievalu (all vs routing vs routing+klasyfikator) ===
+  [pl] all=93.783s routing=100.563s routing_llm=142.935s wzrost=7.2% wzrost_llm=52.4%
+  [en] all=128.896s routing=134.822s routing_llm=155.978s wzrost=4.6% wzrost_llm=21.0%
+
+=== bramki etapu 2 (klasyfikator) ===
+BRAMKI NIE PRZESZLY:
+  - hit5 sprzedaz_en: 0.895 < 0.947
+  - hit5 kupujacy_en: 0.760 < 0.860 (minimum akceptowalne)
+  - wzrost latencji pl: 52.4% >= 25%
+kupujacy_en: bez=0.800 z_llm=0.760 poprawa=NIE
+zapisano: C:\Dev\allegro-rag-agents\outputs\measure_routing_strony.json
