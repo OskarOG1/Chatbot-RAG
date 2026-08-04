@@ -15,6 +15,7 @@ MODEL_DOMYSLNY = 'swiss-ai/apertus-v1.5-8b'
 MODEL_NAME = os.getenv('MODEL', MODEL_DOMYSLNY)
 MODEL_FALLBACK = os.getenv('MODEL_FALLBACK', MODEL_7B_LOKALNY)
 SEDZIA_MODEL = os.getenv('SEDZIA_MODEL', MODEL_11B)
+EMAIL_MODEL = os.getenv('EMAIL_MODEL', MODEL_11B)
 MAX_TOKENS = int(os.getenv('MAX_TOKENS', '1500'))
 
 klient = InferenceClient(
