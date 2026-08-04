@@ -9,6 +9,7 @@ export interface WiadomoscUi {
   action?: string | null;
   pytaStrona?: boolean;
   zapytanieDoStrony?: string;
+  wybranaStrona?: 'kupujacy' | 'sprzedajacy';
 }
 
 export interface PanelState {

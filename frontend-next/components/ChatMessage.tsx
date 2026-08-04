@@ -13,6 +13,7 @@ interface Props {
   action?: string | null;
   onAction?: (tekst: string) => void;
   pytaStrona?: boolean;
+  wybranaStrona?: 'kupujacy' | 'sprzedajacy';
   onPickStrona?: (strona: 'kupujacy' | 'sprzedajacy') => void;
 }
 
@@ -24,6 +25,7 @@ export default function ChatMessage({
   action,
   onAction,
   pytaStrona,
+  wybranaStrona,
   onPickStrona,
 }: Props) {
   const th = useTheme();
@@ -152,7 +154,30 @@ export default function ChatMessage({
         </div>
       )}
 
-      {pytaStrona && onPickStrona && (
+      {pytaStrona && wybranaStrona && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 22 }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 15px',
+              borderRadius: 9,
+              border: `1px solid ${th.line}`,
+              background: th.raised,
+              color: th.ink,
+              fontFamily: BODY,
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: th.accent, flex: '0 0 auto' }} />
+            {t.sideChosenPrefix}: {wybranaStrona === 'kupujacy' ? t.sideAskBuyer : t.sideAskSeller}
+          </span>
+        </div>
+      )}
+
+      {pytaStrona && !wybranaStrona && onPickStrona && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 22 }}>
           <button
             type="button"

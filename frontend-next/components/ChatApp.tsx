@@ -348,6 +348,13 @@ export default function ChatApp() {
     }
   }
 
+  function wybierzStroneWiadomosci(msgId: number, wybor: 'kupujacy' | 'sprzedajacy') {
+    updateThread(activeId, (x) => ({
+      ...x,
+      messages: x.messages.map((m) => (m.id === msgId ? { ...m, wybranaStrona: wybor } : m)),
+    }));
+  }
+
   function setPanel(fn: (p: NonNullable<Thread['panel']>) => NonNullable<Thread['panel']>) {
     updateThread(activeId, (x) => (x.panel ? { ...x, panel: fn(x.panel) } : x));
   }
@@ -509,7 +516,11 @@ export default function ChatApp() {
                     action={m.action}
                     onAction={wyslij}
                     pytaStrona={m.pytaStrona}
-                    onPickStrona={(s) => wyslij(m.zapytanieDoStrony ?? '', s)}
+                    wybranaStrona={m.wybranaStrona}
+                    onPickStrona={(s) => {
+                      wybierzStroneWiadomosci(m.id, s);
+                      wyslij(m.zapytanieDoStrony ?? '', s);
+                    }}
                   />
                   {m.doprecyzowanie && (
                     <div style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>

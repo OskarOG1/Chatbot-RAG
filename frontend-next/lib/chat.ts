@@ -110,6 +110,7 @@ interface Teksty {
   sideSelling: string;
   sideAskBuyer: string;
   sideAskSeller: string;
+  sideChosenPrefix: string;
 }
 
 function odmianaRozmow(n: number): string {
@@ -181,6 +182,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     sideSelling: 'Sprzedaję',
     sideAskBuyer: 'Kupujący',
     sideAskSeller: 'Sprzedający',
+    sideChosenPrefix: 'Pytasz jako',
   },
   en: {
     title: 'Allegro Assistant',
@@ -242,6 +244,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     sideSelling: 'Selling',
     sideAskBuyer: 'Buyer',
     sideAskSeller: 'Seller',
+    sideChosenPrefix: 'Asking as',
   },
 };
 

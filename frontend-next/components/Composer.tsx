@@ -68,64 +68,115 @@ export default function Composer({
         }}
       />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px 11px 17px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <span style={{ fontFamily: MONO, fontSize: 10.5, color: th.ink3 }}>{hint}</span>
-          <div style={{ display: 'flex', padding: 2, borderRadius: 8, background: th.raised, border: `1px solid ${th.line}` }}>
-            <button type="button" onClick={() => onSetStrona('kupujacy')} style={segBtn(th, strona === 'kupujacy')}>
-              {sideBuyingLabel}
-            </button>
-            <button type="button" onClick={() => onSetStrona('auto')} style={segBtn(th, strona === 'auto')}>
-              {sideAutoLabel}
-            </button>
-            <button type="button" onClick={() => onSetStrona('sprzedajacy')} style={segBtn(th, strona === 'sprzedajacy')}>
-              {sideSellingLabel}
-            </button>
-          </div>
+        <span style={{ fontFamily: MONO, fontSize: 10.5, color: th.ink3, minWidth: 0 }}>{hint}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
+          <StronaPrzelacznik
+            strona={strona}
+            sideAutoLabel={sideAutoLabel}
+            sideBuyingLabel={sideBuyingLabel}
+            sideSellingLabel={sideSellingLabel}
+            onSetStrona={onSetStrona}
+          />
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={disabled || pusty}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '9px 14px',
+              borderRadius: 8,
+              border: 'none',
+              background: th.accent,
+              color: '#FFFFFF',
+              fontFamily: BODY,
+              fontSize: 12.5,
+              fontWeight: 600,
+              cursor: disabled || pusty ? 'default' : 'pointer',
+              opacity: disabled || pusty ? 0.5 : 1,
+            }}
+          >
+            {sendLabel}
+            <IkonaWyslij color="#FFFFFF" />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onSend}
-          disabled={disabled || pusty}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '9px 14px',
-            borderRadius: 8,
-            border: 'none',
-            background: th.accent,
-            color: '#FFFFFF',
-            fontFamily: BODY,
-            fontSize: 12.5,
-            fontWeight: 600,
-            cursor: disabled || pusty ? 'default' : 'pointer',
-            opacity: disabled || pusty ? 0.5 : 1,
-          }}
-        >
-          {sendLabel}
-          <IkonaWyslij color="#FFFFFF" />
-        </button>
       </div>
+    </div>
+  );
+}
+
+interface PrzelacznikProps {
+  strona: Strona;
+  sideAutoLabel: string;
+  sideBuyingLabel: string;
+  sideSellingLabel: string;
+  onSetStrona: (strona: Strona) => void;
+}
+
+function StronaPrzelacznik({ strona, sideAutoLabel, sideBuyingLabel, sideSellingLabel, onSetStrona }: PrzelacznikProps) {
+  const th = useTheme();
+  const segmenty: Array<{ klucz: Strona; etykieta: string }> = [
+    { klucz: 'kupujacy', etykieta: sideBuyingLabel },
+    { klucz: 'auto', etykieta: sideAutoLabel },
+    { klucz: 'sprzedajacy', etykieta: sideSellingLabel },
+  ];
+  const aktywnyIndeks = segmenty.findIndex((s) => s.klucz === strona);
+
+  return (
+    <div
+      style={{
+        position: 'relative',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        padding: 3,
+        borderRadius: 9,
+        background: th.raised,
+        border: `1px solid ${th.line}`,
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: 3,
+          bottom: 3,
+          left: 3,
+          width: 'calc((100% - 6px) / 3)',
+          borderRadius: 6,
+          background: th.surface,
+          boxShadow: th.shadow,
+          transform: `translateX(${aktywnyIndeks * 100}%)`,
+          transition: 'transform 240ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      />
+      {segmenty.map((s) => (
+        <button key={s.klucz} type="button" onClick={() => onSetStrona(s.klucz)} style={segBtn(th, strona === s.klucz)}>
+          {s.etykieta}
+        </button>
+      ))}
     </div>
   );
 }
 
 function segBtn(th: ReturnType<typeof useTheme>, active: boolean): CSSProperties {
   return {
+    position: 'relative',
+    zIndex: 1,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '5px 9px',
+    padding: '6px 11px',
     border: 'none',
+    background: 'transparent',
     borderRadius: 6,
-    fontFamily: MONO,
-    fontSize: 10.5,
-    fontWeight: 500,
+    fontFamily: BODY,
+    fontSize: 11.5,
+    fontWeight: 600,
     lineHeight: 1,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-    background: active ? th.surface : 'transparent',
     color: active ? th.ink : th.ink3,
-    boxShadow: active ? th.shadow : 'none',
+    transition: 'color 200ms ease',
   };
 }
