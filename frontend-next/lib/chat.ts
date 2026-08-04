@@ -26,6 +26,7 @@ export interface ChatResponse {
   kategoria: string | null;
   naglowek_ui: string | null;
   tryb: Tryb;
+  pyta_strona: boolean;
 }
 
 export interface WyslijZadanie {
@@ -107,6 +108,8 @@ interface Teksty {
   sideAuto: string;
   sideBuying: string;
   sideSelling: string;
+  sideAskBuyer: string;
+  sideAskSeller: string;
 }
 
 function odmianaRozmow(n: number): string {
@@ -176,6 +179,8 @@ export const TEKSTY: Record<Lang, Teksty> = {
     sideAuto: 'Auto',
     sideBuying: 'Kupuję',
     sideSelling: 'Sprzedaję',
+    sideAskBuyer: 'Kupujący',
+    sideAskSeller: 'Sprzedający',
   },
   en: {
     title: 'Allegro Assistant',
@@ -235,6 +240,8 @@ export const TEKSTY: Record<Lang, Teksty> = {
     sideAuto: 'Auto',
     sideBuying: 'Buying',
     sideSelling: 'Selling',
+    sideAskBuyer: 'Buyer',
+    sideAskSeller: 'Seller',
   },
 };
 

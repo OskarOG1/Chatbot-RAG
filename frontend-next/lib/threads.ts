@@ -7,6 +7,8 @@ export interface WiadomoscUi {
   citations?: Cytat[];
   doprecyzowanie?: string | null;
   action?: string | null;
+  pytaStrona?: boolean;
+  zapytanieDoStrony?: string;
 }
 
 export interface PanelState {

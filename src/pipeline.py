@@ -275,8 +275,7 @@ def run_stream(query:str, bielik_model:str | None=None,
             prior = strona_pytania(zapytanie_ret, history, lang)
             sila = 'llm' if prior else None
         if prior is None:
-            chunks = search_reranked_multi(zapytanie_ret, query_emb, ['all'], k=5, k_surowe=20, lang=lang)
-            strona_wybrana, czy_pytac = None, False
+            strona_wybrana, chunks, czy_pytac = None, [], True
         else:
             kwoty = strony.przydzial_kandydatow(prior, sila)
             chunks_szerokie = search_reranked_multi(zapytanie_ret, query_emb, list(kwoty),
@@ -285,7 +284,8 @@ def run_stream(query:str, bielik_model:str | None=None,
 
     if czy_pytac:
         yield wynik({'agent': '', 'answer': cfg['strona_doprecyzuj'],
-                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
+                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
+                     'pyta_strona': True})
         return
 
     if strona_wybrana:

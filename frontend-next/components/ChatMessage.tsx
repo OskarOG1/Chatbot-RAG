@@ -12,9 +12,20 @@ interface Props {
   citations?: Cytat[];
   action?: string | null;
   onAction?: (tekst: string) => void;
+  pytaStrona?: boolean;
+  onPickStrona?: (strona: 'kupujacy' | 'sprzedajacy') => void;
 }
 
-export default function ChatMessage({ role, content, lang, citations = [], action, onAction }: Props) {
+export default function ChatMessage({
+  role,
+  content,
+  lang,
+  citations = [],
+  action,
+  onAction,
+  pytaStrona,
+  onPickStrona,
+}: Props) {
   const th = useTheme();
   const t = TEKSTY[lang];
   const isUser = role === 'user';
@@ -137,6 +148,47 @@ export default function ChatMessage({ role, content, lang, citations = [], actio
           >
             <span style={{ width: 15, height: 11, border: '1.5px solid currentColor', borderRadius: 2, flex: '0 0 auto', opacity: 0.9 }} />
             {action}
+          </button>
+        </div>
+      )}
+
+      {pytaStrona && onPickStrona && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 22 }}>
+          <button
+            type="button"
+            onClick={() => onPickStrona('kupujacy')}
+            style={{
+              padding: '11px 17px',
+              borderRadius: 9,
+              border: 'none',
+              background: th.accent,
+              color: '#FFFFFF',
+              fontFamily: BODY,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: th.shadow,
+            }}
+          >
+            {t.sideAskBuyer}
+          </button>
+          <button
+            type="button"
+            onClick={() => onPickStrona('sprzedajacy')}
+            style={{
+              padding: '11px 17px',
+              borderRadius: 9,
+              border: 'none',
+              background: th.accent,
+              color: '#FFFFFF',
+              fontFamily: BODY,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: th.shadow,
+            }}
+          >
+            {t.sideAskSeller}
           </button>
         </div>
       )}

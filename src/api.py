@@ -163,6 +163,7 @@ class ChatResponse(BaseModel):
    kategoria: str | None = None
    naglowek_ui: str | None = None
    tryb: Literal['rag', 'email'] = 'rag'
+   pyta_strona: bool = False
 
 app = FastAPI(lifespan=lifespan)
 
