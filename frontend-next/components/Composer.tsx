@@ -122,6 +122,7 @@ function StronaPrzelacznik({ strona, sideAutoLabel, sideBuyingLabel, sideSelling
     { klucz: 'sprzedajacy', etykieta: sideSellingLabel },
   ];
   const aktywnyIndeks = segmenty.findIndex((s) => s.klucz === strona);
+  const wybranaStrona = strona !== 'auto';
 
   return (
     <div
@@ -144,14 +145,19 @@ function StronaPrzelacznik({ strona, sideAutoLabel, sideBuyingLabel, sideSelling
           left: 3,
           width: 'calc((100% - 6px) / 3)',
           borderRadius: 6,
-          background: th.surface,
+          background: wybranaStrona ? th.accent : th.surface,
           boxShadow: th.shadow,
           transform: `translateX(${aktywnyIndeks * 100}%)`,
-          transition: 'transform 240ms cubic-bezier(0.4, 0, 0.2, 1)',
+          transition: 'transform 240ms cubic-bezier(0.4, 0, 0.2, 1), background 200ms ease',
         }}
       />
       {segmenty.map((s) => (
-        <button key={s.klucz} type="button" onClick={() => onSetStrona(s.klucz)} style={segBtn(th, strona === s.klucz)}>
+        <button
+          key={s.klucz}
+          type="button"
+          onClick={() => onSetStrona(s.klucz)}
+          style={segBtn(th, strona === s.klucz, strona === s.klucz && wybranaStrona)}
+        >
           {s.etykieta}
         </button>
       ))}
@@ -159,7 +165,7 @@ function StronaPrzelacznik({ strona, sideAutoLabel, sideBuyingLabel, sideSelling
   );
 }
 
-function segBtn(th: ReturnType<typeof useTheme>, active: boolean): CSSProperties {
+function segBtn(th: ReturnType<typeof useTheme>, active: boolean, akcent: boolean): CSSProperties {
   return {
     position: 'relative',
     zIndex: 1,
@@ -172,11 +178,11 @@ function segBtn(th: ReturnType<typeof useTheme>, active: boolean): CSSProperties
     borderRadius: 6,
     fontFamily: BODY,
     fontSize: 11.5,
-    fontWeight: 600,
+    fontWeight: akcent ? 700 : 600,
     lineHeight: 1,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-    color: active ? th.ink : th.ink3,
+    color: akcent ? '#FFFFFF' : active ? th.ink : th.ink3,
     transition: 'color 200ms ease',
   };
 }

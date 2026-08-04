@@ -353,6 +353,7 @@ export default function ChatApp() {
       ...x,
       messages: x.messages.map((m) => (m.id === msgId ? { ...m, wybranaStrona: wybor } : m)),
     }));
+    setStrona(wybor);
   }
 
   function setPanel(fn: (p: NonNullable<Thread['panel']>) => NonNullable<Thread['panel']>) {
@@ -560,7 +561,7 @@ export default function ChatApp() {
               <Composer
                 value={draft}
                 placeholder={t.placeholder}
-                hint={t.composerHint}
+                hint={strona === 'kupujacy' ? t.hintBuying : strona === 'sprzedajacy' ? t.hintSelling : t.composerHint}
                 sendLabel={t.sendShort}
                 disabled={pokazTyping}
                 strona={strona}
