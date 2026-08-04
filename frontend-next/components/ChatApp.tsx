@@ -211,9 +211,10 @@ export default function ChatApp() {
     historiaApi: Wiadomosc[],
     ostatniAgent: string | null,
     tid: string,
-    signal: AbortSignal
+    signal: AbortSignal,
+    stronaOverride?: Strona
   ): Promise<{ dane: ChatResponse | null; bladTekst: string | null }> {
-    const body = zbudujZadanie(wiadomosc, historiaApi, ostatniAgent, bezKorekty, lang, strona);
+    const body = zbudujZadanie(wiadomosc, historiaApi, ostatniAgent, bezKorekty, lang, stronaOverride ?? strona);
     let dane: ChatResponse | null = null;
     let bladTekst: string | null = null;
 
@@ -246,7 +247,7 @@ export default function ChatApp() {
     return { dane, bladTekst };
   }
 
-  async function wyslij(promptUser: string) {
+  async function wyslij(promptUser: string, stronaOverride?: Strona) {
     if (!promptUser.trim()) return;
     const tid = activeId;
     const thread = threads.find((x) => x.id === tid);
@@ -276,7 +277,8 @@ export default function ChatApp() {
       thread.historiaApi,
       thread.ostatniAgent,
       tid,
-      controller.signal
+      controller.signal,
+      stronaOverride
     );
 
     abortControllers.current.delete(tid);
@@ -338,6 +340,8 @@ export default function ChatApp() {
             citations: dane?.citations ?? [],
             doprecyzowanie: dane?.doprecyzowanie ?? null,
             action: dane?.oferta ?? null,
+            pytaStrona: dane?.pyta_strona ?? false,
+            zapytanieDoStrony: dane?.pyta_strona ? wiadomosc : undefined,
           },
         ],
       }));
@@ -497,7 +501,16 @@ export default function ChatApp() {
             <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 30 }}>
               {active.messages.map((m) => (
                 <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <ChatMessage role={m.role} content={m.content} lang={lang} citations={m.citations} action={m.action} onAction={wyslij} />
+                  <ChatMessage
+                    role={m.role}
+                    content={m.content}
+                    lang={lang}
+                    citations={m.citations}
+                    action={m.action}
+                    onAction={wyslij}
+                    pytaStrona={m.pytaStrona}
+                    onPickStrona={(s) => wyslij(m.zapytanieDoStrony ?? '', s)}
+                  />
                   {m.doprecyzowanie && (
                     <div style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                       <InfoBanner tekst={m.doprecyzowanie} />
