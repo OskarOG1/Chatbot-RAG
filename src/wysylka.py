@@ -3,10 +3,12 @@ import secrets
 
 import httpx
 
+from lang_config import LANG
+
 RESEND_URL = 'https://api.resend.com/emails'
 
 
-def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: str) -> str:
+def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: str, lang: str = 'pl') -> str:
     klucz = os.getenv('RESEND_API_KEY')
     nadawca = os.getenv('RESEND_FROM_EMAIL')
     sprzedawca = os.getenv('DEMO_SPRZEDAWCA_EMAIL')
@@ -15,26 +17,22 @@ def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: s
             'Wysyłka nie jest skonfigurowana, brakuje RESEND_API_KEY, RESEND_FROM_EMAIL lub DEMO_SPRZEDAWCA_EMAIL.'
         )
 
+    t = LANG[lang]['wysylka']
     ticket = secrets.token_hex(4).upper()
     naglowki = {'Authorization': f'Bearer {klucz}', 'Content-Type': 'application/json'}
+    kategoria_tekst = kategoria or t['brak_kategorii']
 
     do_sprzedawcy = {
         'from': nadawca,
         'to': sprzedawca,
-        'subject': f'[Zgłoszenie {ticket}] {temat}',
-        'text': f'Numer zgłoszenia: {ticket}\nKategoria: {kategoria or "brak"}\nAdres klienta: {email}\n\n{tresc}',
+        'subject': t['temat_sprzedawca'].format(ticket=ticket, temat=temat),
+        'text': t['tresc_sprzedawca'].format(ticket=ticket, kategoria=kategoria_tekst, email=email, tresc=tresc),
     }
     do_klienta = {
         'from': nadawca,
         'to': email,
-        'subject': f'Potwierdzenie zgłoszenia {ticket}',
-        'text': (
-            f'Twoje zgłoszenie zostało przekazane do sprzedawcy.\n\n'
-            f'Numer zgłoszenia: {ticket}\n'
-            f'Kategoria sprawy: {kategoria or "brak"}\n\n'
-            f'Treść wiadomości:\n{tresc}\n\n'
-            'Informacja: to demo nie przechowuje Twojego adresu ani treści wiadomości po wysyłce.'
-        ),
+        'subject': t['temat_klient'].format(ticket=ticket),
+        'text': t['tresc_klient'].format(ticket=ticket, kategoria=kategoria_tekst, tresc=tresc, klauzula=t['klauzula']),
     }
 
     with httpx.Client(timeout=10.0) as klient:

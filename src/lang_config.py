@@ -58,6 +58,20 @@ LANG = {
             'zly_email': 'Podaj poprawny adres email.',
             'wysylka_nieudana': 'Wysyłka się nie powiodła, spróbuj ponownie.',
         },
+        'wysylka': {
+            'temat_sprzedawca': '[Zgłoszenie {ticket}] {temat}',
+            'tresc_sprzedawca': 'Numer zgłoszenia: {ticket}\nKategoria: {kategoria}\nAdres klienta: {email}\n\n{tresc}',
+            'temat_klient': 'Potwierdzenie zgłoszenia {ticket}',
+            'tresc_klient': (
+                'Twoje zgłoszenie zostało przekazane do sprzedawcy.\n\n'
+                'Numer zgłoszenia: {ticket}\n'
+                'Kategoria sprawy: {kategoria}\n\n'
+                'Treść wiadomości:\n{tresc}\n\n'
+                '{klauzula}'
+            ),
+            'klauzula': 'Informacja: to demo nie przechowuje Twojego adresu ani treści wiadomości po wysyłce.',
+            'brak_kategorii': 'brak',
+        },
         'zaimki': {'to', 'tego', 'tym', 'tam', 'ten', 'ta', 'te', 'nim', 'niej', 'nich'},
         'followup_prefiksy': ('a ',),
         'mail_czasowniki': {'napisz', 'napiszesz', 'napisać', 'przygotuj', 'przygotować',
@@ -183,6 +197,20 @@ LANG = {
             'limit_wysylek': 'Demo sending limit reached, please try again later.',
             'zly_email': 'Please enter a valid email address.',
             'wysylka_nieudana': 'Sending failed, please try again.',
+        },
+        'wysylka': {
+            'temat_sprzedawca': '[Ticket {ticket}] {temat}',
+            'tresc_sprzedawca': 'Ticket number: {ticket}\nCategory: {kategoria}\nCustomer address: {email}\n\n{tresc}',
+            'temat_klient': 'Confirmation of ticket {ticket}',
+            'tresc_klient': (
+                'Your request has been forwarded to the seller.\n\n'
+                'Ticket number: {ticket}\n'
+                'Case category: {kategoria}\n\n'
+                'Message content:\n{tresc}\n\n'
+                '{klauzula}'
+            ),
+            'klauzula': "Note: this demo doesn't store your address or message content after sending.",
+            'brak_kategorii': 'none',
         },
         'zaimki': {'it', 'that', 'this', 'those', 'them', 'one'},
         'followup_prefiksy': ('and ', 'what about', 'how about', 'what if'),

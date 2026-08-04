@@ -23,7 +23,10 @@ LIMIT_DZIEN = int(os.getenv('LIMIT_DZIEN', '200'))
 _zapytania = deque()
 
 LIMIT_WYSYLKA_MIN = int(os.getenv('LIMIT_WYSYLKA_MIN', '5'))
+LIMIT_WYSYLKA_DZIEN = int(os.getenv('LIMIT_WYSYLKA_DZIEN', '40'))
+LIMIT_WYSYLKA_ADRES_S = int(os.getenv('LIMIT_WYSYLKA_ADRES_S', '600'))
 _wysylki = deque()
+_wysylki_adres: 'OrderedDict[str, float]' = OrderedDict()
 EMAIL_WZORZEC = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+')
 
 CACHE_MAX = int(os.getenv('CACHE_MAX', '200'))
@@ -91,12 +94,45 @@ def efektywny_jezyk(message: str, podpowiedz: str | None) -> str:
 
 def w_limicie_wysylki() -> bool:
     teraz = time.time()
-    while _wysylki and _wysylki[0] < teraz - 60:
+    while _wysylki and _wysylki[0] < teraz - 86400:
         _wysylki.popleft()
-    if len(_wysylki) >= LIMIT_WYSYLKA_MIN:
+    ostatnia_minuta = sum(1 for t in _wysylki if t > teraz - 60)
+    if ostatnia_minuta >= LIMIT_WYSYLKA_MIN or len(_wysylki) >= LIMIT_WYSYLKA_DZIEN:
         return False
     _wysylki.append(teraz)
     return True
+
+
+def w_limicie_adresu(email: str) -> bool:
+    teraz = time.time()
+    klucz = email.lower()
+    for k in [k for k, t in _wysylki_adres.items() if t < teraz - LIMIT_WYSYLKA_ADRES_S]:
+        del _wysylki_adres[k]
+    if klucz in _wysylki_adres:
+        return False
+    _wysylki_adres[klucz] = teraz
+    _wysylki_adres.move_to_end(klucz)
+    if len(_wysylki_adres) > 500:
+        _wysylki_adres.popitem(last=False)
+    return True
+
+
+def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: bool, blad: str | None = None) -> None:
+    try:
+        wpis = {
+            'czas': datetime.now(timezone.utc).isoformat(),
+            'typ': 'wysylka',
+            'lang': lang,
+            'kategoria': kategoria,
+            'ticket': ticket,
+            'sukces': sukces,
+        }
+        if blad:
+            wpis['blad'] = blad
+        with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
+            w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
+    except OSError:
+        pass
 
 
 @asynccontextmanager
@@ -238,13 +274,19 @@ def send_email(request: WyslijZadanie):
     lang = request.lang or DOMYSLNY_JEZYK
     if not w_limicie_wysylki():
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
-    if not EMAIL_WZORZEC.match(request.email):
+    email = request.email.strip()
+    if not EMAIL_WZORZEC.fullmatch(email):
         raise HTTPException(status_code=422, detail=LANG[lang]['bledy']['zly_email'])
+    if not w_limicie_adresu(email):
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
     try:
-        ticket = wyslij_potwierdzenie(request.email, request.kategoria, request.temat, request.tresc)
+        ticket = wyslij_potwierdzenie(email, request.kategoria, request.temat, request.tresc, lang=lang)
     except RuntimeError as e:
+        loguj_wysylke(lang, request.kategoria, None, False, type(e).__name__)
         raise HTTPException(status_code=503, detail=str(e))
-    except httpx.HTTPError:
+    except httpx.HTTPError as e:
+        loguj_wysylke(lang, request.kategoria, None, False, type(e).__name__)
         raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
+    loguj_wysylke(lang, request.kategoria, ticket, True)
     print(f'wysylka: ticket={ticket} kategoria={request.kategoria} sukces=True')
     return WyslijOdpowiedz(ticket=ticket)

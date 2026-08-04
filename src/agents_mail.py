@@ -1,5 +1,4 @@
-from agents_core import PROMPTY, klient, MAX_TOKENS, context
-from lang_config import LANG
+from agents_core import PROMPTY, klient, MAX_TOKENS, EMAIL_MODEL, context
 import re
 
 
@@ -20,7 +19,7 @@ def napisz_email(history: list[dict], chunks: list, lang: str = 'pl', kategoria:
     wiadomosci.append({'role': 'user', 'content': tresc})
 
     odp = klient.chat.completions.create(
-        model=LANG[lang]['model'],
+        model=EMAIL_MODEL,
         messages=wiadomosci,
         stream=False,
         max_tokens=MAX_TOKENS,
