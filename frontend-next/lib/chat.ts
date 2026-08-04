@@ -65,6 +65,8 @@ interface Teksty {
   assistant: string;
   sourcesLabel: string;
   composerHint: string;
+  hintBuying: string;
+  hintSelling: string;
   newChatToast: string;
   threadFallbackTitle: string;
   suggestionsByAgent: Record<string, string[]>;
@@ -131,6 +133,8 @@ export const TEKSTY: Record<Lang, Teksty> = {
     assistant: 'Asystent',
     sourcesLabel: 'Źródła z centrum pomocy',
     composerHint: 'Enter wysyła · Shift + Enter nowa linia',
+    hintBuying: 'Pytasz jako kupujący',
+    hintSelling: 'Pytasz jako sprzedający',
     newChatToast: 'Rozpoczęto nową rozmowę',
     threadFallbackTitle: 'Nowa rozmowa',
     suggestionsByAgent: {
@@ -193,6 +197,8 @@ export const TEKSTY: Record<Lang, Teksty> = {
     assistant: 'Assistant',
     sourcesLabel: 'Help center sources',
     composerHint: 'Enter sends · Shift + Enter for a new line',
+    hintBuying: 'Asking as a buyer',
+    hintSelling: 'Asking as a seller',
     newChatToast: 'Started a new conversation',
     threadFallbackTitle: 'New conversation',
     suggestionsByAgent: {
