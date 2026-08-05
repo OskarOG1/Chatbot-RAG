@@ -22,6 +22,9 @@ export interface PanelState {
   trigger: string;
   clientEmail: string;
   sending: boolean;
+  wyslano: { ticket: string; czas: number } | null;
+  edytujPoWyslaniu: boolean;
+  odliczanieDo: number | null;
 }
 
 export interface Thread {
@@ -122,7 +125,7 @@ export function wczytajStan(): { threads: Thread[]; activeId: string } | null {
     if (dane.version !== VERSION || !Array.isArray(dane.threads) || dane.threads.length === 0) return null;
     const threads = dane.threads.map((th) => ({
       ...th,
-      panel: th.panel ? { ...th.panel, sending: false } : null,
+      panel: th.panel ? { ...th.panel, sending: false, odliczanieDo: null } : null,
     }));
     const activeId = threads.some((th) => th.id === dane.activeId) ? dane.activeId : threads[0].id;
     return { threads, activeId };

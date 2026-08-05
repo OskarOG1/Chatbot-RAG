@@ -144,6 +144,44 @@ def test_cooldown_adresu_cofniety_po_nieudanej_wysylce(monkeypatch, resend_env):
     assert 'powtorka2@example.com' not in api._wysylki_adres
 
 
+def test_korekta_uzywa_podanego_ticketu_i_pomija_temat_bez_korekty(monkeypatch, resend_env):
+    import wysylka
+    z_falszywym = FalszywyKlient()
+    monkeypatch.setattr(wysylka.httpx, 'Client', lambda *a, **k: z_falszywym)
+    ticket = wysylka.wyslij_potwierdzenie('klient@example.com', 'zwrot', 'Temat', 'Tresc', ticket='ABCD1234')
+    assert ticket == 'ABCD1234'
+    assert 'ABCD1234' in z_falszywym.wyslane[0]['subject']
+    assert 'korekta' in z_falszywym.wyslane[0]['subject'].lower()
+
+
+def test_korekta_omija_cooldown_adresu_raz_a_drugi_raz_dostaje_429(monkeypatch, resend_env):
+    import api
+    api._wysylki.clear()
+    api._wysylki_adres.clear()
+    api._korekty.clear()
+    monkeypatch.setattr(api, 'wyslij_potwierdzenie', lambda *a, **k: k['ticket'])
+    api.w_limicie_adresu('powtorka3@example.com')
+    zadanie = api.WyslijZadanie(email='powtorka3@example.com', temat='Temat', tresc='Tresc', ticket='ABCD1234')
+    odpowiedz = api.send_email(zadanie)
+    assert odpowiedz.ticket == 'ABCD1234'
+    with pytest.raises(HTTPException) as wyjatek:
+        api.send_email(zadanie)
+    assert wyjatek.value.status_code == 429
+
+
+def test_zadanie_bez_ticketu_nadal_podlega_cooldownowi_adresu(monkeypatch, resend_env):
+    import api
+    api._wysylki.clear()
+    api._wysylki_adres.clear()
+    api._korekty.clear()
+    monkeypatch.setattr(api, 'wyslij_potwierdzenie', lambda *a, **k: 'EFGH5678')
+    api.send_email(api.WyslijZadanie(email='powtorka4@example.com', temat='Temat', tresc='Tresc', ticket='ABCD1234'))
+    zadanie_bez_ticketu = api.WyslijZadanie(email='powtorka4@example.com', temat='Temat', tresc='Tresc')
+    with pytest.raises(HTTPException) as wyjatek:
+        api.send_email(zadanie_bez_ticketu)
+    assert wyjatek.value.status_code == 429
+
+
 def test_czesciowa_wysylka_zachowuje_ticket_sprzedawcy(monkeypatch, resend_env):
     import httpx
     import api
