@@ -8,7 +8,7 @@ from rankings import get_reranker, get_bm25, get_faiss
 from spell import detect_lang
 from guards import MAX_ZNAKI, normalizuj
 from lang_config import LANG, DOMYSLNY_JEZYK
-from wysylka import wyslij_potwierdzenie
+from wysylka import wyslij_potwierdzenie, WysylkaCzesciowaError
 from collections import deque, OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -89,7 +89,7 @@ def w_limicie() -> bool:
 
 
 def efektywny_jezyk(message: str, podpowiedz: str | None) -> str:
-    return detect_lang(message) or podpowiedz or DOMYSLNY_JEZYK
+    return podpowiedz or detect_lang(message) or DOMYSLNY_JEZYK
 
 
 def w_limicie_wysylki() -> bool:
@@ -115,6 +115,10 @@ def w_limicie_adresu(email: str) -> bool:
     if len(_wysylki_adres) > 500:
         _wysylki_adres.popitem(last=False)
     return True
+
+
+def zwolnij_limit_adresu(email: str) -> None:
+    _wysylki_adres.pop(email.lower(), None)
 
 
 def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: bool, blad: str | None = None) -> None:
@@ -272,19 +276,24 @@ def chat_stream(request: ChatRequest):
 @app.post('/send-email', response_model=WyslijOdpowiedz)
 def send_email(request: WyslijZadanie):
     lang = request.lang or DOMYSLNY_JEZYK
-    if not w_limicie_wysylki():
-        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
     email = request.email.strip()
     if not EMAIL_WZORZEC.fullmatch(email):
         raise HTTPException(status_code=422, detail=LANG[lang]['bledy']['zly_email'])
+    if not w_limicie_wysylki():
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
     if not w_limicie_adresu(email):
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
     try:
         ticket = wyslij_potwierdzenie(email, request.kategoria, request.temat, request.tresc, lang=lang)
     except RuntimeError as e:
+        zwolnij_limit_adresu(email)
         loguj_wysylke(lang, request.kategoria, None, False, type(e).__name__)
         raise HTTPException(status_code=503, detail=str(e))
+    except WysylkaCzesciowaError as e:
+        loguj_wysylke(lang, request.kategoria, e.ticket, False, type(e.oryginalny).__name__)
+        raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
     except httpx.HTTPError as e:
+        zwolnij_limit_adresu(email)
         loguj_wysylke(lang, request.kategoria, None, False, type(e).__name__)
         raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
     loguj_wysylke(lang, request.kategoria, ticket, True)

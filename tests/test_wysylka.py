@@ -116,3 +116,60 @@ def test_send_email_endpoint_odrzuca_zly_adres(monkeypatch, resend_env):
     with pytest.raises(HTTPException) as wyjatek:
         api.send_email(zadanie)
     assert wyjatek.value.status_code == 422
+
+
+def test_zly_adres_nie_zuzywa_limitu_wysylek(monkeypatch, resend_env):
+    import api
+    api._wysylki.clear()
+    api._wysylki_adres.clear()
+    zadanie = api.WyslijZadanie(email='niepoprawny', temat='Temat', tresc='Tresc')
+    with pytest.raises(HTTPException):
+        api.send_email(zadanie)
+    assert len(api._wysylki) == 0
+
+
+def test_cooldown_adresu_cofniety_po_nieudanej_wysylce(monkeypatch, resend_env):
+    import api
+    api._wysylki.clear()
+    api._wysylki_adres.clear()
+
+    def rzuca(*a, **k):
+        raise RuntimeError('wysylka niedostepna')
+
+    monkeypatch.setattr(api, 'wyslij_potwierdzenie', rzuca)
+    zadanie = api.WyslijZadanie(email='powtorka2@example.com', temat='Temat', tresc='Tresc')
+    with pytest.raises(HTTPException) as wyjatek:
+        api.send_email(zadanie)
+    assert wyjatek.value.status_code == 503
+    assert 'powtorka2@example.com' not in api._wysylki_adres
+
+
+def test_czesciowa_wysylka_zachowuje_ticket_sprzedawcy(monkeypatch, resend_env):
+    import httpx
+    import api
+    import wysylka
+    api._wysylki.clear()
+    api._wysylki_adres.clear()
+
+    class KlientCzesciowy:
+        def __init__(self, *a, **k):
+            self.wywolanie = 0
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def post(self, url, headers=None, json=None):
+            self.wywolanie += 1
+            if self.wywolanie == 1:
+                return FalszywaOdpowiedz()
+            raise httpx.HTTPError('blad wysylki do klienta')
+
+    monkeypatch.setattr(wysylka.httpx, 'Client', lambda *a, **k: KlientCzesciowy())
+    zadanie = api.WyslijZadanie(email='klient@example.com', temat='Temat', tresc='Tresc')
+    with pytest.raises(HTTPException) as wyjatek:
+        api.send_email(zadanie)
+    assert wyjatek.value.status_code == 502
+    assert 'klient@example.com' in api._wysylki_adres

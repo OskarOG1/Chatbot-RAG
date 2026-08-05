@@ -66,7 +66,12 @@ def main(lang: str = 'pl'):
         'kupujacy': lambda c: str(c.get('agent', '')).strip().lower() != 'sprzedaz',
         'sprzedaz': lambda c: str(c.get('agent', '')).strip().lower() == 'sprzedaz',
     }
+    strony_tozsame_z_agentem = {'sprzedaz'} if lang == 'pl' else set()
     for strona, pasuje in strony_agentow.items():
+        if strona in strony_tozsame_z_agentem:
+            print(f'strona [{strona}]: pomijam, tożsama z już zapisanym indeksem agenta [{strona}]')
+            continue
+
         indeksy = [i for i, c in enumerate(chunki) if pasuje(c)]
 
         if not indeksy:

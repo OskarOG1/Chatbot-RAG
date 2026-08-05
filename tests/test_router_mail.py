@@ -22,22 +22,22 @@ def test_pytanie_faktyczne_bez_slow_kluczowych():
 
 
 def test_jawna_prosba_o_mail_wykryta():
-    assert pipeline._jawna_prosba_o_mail('napisz mi maila do sprzedawcy') is True
+    assert pipeline.jawna_prosba_o_mail('napisz mi maila do sprzedawcy') is True
 
 
 def test_jawna_prosba_wymaga_czasownika_i_obiektu():
-    assert pipeline._jawna_prosba_o_mail('sprzedawca nie odpowiada') is False
+    assert pipeline.jawna_prosba_o_mail('sprzedawca nie odpowiada') is False
 
 
 def test_kategoria_z_oferty_reklamacja():
     oferta = pipeline.LANG['pl']['mail_kategorie']['reklamacja']['oferta']
-    assert pipeline._kategoria_z_oferty(oferta) == 'reklamacja'
+    assert pipeline.kategoria_z_oferty(oferta) == 'reklamacja'
 
 
 def test_kategoria_z_oferty_zwrot():
     oferta = pipeline.LANG['pl']['mail_kategorie']['zwrot']['oferta']
-    assert pipeline._kategoria_z_oferty(oferta) == 'zwrot'
+    assert pipeline.kategoria_z_oferty(oferta) == 'zwrot'
 
 
 def test_kategoria_z_oferty_brak_dopasowania():
-    assert pipeline._kategoria_z_oferty('cos zupelnie innego') is None
+    assert pipeline.kategoria_z_oferty('cos zupelnie innego') is None
