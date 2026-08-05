@@ -17,8 +17,14 @@ import simplemma
 from collections import Counter
 from functools import lru_cache
 
-MODELE = {lang: SentenceTransformer(cfg['embedder']) for lang, cfg in LANG.items()}
-model = MODELE['pl']
+class ModeleLeniwe(dict):
+    def __missing__(self, lang):
+        model = SentenceTransformer(LANG[lang]['embedder'])
+        self[lang] = model
+        return model
+
+
+MODELE = ModeleLeniwe()
 OKNO_HISTORII = 3
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 KLASYFIKATOR_ON = os.getenv('KLASYFIKATOR_STRONY', '0') == '1'
@@ -31,10 +37,9 @@ PII_WZORCE = (
 )
 PROG_POKRYCIA = LANG['pl']['prog_pokrycia']
 PROG_RERANK = LANG['pl']['prog_rerank']
-# Lokalne rozwiązanie (bge-v2-m3 + Bielik 1.5B): PROG_POKRYCIA = 0.65, PROG_RERANK = 0.05
 
 
-def _followup(query: str, lang: str = 'pl') -> bool:
+def followup(query: str, lang: str = 'pl') -> bool:
     cfg = LANG[lang]
     low = query.lower().strip()
     if low.startswith(cfg['followup_prefiksy']):
@@ -54,7 +59,7 @@ def sygnal_maila(query: str, lang: str = 'pl') -> bool:
     return False
 
 
-def _kategoria_z_oferty(query: str, lang: str = 'pl') -> str | None:
+def kategoria_z_oferty(query: str, lang: str = 'pl') -> str | None:
     cfg = LANG[lang]
     low = query.strip().lower()
     for nazwa, kat in cfg['mail_kategorie'].items():
@@ -63,16 +68,16 @@ def _kategoria_z_oferty(query: str, lang: str = 'pl') -> str | None:
     return None
 
 
-def _jawna_prosba_o_mail(query: str, lang: str = 'pl') -> bool:
+def jawna_prosba_o_mail(query: str, lang: str = 'pl') -> bool:
     cfg = LANG[lang]
     low = query.strip().lower()
-    if _kategoria_z_oferty(query, lang):
+    if kategoria_z_oferty(query, lang):
         return True
     tokeny = set(tokenize_words(low))
     return bool(tokeny & cfg['mail_czasowniki']) and bool(tokeny & cfg['mail_obiekty'])
 
 
-def _lematy(tekst: str, lang: str = 'pl') -> set:
+def lematy(tekst: str, lang: str = 'pl') -> set:
     lemma_lang = LANG[lang]['lemma_lang']
     return {simplemma.lemmatize(t, lang=lemma_lang)
             for t in tokenize_words(tekst) if len(t) >= MIN_DLUGOSC}
@@ -88,20 +93,20 @@ def embed_query(lang: str, tekst: str):
     return emb
 
 
-def _chunks_path(lang: str) -> Path:
+def chunks_path(lang: str) -> Path:
     suffix = LANG[lang]['suffix']
     return Path(__file__).resolve().parent.parent / 'RAG' / f'chunks{suffix}.json'
 
 
 def corpus_stamp(lang: str) -> int:
     try:
-        return int(_chunks_path(lang).stat().st_mtime)
+        return int(chunks_path(lang).stat().st_mtime)
     except OSError:
         return 0
 
 
-def _zaladuj_idf(lang: str) -> tuple[dict, float]:
-    chunks_json = _chunks_path(lang)
+def zaladuj_idf(lang: str) -> tuple[dict, float]:
+    chunks_json = chunks_path(lang)
     idf_cache = chunks_json.parent / f'idf{LANG[lang]["suffix"]}.pkl'
     idf, idf_max = {}, 1.0
     try:
@@ -118,7 +123,7 @@ def _zaladuj_idf(lang: str) -> tuple[dict, float]:
             n = len(chunki) or 1
             df = Counter()
             for chunk in chunki:
-                for lemat in _lematy(chunk.get('tekst', ''), lang):
+                for lemat in lematy(chunk.get('tekst', ''), lang):
                     df[lemat] += 1
             idf = {lemat: math.log((1 + n) / (1 + liczba)) for lemat, liczba in df.items()}
             idf_max = math.log(1 + n)
@@ -127,22 +132,29 @@ def _zaladuj_idf(lang: str) -> tuple[dict, float]:
         else:
             idf = zapis['idf']
             idf_max = zapis['idf_max']
-    except Exception:
-        pass
+    except Exception as e:
+        print(f'blad ladowania idf ({lang}): {type(e).__name__}: {e}')
     return idf, idf_max
 
 
-IDF_DANE = {lang: _zaladuj_idf(lang) for lang in LANG}
+class IdfLeniwe(dict):
+    def __missing__(self, lang):
+        wartosc = zaladuj_idf(lang)
+        self[lang] = wartosc
+        return wartosc
+
+
+IDF_DANE = IdfLeniwe()
 
 
 def pokrycie_idf(tekst: str, chunks: list, lang: str = 'pl') -> float:
-    odp = _lematy(tekst, lang)
+    odp = lematy(tekst, lang)
     if not odp:
         return 0.0
     idf, idf_max = IDF_DANE[lang]
     kontekst = set()
     for c, _ in chunks:
-        kontekst |= _lematy(c['tekst'], lang)
+        kontekst |= lematy(c['tekst'], lang)
     licznik = sum(idf.get(w, idf_max) for w in odp & kontekst)
     mianownik = sum(idf.get(w, idf_max) for w in odp)
     return licznik / mianownik if mianownik else 0.0
@@ -229,9 +241,9 @@ def run_stream(query:str, bielik_model:str | None=None,
                 return
         doprecyzowanie = f'Szukam dla: „{query}", czy o to chodziło?' if korekta['zmieniono'] else None
 
-    if _jawna_prosba_o_mail(query, lang):
+    if jawna_prosba_o_mail(query, lang):
         yield krok(cfg['kroki']['szkic_wiadomosci'])
-        kategoria = _kategoria_z_oferty(query, lang)
+        kategoria = kategoria_z_oferty(query, lang)
         if kategoria is None:
             ostatnia_tresc = next((w['content'] for w in reversed(history)
                                    if w.get('role') == 'user' and w.get('content')), '')
@@ -253,7 +265,8 @@ def run_stream(query:str, bielik_model:str | None=None,
                      'kategoria': kategoria, 'naglowek_ui': kat_cfg['naglowek_ui']})
         return
 
-    if history and (przepisz or _followup(query, lang)):
+    czy_followup = bool(history) and followup(query, lang)
+    if (history and przepisz) or czy_followup:
         yield krok(cfg['kroki']['przepisuje_pytanie'])
         zapytanie_ret = przepisz_zapytanie(query, history, bielik_model, lang)
     else:
@@ -269,18 +282,15 @@ def run_stream(query:str, bielik_model:str | None=None,
                                         k=5, k_surowe=20, lang=lang)
         strona_wybrana, czy_pytac = strona, False
     else:
-        prior, sila = strony.prior_strony(zapytanie_ret, agent_poprzedni, lang)
+        prior, sila = strony.prior_strony(zapytanie_ret, agent_poprzedni, lang, czy_followup)
         if prior is None and KLASYFIKATOR_ON:
             yield krok(cfg['kroki']['rozpoznaje_strone'])
             prior = strona_pytania(zapytanie_ret, history, lang)
             sila = 'llm' if prior else None
-        if prior is None:
-            strona_wybrana, chunks, czy_pytac = None, [], True
-        else:
-            kwoty = strony.przydzial_kandydatow(prior, sila)
-            chunks_szerokie = search_reranked_multi(zapytanie_ret, query_emb, list(kwoty),
-                                                      k=10, k_surowe=kwoty, lang=lang)
-            strona_wybrana, chunks, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=5)
+        kwoty = strony.przydzial_kandydatow(prior, sila)
+        chunks_szerokie = search_reranked_multi(zapytanie_ret, query_emb, list(kwoty),
+                                                  k=10, k_surowe=kwoty, lang=lang)
+        strona_wybrana, chunks, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=5)
 
     if czy_pytac:
         yield wynik({'agent': '', 'answer': cfg['strona_doprecyzuj'],
@@ -309,9 +319,10 @@ def run_stream(query:str, bielik_model:str | None=None,
     etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
     yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=etykieta_sekcji))
     odpowiedz = None
+    tokeny_bufor = []
     for ev in answer_stream(query, agent_odp, chunks, bielik_model, history, lang):
         if ev['typ'] == 'token':
-            yield ev
+            tokeny_bufor.append(ev)
         elif ev['typ'] == 'koniec':
             odpowiedz = ev['dane']
 
@@ -319,6 +330,9 @@ def run_stream(query:str, bielik_model:str | None=None,
         yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
         return
+
+    for ev in tokeny_bufor:
+        yield ev
 
     oferta = None
     oferta_kategoria = None

@@ -8,6 +8,13 @@ from lang_config import LANG
 RESEND_URL = 'https://api.resend.com/emails'
 
 
+class WysylkaCzesciowaError(Exception):
+    def __init__(self, ticket: str, oryginalny: Exception):
+        super().__init__(str(oryginalny))
+        self.ticket = ticket
+        self.oryginalny = oryginalny
+
+
 def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: str, lang: str = 'pl') -> str:
     klucz = os.getenv('RESEND_API_KEY')
     nadawca = os.getenv('RESEND_FROM_EMAIL')
@@ -36,8 +43,12 @@ def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: s
     }
 
     with httpx.Client(timeout=10.0) as klient:
-        for wiadomosc in (do_sprzedawcy, do_klienta):
-            odpowiedz = klient.post(RESEND_URL, headers=naglowki, json=wiadomosc)
+        odpowiedz = klient.post(RESEND_URL, headers=naglowki, json=do_sprzedawcy)
+        odpowiedz.raise_for_status()
+        try:
+            odpowiedz = klient.post(RESEND_URL, headers=naglowki, json=do_klienta)
             odpowiedz.raise_for_status()
+        except httpx.HTTPError as e:
+            raise WysylkaCzesciowaError(ticket, e) from e
 
     return ticket

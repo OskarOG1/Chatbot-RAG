@@ -4,8 +4,8 @@ from spell import tokenize_words
 STRONY = ('kupujacy', 'sprzedajacy')
 STRONA_DO_AGENTA = {'kupujacy': 'kupujacy', 'sprzedajacy': 'sprzedaz'}
 
-BONUS_PRIOR = 0.75
-MARGINES_REMIS = 5.0
+BONUS_PRIOR = 3.5
+MARGINES_REMIS = 0.5
 TOP_N_DECYZJA = 3
 
 
@@ -13,8 +13,9 @@ def strona_chunka(chunk: dict) -> str:
     return 'sprzedajacy' if chunk.get('agent') == 'sprzedaz' else 'kupujacy'
 
 
-def prior_strony(query: str, agent_poprzedni: str | None, lang: str = 'pl') -> tuple[str | None, str | None]:
-    if agent_poprzedni:
+def prior_strony(query: str, agent_poprzedni: str | None, lang: str = 'pl',
+                  czy_followup: bool = False) -> tuple[str | None, str | None]:
+    if agent_poprzedni and czy_followup:
         strona = 'sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'
         return strona, 'lepka'
 
@@ -38,7 +39,7 @@ def przydzial_kandydatow(prior: str | None, sila: str | None) -> dict[str, int]:
     if sila == 'leksykalna':
         preferowana, inna = 20, 8
     elif sila == 'lepka':
-        preferowana, inna = 20, 6
+        preferowana, inna = 18, 10
     elif sila == 'llm':
         preferowana, inna = 18, 10
     else:
@@ -64,12 +65,15 @@ def rozstrzygnij(chunks: list[tuple[dict, float]], prior: str | None, sila: str 
         surowe_grupy[strona].sort(reverse=True)
         bonus_grupy[strona].sort(reverse=True)
 
-    def suma_topn(grupa: dict) -> dict:
-        return {strona: sum(wartosci[:TOP_N_DECYZJA]) if wartosci else float('-inf')
-                for strona, wartosci in grupa.items()}
+    def srednia_topn(grupa: dict) -> dict:
+        wyniki = {}
+        for strona, wartosci in grupa.items():
+            gora = wartosci[:TOP_N_DECYZJA]
+            wyniki[strona] = sum(gora) / len(gora) if gora else float('-inf')
+        return wyniki
 
-    wynik_surowy = suma_topn(surowe_grupy)
-    wynik_bonus = suma_topn(bonus_grupy)
+    wynik_surowy = srednia_topn(surowe_grupy)
+    wynik_bonus = srednia_topn(bonus_grupy)
 
     zwyciezca = max(STRONY, key=lambda s: wynik_bonus[s])
 
@@ -81,5 +85,5 @@ def rozstrzygnij(chunks: list[tuple[dict, float]], prior: str | None, sila: str 
         przewaga_surowa = wynik_surowy[inna_strona] - wynik_surowy[prior]
         czy_pytac = przewaga_surowa > BONUS_PRIOR + MARGINES_REMIS
 
-    chunks_jednorodne = [(c, s) for c, s in chunks if strona_chunka(c) == zwyciezca][:k]
-    return zwyciezca, chunks_jednorodne, czy_pytac
+    chunks_top = chunks[:k]
+    return zwyciezca, chunks_top, czy_pytac

@@ -10,7 +10,6 @@ import simplemma
 from lang_config import LANG
 
 RERANKER_NAME = 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1'
-# Lokalne rozwiązanie: RERANKER_NAME = 'BAAI/bge-reranker-v2-m3'
 RERANKER = None
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 
@@ -79,21 +78,24 @@ def get_faiss(agent:str, lang:str='pl'):
 
     return FAISS_CACHE[klucz]
 
+CHUNKI_CACHE = {}
 def wczytaj_chunki(agent:str, lang:str='pl') -> list[dict]:
-    suffix = LANG[lang]['suffix']
-    nazwa = f'chunks{suffix}.json' if agent == 'all' else f'chunks_{agent}{suffix}.json'
-    sciezka_chunki = RAG_DIR / nazwa
+    klucz = (lang, agent)
+    if klucz not in CHUNKI_CACHE:
+        suffix = LANG[lang]['suffix']
+        nazwa = f'chunks{suffix}.json' if agent == 'all' else f'chunks_{agent}{suffix}.json'
+        sciezka_chunki = RAG_DIR / nazwa
+        with open(sciezka_chunki, 'r', encoding='utf-8') as r:
+            CHUNKI_CACHE[klucz] = json.load(r)
 
-    with open(sciezka_chunki, 'r', encoding='utf-8' ) as r:
-
-        return json.load(r)
+    return CHUNKI_CACHE[klucz]
 
 def ranking_faiss(query_emb, agent:str, chunki: list[dict], lang:str='pl') -> list[int]:
 
   index = get_faiss(agent, lang)
   _, idx = index.search(query_emb, len(chunki))
 
-  return list(idx[0])
+  return [i for i in idx[0] if i != -1]
 
 def ortografia(token, n=3):
     t = f'#{token}'
@@ -147,7 +149,8 @@ def dedup(wyniki):
             unikalne.append((chunk,score))
 
     return unikalne
-# zostawiony do testów, w produkcji działą search_hybrid
+
+
 def search_route(query:str, query_emb, k:int=5) -> tuple[str, list[tuple]]:
     
     chunki = wczytaj_chunki('all')

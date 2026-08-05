@@ -4,7 +4,7 @@ import itertools
 import re
 
 
-def _otworz_strumien(nazwa: str, wiadomosci: list[dict], stop: list[str]):
+def otworz_strumien(nazwa: str, wiadomosci: list[dict], stop: list[str]):
     return klient.chat.completions.create(
         model=nazwa,
         messages=wiadomosci,
@@ -32,7 +32,7 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
 
     stop = [f"{p['pytanie_label']}:", '<|start_header_id|>']
     try:
-        strumien = _otworz_strumien(nazwa, wiadomosci, stop)
+        strumien = otworz_strumien(nazwa, wiadomosci, stop)
         pierwszy = next(strumien)
         kawalki = itertools.chain([pierwszy], strumien)
     except StopIteration:
@@ -40,7 +40,7 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
     except Exception as e:
         print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_FALLBACK}')
         nazwa = MODEL_FALLBACK
-        kawalki = _otworz_strumien(nazwa, wiadomosci, stop)
+        kawalki = otworz_strumien(nazwa, wiadomosci, stop)
 
     pelna = ''
     for kawalek in kawalki:

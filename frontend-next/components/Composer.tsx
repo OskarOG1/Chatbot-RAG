@@ -5,6 +5,8 @@ import { useTheme, BODY, MONO } from '@/lib/theme';
 import { type Strona } from '@/lib/chat';
 import { IkonaWyslij } from './Ikony';
 
+const AKCENT_SEGMENT = '#C43E00';
+
 interface Props {
   value: string;
   placeholder: string;
@@ -88,7 +90,7 @@ export default function Composer({
               padding: '9px 14px',
               borderRadius: 8,
               border: 'none',
-              background: th.accent,
+              background: AKCENT_SEGMENT,
               color: '#FFFFFF',
               fontFamily: BODY,
               fontSize: 12.5,
@@ -145,7 +147,7 @@ function StronaPrzelacznik({ strona, sideAutoLabel, sideBuyingLabel, sideSelling
           left: 3,
           width: 'calc((100% - 6px) / 3)',
           borderRadius: 6,
-          background: wybranaStrona ? th.accent : th.surface,
+          background: wybranaStrona ? AKCENT_SEGMENT : th.surface,
           boxShadow: th.shadow,
           transform: `translateX(${aktywnyIndeks * 100}%)`,
           transition: 'transform 240ms cubic-bezier(0.4, 0, 0.2, 1), background 200ms ease',
