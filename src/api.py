@@ -27,6 +27,7 @@ LIMIT_WYSYLKA_DZIEN = int(os.getenv('LIMIT_WYSYLKA_DZIEN', '40'))
 LIMIT_WYSYLKA_ADRES_S = int(os.getenv('LIMIT_WYSYLKA_ADRES_S', '600'))
 _wysylki = deque()
 _wysylki_adres: 'OrderedDict[str, float]' = OrderedDict()
+_korekty: 'OrderedDict[str, float]' = OrderedDict()
 EMAIL_WZORZEC = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+')
 
 CACHE_MAX = int(os.getenv('CACHE_MAX', '200'))
@@ -121,6 +122,28 @@ def zwolnij_limit_adresu(email: str) -> None:
     _wysylki_adres.pop(email.lower(), None)
 
 
+def rejestruj_adres(email: str) -> None:
+    klucz = email.lower()
+    _wysylki_adres[klucz] = time.time()
+    _wysylki_adres.move_to_end(klucz)
+    if len(_wysylki_adres) > 500:
+        _wysylki_adres.popitem(last=False)
+
+
+def w_limicie_korekty(ticket: str) -> bool:
+    if ticket in _korekty:
+        return False
+    _korekty[ticket] = time.time()
+    _korekty.move_to_end(ticket)
+    if len(_korekty) > 500:
+        _korekty.popitem(last=False)
+    return True
+
+
+def zwolnij_limit_korekty(ticket: str) -> None:
+    _korekty.pop(ticket, None)
+
+
 def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: bool, blad: str | None = None) -> None:
     try:
         wpis = {
@@ -188,6 +211,7 @@ class WyslijZadanie(BaseModel):
     tresc: str = Field(min_length=1, max_length=8000)
     kategoria: str | None = None
     lang: Literal['pl', 'en'] | None = None
+    ticket: str | None = Field(default=None, pattern=r'^[A-F0-9]{8}$')
 
 class WyslijOdpowiedz(BaseModel):
     ticket: str
@@ -281,19 +305,30 @@ def send_email(request: WyslijZadanie):
         raise HTTPException(status_code=422, detail=LANG[lang]['bledy']['zly_email'])
     if not w_limicie_wysylki():
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
-    if not w_limicie_adresu(email):
+    korekta = request.ticket is not None
+    if korekta:
+        if not w_limicie_korekty(request.ticket):
+            raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
+        rejestruj_adres(email)
+    elif not w_limicie_adresu(email):
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
-    try:
-        ticket = wyslij_potwierdzenie(email, request.kategoria, request.temat, request.tresc, lang=lang)
-    except RuntimeError as e:
+    def zwolnij_limity():
+        if korekta:
+            zwolnij_limit_korekty(request.ticket)
         zwolnij_limit_adresu(email)
+
+    try:
+        ticket = wyslij_potwierdzenie(email, request.kategoria, request.temat, request.tresc, lang=lang,
+                                       ticket=request.ticket)
+    except RuntimeError as e:
+        zwolnij_limity()
         loguj_wysylke(lang, request.kategoria, None, False, type(e).__name__)
         raise HTTPException(status_code=503, detail=str(e))
     except WysylkaCzesciowaError as e:
         loguj_wysylke(lang, request.kategoria, e.ticket, False, type(e.oryginalny).__name__)
         raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
     except httpx.HTTPError as e:
-        zwolnij_limit_adresu(email)
+        zwolnij_limity()
         loguj_wysylke(lang, request.kategoria, None, False, type(e).__name__)
         raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
     loguj_wysylke(lang, request.kategoria, ticket, True)
