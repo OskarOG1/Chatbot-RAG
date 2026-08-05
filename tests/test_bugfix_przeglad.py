@@ -1,6 +1,3 @@
-import pytest
-
-
 def test_efektywny_jezyk_jawny_wybor_ma_priorytet():
     import api
     assert api.efektywny_jezyk('Allegro Smart konto', 'en') == 'en'

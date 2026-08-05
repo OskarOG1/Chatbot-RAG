@@ -522,7 +522,7 @@ export default function ChatApp() {
                     wybranaStrona={m.wybranaStrona}
                     onPickStrona={(s) => {
                       wybierzStroneWiadomosci(m.id, s);
-                      wyslij(m.zapytanieDoStrony ?? '', s);
+                      wyslij(m.zapytanieDoStrony ?? '', s, true);
                     }}
                   />
                   {m.doprecyzowanie && (
