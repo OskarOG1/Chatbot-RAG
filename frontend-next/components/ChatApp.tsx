@@ -85,7 +85,7 @@ export default function ChatApp() {
   const [toast, setToast] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const msgSub = useRef(0);
+  const msgCounter = useRef(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllers = useRef<Map<string, AbortController>>(new Map());
   const wysylkaTimery = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -125,8 +125,8 @@ export default function ChatApp() {
   const active = threads.find((x) => x.id === activeId) ?? null;
 
   function nextMsgId(): number {
-    msgSub.current = (msgSub.current + 1) % 1000;
-    return Date.now() * 1000 + msgSub.current;
+    msgCounter.current += 1;
+    return msgCounter.current;
   }
 
   function pokazToast(tekst: string) {
