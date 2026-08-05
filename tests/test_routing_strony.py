@@ -1,7 +1,10 @@
 import pipeline
 import strony
 
+from conftest import wymaga_korpusu
 
+
+@wymaga_korpusu
 def test_pytanie_generyczne_bez_priora_pyta_o_strone():
     wynik = pipeline.run('ile mam czasu na zwrot', bez_korekty=True, sedzia=False, lang='pl')
     assert wynik['pyta_strona'] is True
@@ -9,6 +12,7 @@ def test_pytanie_generyczne_bez_priora_pyta_o_strone():
     assert wynik['sources'] == []
 
 
+@wymaga_korpusu
 def test_pytanie_bez_priora_z_jasnym_zwyciezca_nie_pyta():
     wynik = pipeline.run('jak zmienić hasło', bez_korekty=True, sedzia=False, lang='pl')
     assert not wynik.get('pyta_strona')

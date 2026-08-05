@@ -12,6 +12,9 @@ def test_lepki_prior_wymaga_historii(monkeypatch):
     import pipeline
     import strony
 
+    monkeypatch.setattr(pipeline, 'embed_query', lambda lang, tekst: None)
+    monkeypatch.setattr(pipeline, 'search_reranked_multi', lambda *a, **k: [])
+
     wywolania = []
     oryginalny = strony.prior_strony
 
@@ -28,6 +31,10 @@ def test_lepki_prior_wymaga_historii(monkeypatch):
 def test_lepki_prior_dziala_gdy_jest_historia(monkeypatch):
     import pipeline
     import strony
+
+    monkeypatch.setattr(pipeline, 'embed_query', lambda lang, tekst: None)
+    monkeypatch.setattr(pipeline, 'search_reranked_multi', lambda *a, **k: [])
+    monkeypatch.setattr(pipeline, 'przepisz_zapytanie', lambda query, history, bielik_model, lang: query)
 
     wywolania = []
     oryginalny = strony.prior_strony
