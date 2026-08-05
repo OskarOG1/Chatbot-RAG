@@ -60,8 +60,10 @@ LANG = {
         },
         'wysylka': {
             'temat_sprzedawca': '[Zgłoszenie {ticket}] {temat}',
+            'temat_sprzedawca_korekta': '[Zgłoszenie {ticket}, korekta] {temat}',
             'tresc_sprzedawca': 'Numer zgłoszenia: {ticket}\nKategoria: {kategoria}\nAdres klienta: {email}\n\n{tresc}',
             'temat_klient': 'Potwierdzenie zgłoszenia {ticket}',
+            'temat_klient_korekta': 'Korekta zgłoszenia {ticket}',
             'tresc_klient': (
                 'Twoje zgłoszenie zostało przekazane do sprzedawcy.\n\n'
                 'Numer zgłoszenia: {ticket}\n'
@@ -200,8 +202,10 @@ LANG = {
         },
         'wysylka': {
             'temat_sprzedawca': '[Ticket {ticket}] {temat}',
+            'temat_sprzedawca_korekta': '[Ticket {ticket}, correction] {temat}',
             'tresc_sprzedawca': 'Ticket number: {ticket}\nCategory: {kategoria}\nCustomer address: {email}\n\n{tresc}',
             'temat_klient': 'Confirmation of ticket {ticket}',
+            'temat_klient_korekta': 'Correction to ticket {ticket}',
             'tresc_klient': (
                 'Your request has been forwarded to the seller.\n\n'
                 'Ticket number: {ticket}\n'

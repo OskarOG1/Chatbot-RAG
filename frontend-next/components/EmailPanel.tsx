@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useTheme } from '@/lib/theme';
 import { TEKSTY, type Lang } from '@/lib/chat';
 import { htmlDoMarkdown, markdownDoHtml } from '@/lib/richtext';
@@ -34,13 +34,19 @@ interface Props {
   clientEmail: string;
   emailValid: boolean;
   sending: boolean;
+  wyslano: { ticket: string; czasTekst: string } | null;
+  edytujPoWyslaniu: boolean;
+  odliczanieDo: number | null;
   onSubjectChange: (v: string) => void;
   onBodyChange: (v: string) => void;
   onClientEmailChange: (v: string) => void;
   onClose: () => void;
+  onDiscard: () => void;
   onCopy: () => void;
   onUndo: () => void;
   onSend: () => void;
+  onCancelSend: () => void;
+  onStartEdit: () => void;
 }
 
 export default function EmailPanel({
@@ -52,18 +58,26 @@ export default function EmailPanel({
   clientEmail,
   emailValid,
   sending,
+  wyslano,
+  edytujPoWyslaniu,
+  odliczanieDo,
   onSubjectChange,
   onBodyChange,
   onClientEmailChange,
   onClose,
+  onDiscard,
   onCopy,
   onUndo,
   onSend,
+  onCancelSend,
+  onStartEdit,
 }: Props) {
   const th = useTheme();
   const t = TEKSTY[lang];
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const ostatnioZsynchronizowane = useRef<string>('');
+  const readOnly = wyslano !== null && !edytujPoWyslaniu;
+  const [teraz, setTeraz] = useState(() => Date.now());
 
   useEffect(() => {
     if (!bodyRef.current) return;
@@ -71,6 +85,14 @@ export default function EmailPanel({
     bodyRef.current.innerHTML = markdownDoHtml(body);
     ostatnioZsynchronizowane.current = body;
   }, [body]);
+
+  useEffect(() => {
+    if (odliczanieDo === null) return undefined;
+    const iv = setInterval(() => setTeraz(Date.now()), 250);
+    return () => clearInterval(iv);
+  }, [odliczanieDo]);
+
+  const sekundyDoWyslania = odliczanieDo !== null ? Math.max(0, Math.ceil((odliczanieDo - teraz) / 1000)) : null;
 
   function synchronizujBody() {
     if (!bodyRef.current) return;
@@ -80,6 +102,7 @@ export default function EmailPanel({
   }
 
   function formatuj(polecenie: string) {
+    if (readOnly) return;
     document.execCommand(polecenie);
     synchronizujBody();
   }
@@ -117,34 +140,45 @@ export default function EmailPanel({
               <div style={{ fontSize: 12, color: th.textSecondary, marginTop: 2 }}>
                 {t.to} {recipient}
               </div>
+              {wyslano && (
+                <div style={{ fontSize: 11.5, fontWeight: 700, color: th.accentText, marginTop: 4 }}>
+                  {t.ticketBadge(wyslano.ticket, wyslano.czasTekst)}
+                </div>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                border: 'none',
-                background: th.bgApp,
-                width: 30,
-                height: 30,
-                padding: 0,
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontSize: 15,
-                lineHeight: 1,
-                color: th.textSecondary,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              ✕
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
+              <button type="button" onClick={onDiscard} style={discardBtn(th)}>
+                {t.discardDraft}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  border: 'none',
+                  background: th.bgApp,
+                  width: 30,
+                  height: 30,
+                  padding: 0,
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: 15,
+                  lineHeight: 1,
+                  color: th.textSecondary,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           <div style={{ flex: '0 0 auto', padding: '18px 22px 0' }}>
             <label style={labelStyle(th.textSecondary)}>{t.subjectLabel}</label>
             <input
               value={subject}
+              readOnly={readOnly}
               onChange={(e) => onSubjectChange(e.target.value)}
               style={{
                 width: '100%',
@@ -165,44 +199,49 @@ export default function EmailPanel({
           <div style={{ flex: '0 0 auto', padding: '16px 22px 0', display: 'flex', gap: 6 }}>
             <button
               type="button"
+              disabled={readOnly}
               onMouseDown={zachowajZaznaczenie}
               onClick={() => formatuj('bold')}
-              style={toolbarBtn(th, { fontWeight: 800 })}
+              style={toolbarBtn(th, { fontWeight: 800 }, readOnly)}
             >
               B
             </button>
             <button
               type="button"
+              disabled={readOnly}
               onMouseDown={zachowajZaznaczenie}
               onClick={() => formatuj('italic')}
-              style={toolbarBtn(th, { fontStyle: 'italic', fontWeight: 700 })}
+              style={toolbarBtn(th, { fontStyle: 'italic', fontWeight: 700 }, readOnly)}
             >
               I
             </button>
             <button
               type="button"
+              disabled={readOnly}
               aria-label={t.alignLeft}
               onMouseDown={zachowajZaznaczenie}
               onClick={() => formatuj('justifyLeft')}
-              style={toolbarBtn(th, {})}
+              style={toolbarBtn(th, {}, readOnly)}
             >
               <AlignIcon align="left" color={th.textPrimary} />
             </button>
             <button
               type="button"
+              disabled={readOnly}
               aria-label={t.alignCenter}
               onMouseDown={zachowajZaznaczenie}
               onClick={() => formatuj('justifyCenter')}
-              style={toolbarBtn(th, {})}
+              style={toolbarBtn(th, {}, readOnly)}
             >
               <AlignIcon align="center" color={th.textPrimary} />
             </button>
             <button
               type="button"
+              disabled={readOnly}
               aria-label={t.alignRight}
               onMouseDown={zachowajZaznaczenie}
               onClick={() => formatuj('justifyRight')}
-              style={toolbarBtn(th, {})}
+              style={toolbarBtn(th, {}, readOnly)}
             >
               <AlignIcon align="right" color={th.textPrimary} />
             </button>
@@ -211,7 +250,7 @@ export default function EmailPanel({
           <div style={{ flex: '1 1 auto', padding: '12px 22px 0', minHeight: 0 }}>
             <div
               ref={bodyRef}
-              contentEditable
+              contentEditable={!readOnly}
               suppressContentEditableWarning
               onInput={synchronizujBody}
               className="email-body-editor"
@@ -237,6 +276,7 @@ export default function EmailPanel({
             <input
               type="email"
               value={clientEmail}
+              readOnly={readOnly}
               placeholder={t.emailPlaceholder}
               onChange={(e) => onClientEmailChange(e.target.value)}
               style={{
@@ -260,18 +300,46 @@ export default function EmailPanel({
               <button type="button" onClick={onCopy} style={secondaryBtn(th)}>
                 {t.copy}
               </button>
-              <button type="button" onClick={onUndo} style={outlineBtn(th)}>
+              <button type="button" onClick={onUndo} disabled={readOnly} style={outlineBtn(th)}>
                 {t.undoEdits}
               </button>
             </div>
-            <button
-              type="button"
-              onClick={onSend}
-              disabled={!emailValid || sending}
-              style={primaryBtn(th, !emailValid || sending)}
-            >
-              {sending ? t.sending : t.send}
-            </button>
+            {odliczanieDo !== null ? (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div
+                  style={{
+                    flex: 1.4,
+                    padding: 11,
+                    borderRadius: 10,
+                    border: `1px solid ${th.border}`,
+                    background: th.inputBg,
+                    color: th.textPrimary,
+                    fontFamily: 'inherit',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    textAlign: 'center',
+                  }}
+                >
+                  {t.sendingCountdown(sekundyDoWyslania ?? 0)}
+                </div>
+                <button type="button" onClick={onCancelSend} style={outlineBtn(th)}>
+                  {t.cancelSend}
+                </button>
+              </div>
+            ) : readOnly ? (
+              <button type="button" onClick={onStartEdit} style={primaryBtn(th, false)}>
+                {t.editAfterSend}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onSend}
+                disabled={!emailValid || sending}
+                style={primaryBtn(th, !emailValid || sending)}
+              >
+                {sending ? t.sending : t.send}
+              </button>
+            )}
           </div>
         </div>
       }
@@ -289,7 +357,7 @@ function labelStyle(color: string) {
   };
 }
 
-function toolbarBtn(th: ReturnType<typeof useTheme>, extra: Record<string, string | number>) {
+function toolbarBtn(th: ReturnType<typeof useTheme>, extra: Record<string, string | number>, disabled = false) {
   return {
     border: `1px solid ${th.border}`,
     background: th.inputBg,
@@ -300,11 +368,27 @@ function toolbarBtn(th: ReturnType<typeof useTheme>, extra: Record<string, strin
     padding: 0,
     fontSize: 13,
     lineHeight: 1,
-    cursor: 'pointer',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.45 : 1,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     ...extra,
+  };
+}
+
+function discardBtn(th: ReturnType<typeof useTheme>) {
+  return {
+    border: `1px solid ${th.border}`,
+    background: th.bgApp,
+    color: th.textSecondary,
+    borderRadius: 100,
+    padding: '6px 12px',
+    fontFamily: 'inherit',
+    fontWeight: 600,
+    fontSize: 11.5,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
   };
 }
 
