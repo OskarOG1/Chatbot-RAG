@@ -247,7 +247,7 @@ export default function ChatApp() {
     return { dane, bladTekst };
   }
 
-  async function wyslij(promptUser: string, stronaOverride?: Strona) {
+  async function wyslij(promptUser: string, stronaOverride?: Strona, pomijDymkeUzytkownika?: boolean) {
     if (!promptUser.trim()) return;
     const tid = activeId;
     const thread = threads.find((x) => x.id === tid);
@@ -265,11 +265,13 @@ export default function ChatApp() {
     }
     setDraft('');
 
-    updateThread(tid, (x) => {
-      const messages = [...x.messages, { id: nextMsgId(), role: 'user' as const, content: promptUser }];
-      const title = x.title ?? tytulZWiadomosci(messages, t.threadFallbackTitle);
-      return { ...x, messages, title };
-    });
+    if (!pomijDymkeUzytkownika) {
+      updateThread(tid, (x) => {
+        const messages = [...x.messages, { id: nextMsgId(), role: 'user' as const, content: promptUser }];
+        const title = x.title ?? tytulZWiadomosci(messages, t.threadFallbackTitle);
+        return { ...x, messages, title };
+      });
+    }
 
     const { dane, bladTekst } = await poproszBackend(
       wiadomosc,
