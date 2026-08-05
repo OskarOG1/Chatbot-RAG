@@ -15,7 +15,8 @@ class WysylkaCzesciowaError(Exception):
         self.oryginalny = oryginalny
 
 
-def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: str, lang: str = 'pl') -> str:
+def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: str, lang: str = 'pl',
+                          ticket: str | None = None) -> str:
     klucz = os.getenv('RESEND_API_KEY')
     nadawca = os.getenv('RESEND_FROM_EMAIL')
     sprzedawca = os.getenv('DEMO_SPRZEDAWCA_EMAIL')
@@ -25,20 +26,23 @@ def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: s
         )
 
     t = LANG[lang]['wysylka']
-    ticket = secrets.token_hex(4).upper()
+    korekta = ticket is not None
+    ticket = ticket or secrets.token_hex(4).upper()
     naglowki = {'Authorization': f'Bearer {klucz}', 'Content-Type': 'application/json'}
     kategoria_tekst = kategoria or t['brak_kategorii']
+    klucz_temat_sprzedawca = 'temat_sprzedawca_korekta' if korekta else 'temat_sprzedawca'
+    klucz_temat_klient = 'temat_klient_korekta' if korekta else 'temat_klient'
 
     do_sprzedawcy = {
         'from': nadawca,
         'to': sprzedawca,
-        'subject': t['temat_sprzedawca'].format(ticket=ticket, temat=temat),
+        'subject': t[klucz_temat_sprzedawca].format(ticket=ticket, temat=temat),
         'text': t['tresc_sprzedawca'].format(ticket=ticket, kategoria=kategoria_tekst, email=email, tresc=tresc),
     }
     do_klienta = {
         'from': nadawca,
         'to': email,
-        'subject': t['temat_klient'].format(ticket=ticket),
+        'subject': t[klucz_temat_klient].format(ticket=ticket),
         'text': t['tresc_klient'].format(ticket=ticket, kategoria=kategoria_tekst, tresc=tresc, klauzula=t['klauzula']),
     }
 

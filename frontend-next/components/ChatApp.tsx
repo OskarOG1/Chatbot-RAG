@@ -39,6 +39,7 @@ import {
 import { oczyscPodglad } from '@/lib/zrodla';
 
 const EMAIL_WZORZEC = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const OKNO_COFNIECIA_MS = 15000;
 
 function formatCzas(ts: number): string {
   const d = new Date(ts);
@@ -87,6 +88,9 @@ export default function ChatApp() {
   const msgCounter = useRef(0);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllers = useRef<Map<string, AbortController>>(new Map());
+  const wysylkaTimery = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const threadsRef = useRef<Thread[]>(threads);
+  threadsRef.current = threads;
 
   function oznaczWysylke(id: string, wysyla: boolean) {
     setSendingIds((ids) => {
@@ -293,13 +297,19 @@ export default function ChatApp() {
     updateThread(tid, (x) => {
       let historiaApi = x.historiaApi;
       let ostatniAgent = x.ostatniAgent;
-      if (dane?.agent) {
+      if (dane?.agent && dane.agent !== 'email') {
         historiaApi = [
           ...historiaApi,
           { role: 'user', content: wiadomosc },
           { role: 'assistant', content: dane.answer },
         ];
         ostatniAgent = dane.agent;
+      } else if (dane?.tryb === 'email') {
+        historiaApi = [
+          ...historiaApi,
+          { role: 'user', content: wiadomosc },
+          { role: 'assistant', content: t.mailHistoriaSkrot(dane.naglowek_ui ?? '') },
+        ];
       }
       let ostatniaKorekta = x.ostatniaKorekta;
       if (dane?.doprecyzowanie) {
@@ -326,6 +336,9 @@ export default function ChatApp() {
           trigger: wiadomosc,
           clientEmail: '',
           sending: false,
+          wyslano: null,
+          edytujPoWyslaniu: false,
+          odliczanieDo: null,
         },
         panelOpen: true,
         messages: [...x.messages, { id: nextMsgId(), role: 'assistant', content: t.panelOpened }],
@@ -376,10 +389,12 @@ export default function ChatApp() {
     pokazToast(t.toastCopied);
   }
 
-  async function wyslijEmail() {
-    const panel = active?.panel;
-    if (!panel || !EMAIL_WZORZEC.test(panel.clientEmail)) return;
-    setPanel((p) => ({ ...p, sending: true }));
+  async function wykonajWysylkeEmail(tid: string) {
+    const panel = threadsRef.current.find((x) => x.id === tid)?.panel;
+    if (!panel) return;
+    const ticketKorekty = panel.wyslano?.ticket ?? null;
+
+    updateThread(tid, (x) => (x.panel ? { ...x, panel: { ...x.panel, sending: true, odliczanieDo: null } } : x));
 
     try {
       const res = await fetch('/api/send-email', {
@@ -391,6 +406,7 @@ export default function ChatApp() {
           tresc: panel.body,
           kategoria: panel.kategoria,
           lang,
+          ticket: ticketKorekty,
         }),
       });
 
@@ -403,12 +419,63 @@ export default function ChatApp() {
       } else {
         const dane: WyslijOdpowiedz = await res.json();
         pokazToast(t.toastSent(dane.ticket));
+        const tekstWiadomosci = ticketKorekty ? t.correctedMessage(dane.ticket) : t.sentMessage(dane.ticket);
+        updateThread(tid, (x) =>
+          x.panel
+            ? {
+                ...x,
+                panel: { ...x.panel, wyslano: { ticket: dane.ticket, czas: Date.now() }, edytujPoWyslaniu: false },
+                messages: [...x.messages, { id: nextMsgId(), role: 'assistant' as const, content: tekstWiadomosci }],
+              }
+            : x
+        );
       }
     } catch {
       pokazToast(t.toastSendError);
     }
 
-    setPanel((p) => ({ ...p, sending: false }));
+    updateThread(tid, (x) => (x.panel ? { ...x, panel: { ...x.panel, sending: false } } : x));
+  }
+
+  function zaplanujWysylkeEmail() {
+    const panel = active?.panel;
+    if (!panel || !EMAIL_WZORZEC.test(panel.clientEmail) || panel.sending) return;
+    if (panel.wyslano && !panel.edytujPoWyslaniu) return;
+    const tid = activeId;
+    setPanel((p) => ({ ...p, odliczanieDo: Date.now() + OKNO_COFNIECIA_MS }));
+    const timer = setTimeout(() => {
+      wysylkaTimery.current.delete(tid);
+      wykonajWysylkeEmail(tid);
+    }, OKNO_COFNIECIA_MS);
+    wysylkaTimery.current.set(tid, timer);
+  }
+
+  function cofnijWysylkeEmail() {
+    const tid = activeId;
+    const timer = wysylkaTimery.current.get(tid);
+    if (timer) {
+      clearTimeout(timer);
+      wysylkaTimery.current.delete(tid);
+    }
+    setPanel((p) => ({ ...p, odliczanieDo: null }));
+  }
+
+  function rozpocznijEdycjePoWyslaniu() {
+    setPanel((p) => ({ ...p, edytujPoWyslaniu: true }));
+  }
+
+  function odrzucPanel() {
+    const panel = active?.panel;
+    if (!panel) return;
+    const maZmiany = panel.subject !== panel.originalSubject || panel.body !== panel.originalBody || panel.wyslano !== null;
+    if (maZmiany && !window.confirm(t.confirmDiscardDraft)) return;
+    const tid = activeId;
+    const timer = wysylkaTimery.current.get(tid);
+    if (timer) {
+      clearTimeout(timer);
+      wysylkaTimery.current.delete(tid);
+    }
+    updateThread(tid, (x) => ({ ...x, panel: null, panelOpen: false }));
   }
 
   if (!active) {
@@ -587,13 +654,19 @@ export default function ChatApp() {
           clientEmail={active.panel?.clientEmail ?? ''}
           emailValid={EMAIL_WZORZEC.test(active.panel?.clientEmail ?? '')}
           sending={active.panel?.sending ?? false}
+          wyslano={active.panel?.wyslano ? { ticket: active.panel.wyslano.ticket, czasTekst: formatCzas(active.panel.wyslano.czas) } : null}
+          edytujPoWyslaniu={active.panel?.edytujPoWyslaniu ?? false}
+          odliczanieDo={active.panel?.odliczanieDo ?? null}
           onSubjectChange={(v) => setPanel((p) => ({ ...p, subject: v }))}
           onBodyChange={(v) => setPanel((p) => ({ ...p, body: v }))}
           onClientEmailChange={(v) => setPanel((p) => ({ ...p, clientEmail: v }))}
           onClose={() => setPanelOpen(false)}
+          onDiscard={odrzucPanel}
           onCopy={kopiujEmail}
           onUndo={cofnijEdycjePanelu}
-          onSend={wyslijEmail}
+          onSend={zaplanujWysylkeEmail}
+          onCancelSend={cofnijWysylkeEmail}
+          onStartEdit={rozpocznijEdycjePoWyslaniu}
         />
 
         <Toast tekst={toast} />

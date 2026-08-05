@@ -35,6 +35,7 @@ export interface WyslijZadanie {
   tresc: string;
   kategoria: string | null;
   lang: Lang;
+  ticket: string | null;
 }
 
 export interface WyslijOdpowiedz {
@@ -113,6 +114,15 @@ interface Teksty {
   sideAskBuyer: string;
   sideAskSeller: string;
   sideChosenPrefix: string;
+  discardDraft: string;
+  confirmDiscardDraft: string;
+  ticketBadge: (ticket: string, czas: string) => string;
+  sentMessage: (ticket: string) => string;
+  correctedMessage: (ticket: string) => string;
+  editAfterSend: string;
+  cancelSend: string;
+  sendingCountdown: (n: number) => string;
+  mailHistoriaSkrot: (naglowek: string) => string;
 }
 
 function odmianaRozmow(n: number): string {
@@ -187,6 +197,15 @@ export const TEKSTY: Record<Lang, Teksty> = {
     sideAskBuyer: 'Kupujący',
     sideAskSeller: 'Sprzedający',
     sideChosenPrefix: 'Pytasz jako',
+    discardDraft: 'Porzuć szkic',
+    confirmDiscardDraft: 'Na pewno porzucić szkic wiadomości?',
+    ticketBadge: (ticket, czas) => `Zgłoszenie ${ticket}, wysłano ${czas}`,
+    sentMessage: (ticket) => `Wysłano zgłoszenie ${ticket} do sprzedawcy.`,
+    correctedMessage: (ticket) => `Wysłano poprawioną wersję zgłoszenia ${ticket}.`,
+    editAfterSend: 'Wyślij poprawioną wersję',
+    cancelSend: 'Cofnij',
+    sendingCountdown: (n) => `Wysyłam za ${n} s`,
+    mailHistoriaSkrot: (naglowek) => `Przygotowano wiadomość do sprzedawcy: ${naglowek}.`,
   },
   en: {
     title: 'Allegro Assistant',
@@ -251,6 +270,15 @@ export const TEKSTY: Record<Lang, Teksty> = {
     sideAskBuyer: 'Buyer',
     sideAskSeller: 'Seller',
     sideChosenPrefix: 'Asking as',
+    discardDraft: 'Discard draft',
+    confirmDiscardDraft: 'Discard this draft message?',
+    ticketBadge: (ticket, czas) => `Ticket ${ticket}, sent ${czas}`,
+    sentMessage: (ticket) => `Sent ticket ${ticket} to the seller.`,
+    correctedMessage: (ticket) => `Sent a corrected version of ticket ${ticket}.`,
+    editAfterSend: 'Send a corrected version',
+    cancelSend: 'Undo',
+    sendingCountdown: (n) => `Sending in ${n}s`,
+    mailHistoriaSkrot: (naglowek) => `Prepared a message to the seller: ${naglowek}.`,
   },
 };
 
