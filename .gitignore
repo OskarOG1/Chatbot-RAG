@@ -28,7 +28,7 @@ trudne.jsonl
 *.jsonl
 diag_*.py
 translate_chunks.py
-
+Allegro-screaming_from.csv
 
 test_HF.py
 *.md
