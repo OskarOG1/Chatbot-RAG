@@ -122,6 +122,7 @@ interface Teksty {
   editAfterSend: string;
   cancelSend: string;
   sendingCountdown: (n: number) => string;
+  pendingSendOtherThread: (tytul: string) => string;
   mailHistoriaSkrot: (naglowek: string) => string;
 }
 
@@ -205,6 +206,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     editAfterSend: 'Wyślij poprawioną wersję',
     cancelSend: 'Cofnij',
     sendingCountdown: (n) => `Wysyłam za ${n} s`,
+    pendingSendOtherThread: (tytul) => `Trwa odliczanie wysyłki w wątku „${tytul}"`,
     mailHistoriaSkrot: (naglowek) => `Przygotowano wiadomość do sprzedawcy: ${naglowek}.`,
   },
   en: {
@@ -278,6 +280,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     editAfterSend: 'Send a corrected version',
     cancelSend: 'Undo',
     sendingCountdown: (n) => `Sending in ${n}s`,
+    pendingSendOtherThread: (tytul) => `A send is counting down in the "${tytul}" chat`,
     mailHistoriaSkrot: (naglowek) => `Prepared a message to the seller: ${naglowek}.`,
   },
 };

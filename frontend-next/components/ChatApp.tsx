@@ -85,7 +85,9 @@ export default function ChatApp() {
   const [toast, setToast] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const msgCounter = useRef(0);
+  const msgCounter = useRef(
+    seed.threads.reduce((max, th) => th.messages.reduce((m, msg) => Math.max(m, msg.id), max), 0)
+  );
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllers = useRef<Map<string, AbortController>>(new Map());
   const wysylkaTimery = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -394,6 +396,11 @@ export default function ChatApp() {
   async function wykonajWysylkeEmail(tid: string) {
     const panel = threadsRef.current.find((x) => x.id === tid)?.panel;
     if (!panel) return;
+    if (!EMAIL_WZORZEC.test(panel.clientEmail)) {
+      updateThread(tid, (x) => (x.panel ? { ...x, panel: { ...x.panel, odliczanieDo: null } } : x));
+      pokazToast(t.toastInvalidEmail);
+      return;
+    }
     const ticketKorekty = panel.wyslano?.ticket ?? null;
 
     updateThread(tid, (x) => (x.panel ? { ...x, panel: { ...x.panel, sending: true, odliczanieDo: null } } : x));
@@ -452,14 +459,17 @@ export default function ChatApp() {
     wysylkaTimery.current.set(tid, timer);
   }
 
-  function cofnijWysylkeEmail() {
-    const tid = activeId;
+  function cofnijWysylkeEmailDla(tid: string) {
     const timer = wysylkaTimery.current.get(tid);
     if (timer) {
       clearTimeout(timer);
       wysylkaTimery.current.delete(tid);
     }
-    setPanel((p) => ({ ...p, odliczanieDo: null }));
+    updateThread(tid, (x) => (x.panel ? { ...x, panel: { ...x.panel, odliczanieDo: null } } : x));
+  }
+
+  function cofnijWysylkeEmail() {
+    cofnijWysylkeEmailDla(activeId);
   }
 
   function rozpocznijEdycjePoWyslaniu() {
@@ -499,6 +509,7 @@ export default function ChatApp() {
 
   const panelOtwarty = active.panelOpen && active.panel !== null;
   const pokazTyping = sendingIds.has(activeId);
+  const wysylkiWInnychWatkach = threads.filter((x) => x.id !== activeId && x.panel?.odliczanieDo != null);
 
   return (
     <ThemeContext.Provider value={th}>
@@ -670,6 +681,58 @@ export default function ChatApp() {
           onCancelSend={cofnijWysylkeEmail}
           onStartEdit={rozpocznijEdycjePoWyslaniu}
         />
+
+        {wysylkiWInnychWatkach.length > 0 && (
+          <div
+            style={{
+              position: 'fixed',
+              bottom: 20,
+              left: 20,
+              zIndex: 40,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+            }}
+          >
+            {wysylkiWInnychWatkach.map((x) => (
+              <div
+                key={x.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  border: `1px solid ${th.line}`,
+                  background: th.surface,
+                  color: th.ink,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  boxShadow: th.shadow,
+                }}
+              >
+                {t.pendingSendOtherThread(x.title ?? t.threadFallbackTitle)}
+                <button
+                  type="button"
+                  onClick={() => cofnijWysylkeEmailDla(x.id)}
+                  style={{
+                    border: `1px solid ${th.accentLine}`,
+                    background: th.accentSoft,
+                    color: th.accentInk,
+                    borderRadius: 100,
+                    padding: '5px 11px',
+                    fontFamily: BODY,
+                    fontWeight: 700,
+                    fontSize: 11.5,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t.cancelSend}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <Toast tekst={toast} />
       </div>
