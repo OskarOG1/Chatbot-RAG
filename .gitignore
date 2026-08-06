@@ -23,6 +23,9 @@ pytest.ini
 confest.py
 measure.py
 measure_*.py
+Pomiary/zbierz_pytania.py
+Pomiary/fixtures_pytania/
+Pomiary/log_zbieranie_pytan.txt
 classify.py
 trudne.jsonl
 *.jsonl
@@ -38,3 +41,4 @@ test_HF.py
 Python.code-workspace
 .env
 outputs/
+backup/
