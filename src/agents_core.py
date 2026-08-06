@@ -71,6 +71,8 @@ PROMPTY = {
         'cytaty_instrukcja': (
             ' Po każdej informacji z kontekstu podaj w nawiasie kwadratowym numer źródła, '
             'np. [1] lub [2]. Używaj wyłącznie numerów źródeł z podanego kontekstu. '
+            'To wymaganie jest obowiązkowe: odpowiedź bez choć jednego numeru źródła w nawiasie '
+            'kwadratowym jest niepoprawna, dodaj numer nawet gdy odpowiadasz jednym zdaniem. '
             'Nie podawaj żadnych adresów URL — linki zostaną dołączone automatycznie. '
             'Nie dopisuj na końcu osobnej listy ani sekcji źródeł i nie powtarzaj tytułów artykułów, '
             'lista linków powstaje automatycznie poza Twoją odpowiedzią.'
@@ -258,6 +260,8 @@ PROMPTY = {
         'cytaty_instrukcja': (
             ' After each piece of information from the context, give the source number in square brackets, '
             'e.g. [1] or [2]. Use only source numbers from the given context. '
+            'This requirement is mandatory: an answer without at least one bracketed source number is incorrect, '
+            'add a number even when your answer is a single sentence. '
             'Do not include any URLs — links will be added automatically. '
             'Do not append a separate sources list or section at the end and do not repeat article titles, '
             'the list of links is generated automatically outside your answer.'
