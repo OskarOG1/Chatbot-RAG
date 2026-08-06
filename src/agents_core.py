@@ -116,9 +116,8 @@ PROMPTY = {
             'Podziel treść na krótkie akapity, jedna myśl w akapicie, pusta linia między nimi: powitanie, opis '
             'sytuacji, konkretna prośba, zakończenie. '
             'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o rozwiązanie (naprawa, wymiana albo zwrot pieniędzy). '
-            'Treść maila zaczynaj od razu od zwrotu grzecznościowego, bez nagłówka ani etykiety w rodzaju '
-            '„Treść:" czy „Wiadomość:" nad nią. Nie kończ maila zdaniem instruującym kupującego o uzupełnieniu '
-            'brakujących danych przed wysłaniem — tę rolę pełni już nagłówek szkicu i placeholdery w nawiasach kwadratowych. '
+            'Napisz szkic dokładnie jeden raz, od powitania do podpisu, i nigdy nie powtarzaj całego szkicu '
+            'ani żadnego jego fragmentu. '
             'Nie dodawaj żadnych wyjaśnień poza samym szkicem maila. Odpowiadaj po polsku.'
         ),
         'email_system_zwrot': (
@@ -135,9 +134,8 @@ PROMPTY = {
             'Podziel treść na krótkie akapity, jedna myśl w akapicie, pusta linia między nimi: powitanie, opis '
             'sytuacji, konkretna prośba, zakończenie. '
             'Ton uprzejmy i rzeczowy. Zakończ jasnym oświadczeniem o odstąpieniu od umowy i prośbą o instrukcję zwrotu. '
-            'Treść wiadomości zaczynaj od razu od zwrotu grzecznościowego, bez nagłówka ani etykiety w rodzaju '
-            '„Treść:" czy „Wiadomość:" nad nią. Nie kończ wiadomości zdaniem instruującym kupującego o uzupełnieniu '
-            'brakujących danych przed wysłaniem — tę rolę pełni już nagłówek szkicu i placeholdery w nawiasach kwadratowych. '
+            'Napisz szkic dokładnie jeden raz, od powitania do podpisu, i nigdy nie powtarzaj całego szkicu '
+            'ani żadnego jego fragmentu. '
             'Nie dodawaj żadnych wyjaśnień poza samym szkicem wiadomości. Odpowiadaj po polsku.'
         ),
         'email_system_faktura': (
@@ -154,9 +152,8 @@ PROMPTY = {
             'Podziel treść na krótkie akapity, jedna myśl w akapicie, pusta linia między nimi: powitanie, opis '
             'sytuacji, konkretna prośba, zakończenie. '
             'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o wystawienie faktury. '
-            'Treść wiadomości zaczynaj od razu od zwrotu grzecznościowego, bez nagłówka ani etykiety w rodzaju '
-            '„Treść:" czy „Wiadomość:" nad nią. Nie kończ wiadomości zdaniem instruującym kupującego o uzupełnieniu '
-            'brakujących danych przed wysłaniem — tę rolę pełni już nagłówek szkicu i placeholdery w nawiasach kwadratowych. '
+            'Napisz szkic dokładnie jeden raz, od powitania do podpisu, i nigdy nie powtarzaj całego szkicu '
+            'ani żadnego jego fragmentu. '
             'Nie dodawaj żadnych wyjaśnień poza samym szkicem wiadomości. Odpowiadaj po polsku.'
         ),
         'email_system_eskalacja': (
@@ -175,9 +172,8 @@ PROMPTY = {
             'Podziel treść na krótkie akapity, jedna myśl w akapicie, pusta linia między nimi: powitanie, opis '
             'sytuacji, konkretna prośba, zakończenie. '
             'Ton uprzejmy i rzeczowy. Zakończ jasną prośbą o interwencję Allegro. '
-            'Treść wiadomości zaczynaj od razu od zwrotu grzecznościowego, bez nagłówka ani etykiety w rodzaju '
-            '„Treść:" czy „Wiadomość:" nad nią. Nie kończ wiadomości zdaniem instruującym kupującego o uzupełnieniu '
-            'brakujących danych przed wysłaniem — tę rolę pełni już nagłówek szkicu i placeholdery w nawiasach kwadratowych. '
+            'Napisz szkic dokładnie jeden raz, od powitania do podpisu, i nigdy nie powtarzaj całego szkicu '
+            'ani żadnego jego fragmentu. '
             'Nie dodawaj żadnych wyjaśnień poza samym szkicem wiadomości. Odpowiadaj po polsku.'
         ),
         'strona_system': (
@@ -308,10 +304,10 @@ PROMPTY = {
             'Split the content into short paragraphs, one idea per paragraph, blank line between them: greeting, '
             'description of the situation, a concrete request, closing. '
             'Keep the tone polite and factual. End with a clear request for resolution '
-            '(repair, replacement, or refund). Start the body directly with the greeting, with no header or label '
-            'such as "Content:" or "Message:" above it. Do not end the text with a sentence instructing the buyer '
-            'to fill in missing data before sending — that is already covered by the draft header and the '
-            'placeholders in square brackets. Do not add any explanation beyond the email draft itself. Answer in English.'
+            '(repair, replacement, or refund). '
+            'Write the draft exactly once, from greeting to signature, and never repeat the whole draft '
+            'or any part of it. '
+            'Do not add any explanation beyond the email draft itself. Answer in English.'
         ),
         'email_system_zwrot': (
             'You write a DRAFT message to the seller about returning a product (withdrawal from the contract) on '
@@ -327,10 +323,10 @@ PROMPTY = {
             'Split the content into short paragraphs, one idea per paragraph, blank line between them: greeting, '
             'description of the situation, a concrete request, closing. '
             'Keep the tone polite and factual. End with a clear statement of withdrawal from the contract and a '
-            'request for return instructions. Start the body directly with the greeting, with no header or label '
-            'such as "Content:" or "Message:" above it. Do not end the text with a sentence instructing the buyer '
-            'to fill in missing data before sending — that is already covered by the draft header and the '
-            'placeholders in square brackets. Do not add any explanation beyond the message draft itself. Answer in English.'
+            'request for return instructions. '
+            'Write the draft exactly once, from greeting to signature, and never repeat the whole draft '
+            'or any part of it. '
+            'Do not add any explanation beyond the message draft itself. Answer in English.'
         ),
         'email_system_faktura': (
             'You write a DRAFT message to the seller requesting an invoice for a purchase, on behalf of the buyer. '
@@ -346,10 +342,10 @@ PROMPTY = {
             'Split the content into short paragraphs, one idea per paragraph, blank line between them: greeting, '
             'description of the situation, a concrete request, closing. '
             'Keep the tone polite and factual. End with a clear request to '
-            'issue the invoice. Start the body directly with the greeting, with no header or label '
-            'such as "Content:" or "Message:" above it. Do not end the text with a sentence instructing the buyer '
-            'to fill in missing data before sending — that is already covered by the draft header and the '
-            'placeholders in square brackets. Do not add any explanation beyond the message draft itself. Answer in English.'
+            'issue the invoice. '
+            'Write the draft exactly once, from greeting to signature, and never repeat the whole draft '
+            'or any part of it. '
+            'Do not add any explanation beyond the message draft itself. Answer in English.'
         ),
         'email_system_eskalacja': (
             'You write a DRAFT message asking Allegro to get involved in a discussion with a seller, on behalf of '
@@ -367,10 +363,10 @@ PROMPTY = {
             'Split the content into short paragraphs, one idea per paragraph, blank line between them: greeting, '
             'description of the situation, a concrete request, closing. '
             'Keep the tone polite and factual. End with a clear request for Allegro to intervene. '
-            'Start the body directly with the greeting, with no header or label '
-            'such as "Content:" or "Message:" above it. Do not end the text with a sentence instructing the buyer '
-            'to fill in missing data before sending — that is already covered by the draft header and the '
-            'placeholders in square brackets. Do not add any explanation beyond the message draft itself. Answer in English.'
+            'Write the draft exactly once, from greeting to signature, and never repeat the whole draft '
+            'or any part of it. '
+            'Do not add any '
+            'explanation beyond the message draft itself. Answer in English.'
         ),
         'strona_system': (
             'You classify whether the QUESTION is being asked by a buyer or a seller on Allegro, based only on '

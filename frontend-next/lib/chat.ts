@@ -307,7 +307,17 @@ export function rozdzielSzkic(tekst: string): { temat: string; tresc: string } {
   if (indeksLinii === -1) {
     return { temat: '', tresc: reszta.trim() };
   }
-  const tresc = [...linie.slice(0, indeksLinii), ...linie.slice(indeksLinii + 1)]
+  const poTemacie = linie.slice(indeksLinii + 1);
+  let indeksDrugiegoTematu = -1;
+  for (let i = 0; i < poTemacie.length; i++) {
+    const oczyszczona = poTemacie[i].replace(/^[ \t]*#{0,6}[ \t]*/, '').replace(/\*\*/g, '').trim();
+    if (/^(?:Temat|Subject):\s*(.+)$/.exec(oczyszczona)) {
+      indeksDrugiegoTematu = i;
+      break;
+    }
+  }
+  const resztaTresci = indeksDrugiegoTematu === -1 ? poTemacie : poTemacie.slice(0, indeksDrugiegoTematu);
+  const tresc = [...linie.slice(0, indeksLinii), ...resztaTresci]
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
