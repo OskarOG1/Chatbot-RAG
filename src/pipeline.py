@@ -205,6 +205,14 @@ pytania = [
 ]
 
 
+def cytaty_lub_zrodla(cytaty: list[dict], chunks: list[tuple[dict, float]]) -> list[dict]:
+    if cytaty:
+        return cytaty
+    zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
+    tytuly = {c['url']: c['tytul'] for c, _ in chunks}
+    return [{'n': i, 'url': url, 'tytul': tytuly[url]} for i, url in enumerate(zrodla, 1)]
+
+
 def run_stream(query:str, bielik_model:str | None=None,
                history:list[dict] | None=None, agent_poprzedni:str | None=None,
                przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
@@ -348,7 +356,7 @@ def run_stream(query:str, bielik_model:str | None=None,
     yield wynik({'agent': agent_odp,
                  'answer': odpowiedz['tekst'],
                  'sources': zrodla,
-                 'citations': odpowiedz['cytaty'],
+                 'citations': cytaty_lub_zrodla(odpowiedz['cytaty'], chunks),
                  'doprecyzowanie': doprecyzowanie,
                  'oferta': oferta,
                  'oferta_kategoria': oferta_kategoria,
