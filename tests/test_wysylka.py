@@ -158,7 +158,8 @@ def test_korekta_omija_cooldown_adresu_raz_a_drugi_raz_dostaje_429(monkeypatch, 
     import api
     api._wysylki.clear()
     api._wysylki_adres.clear()
-    api._korekty.clear()
+    api._tickety.clear()
+    api.zarejestruj_ticket('ABCD1234', 'powtorka3@example.com')
     monkeypatch.setattr(api, 'wyslij_potwierdzenie', lambda *a, **k: k['ticket'])
     api.w_limicie_adresu('powtorka3@example.com')
     zadanie = api.WyslijZadanie(email='powtorka3@example.com', temat='Temat', tresc='Tresc', ticket='ABCD1234')
@@ -173,13 +174,73 @@ def test_zadanie_bez_ticketu_nadal_podlega_cooldownowi_adresu(monkeypatch, resen
     import api
     api._wysylki.clear()
     api._wysylki_adres.clear()
-    api._korekty.clear()
-    monkeypatch.setattr(api, 'wyslij_potwierdzenie', lambda *a, **k: 'EFGH5678')
+    api._tickety.clear()
+    api.zarejestruj_ticket('ABCD1234', 'powtorka4@example.com')
+    monkeypatch.setattr(api, 'wyslij_potwierdzenie', lambda *a, **k: k['ticket'])
     api.send_email(api.WyslijZadanie(email='powtorka4@example.com', temat='Temat', tresc='Tresc', ticket='ABCD1234'))
     zadanie_bez_ticketu = api.WyslijZadanie(email='powtorka4@example.com', temat='Temat', tresc='Tresc')
     with pytest.raises(HTTPException) as wyjatek:
         api.send_email(zadanie_bez_ticketu)
     assert wyjatek.value.status_code == 429
+
+
+def test_ticket_niewystawiony_odrzucony(monkeypatch, resend_env):
+    import api
+    api._wysylki.clear()
+    api._wysylki_adres.clear()
+    api._tickety.clear()
+    monkeypatch.setattr(api, 'wyslij_potwierdzenie', lambda *a, **k: k['ticket'])
+    zadanie = api.WyslijZadanie(email='ofiara@example.com', temat='Temat', tresc='Tresc', ticket='DEADBEEF')
+    with pytest.raises(HTTPException) as wyjatek:
+        api.send_email(zadanie)
+    assert wyjatek.value.status_code == 429
+
+
+def test_ticket_zarejestrowany_na_inny_adres_odrzucony(monkeypatch, resend_env):
+    import api
+    api._wysylki.clear()
+    api._wysylki_adres.clear()
+    api._tickety.clear()
+    api.zarejestruj_ticket('ABCD1234', 'wlasciciel@example.com')
+    monkeypatch.setattr(api, 'wyslij_potwierdzenie', lambda *a, **k: k['ticket'])
+    zadanie = api.WyslijZadanie(email='ofiara@example.com', temat='Temat', tresc='Tresc', ticket='ABCD1234')
+    with pytest.raises(HTTPException) as wyjatek:
+        api.send_email(zadanie)
+    assert wyjatek.value.status_code == 429
+
+
+def test_czesciowa_wysylka_korekty_nie_zuzywa_ticketu_na_stale(monkeypatch, resend_env):
+    import httpx
+    import api
+    import wysylka
+    api._wysylki.clear()
+    api._wysylki_adres.clear()
+    api._tickety.clear()
+    api.zarejestruj_ticket('ABCD1234', 'klient@example.com')
+
+    class KlientCzesciowy:
+        def __init__(self, *a, **k):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def post(self, url, headers=None, json=None):
+            if json.get('to') == 'sprzedawca@ogflow.pl':
+                return FalszywaOdpowiedz()
+            raise httpx.HTTPError('blad wysylki do klienta')
+
+    monkeypatch.setattr(wysylka.httpx, 'Client', lambda *a, **k: KlientCzesciowy())
+    zadanie = api.WyslijZadanie(email='klient@example.com', temat='Temat', tresc='Tresc', ticket='ABCD1234')
+    with pytest.raises(HTTPException) as wyjatek:
+        api.send_email(zadanie)
+    assert wyjatek.value.status_code == 502
+    with pytest.raises(HTTPException) as wyjatek2:
+        api.send_email(zadanie)
+    assert wyjatek2.value.status_code == 502
 
 
 def test_czesciowa_wysylka_zachowuje_ticket_sprzedawcy(monkeypatch, resend_env):

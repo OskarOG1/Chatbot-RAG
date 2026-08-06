@@ -27,7 +27,8 @@ LIMIT_WYSYLKA_DZIEN = int(os.getenv('LIMIT_WYSYLKA_DZIEN', '40'))
 LIMIT_WYSYLKA_ADRES_S = int(os.getenv('LIMIT_WYSYLKA_ADRES_S', '600'))
 _wysylki = deque()
 _wysylki_adres: 'OrderedDict[str, float]' = OrderedDict()
-_korekty: 'OrderedDict[str, float]' = OrderedDict()
+TICKET_MAX = int(os.getenv('TICKET_MAX', '5000'))
+_tickety: 'OrderedDict[str, dict]' = OrderedDict()
 EMAIL_WZORZEC = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+')
 
 CACHE_MAX = int(os.getenv('CACHE_MAX', '200'))
@@ -130,18 +131,25 @@ def rejestruj_adres(email: str) -> None:
         _wysylki_adres.popitem(last=False)
 
 
-def w_limicie_korekty(ticket: str) -> bool:
-    if ticket in _korekty:
+def zarejestruj_ticket(ticket: str, email: str) -> None:
+    _tickety[ticket] = {'email': email.lower(), 'uzyty': False}
+    _tickety.move_to_end(ticket)
+    if len(_tickety) > TICKET_MAX:
+        _tickety.popitem(last=False)
+
+
+def w_limicie_korekty(ticket: str, email: str) -> bool:
+    wpis = _tickety.get(ticket)
+    if wpis is None or wpis['email'] != email.lower() or wpis['uzyty']:
         return False
-    _korekty[ticket] = time.time()
-    _korekty.move_to_end(ticket)
-    if len(_korekty) > 500:
-        _korekty.popitem(last=False)
+    wpis['uzyty'] = True
     return True
 
 
 def zwolnij_limit_korekty(ticket: str) -> None:
-    _korekty.pop(ticket, None)
+    wpis = _tickety.get(ticket)
+    if wpis is not None:
+        wpis['uzyty'] = False
 
 
 def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: bool, blad: str | None = None) -> None:
@@ -307,7 +315,7 @@ def send_email(request: WyslijZadanie):
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
     korekta = request.ticket is not None
     if korekta:
-        if not w_limicie_korekty(request.ticket):
+        if not w_limicie_korekty(request.ticket, email):
             raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
         rejestruj_adres(email)
     elif not w_limicie_adresu(email):
@@ -315,7 +323,8 @@ def send_email(request: WyslijZadanie):
     def zwolnij_limity():
         if korekta:
             zwolnij_limit_korekty(request.ticket)
-        zwolnij_limit_adresu(email)
+        else:
+            zwolnij_limit_adresu(email)
 
     try:
         ticket = wyslij_potwierdzenie(email, request.kategoria, request.temat, request.tresc, lang=lang,
@@ -325,12 +334,16 @@ def send_email(request: WyslijZadanie):
         loguj_wysylke(lang, request.kategoria, None, False, type(e).__name__)
         raise HTTPException(status_code=503, detail=str(e))
     except WysylkaCzesciowaError as e:
+        if korekta:
+            zwolnij_limit_korekty(request.ticket)
         loguj_wysylke(lang, request.kategoria, e.ticket, False, type(e.oryginalny).__name__)
         raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
     except httpx.HTTPError as e:
         zwolnij_limity()
         loguj_wysylke(lang, request.kategoria, None, False, type(e).__name__)
         raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
+    if not korekta:
+        zarejestruj_ticket(ticket, email)
     loguj_wysylke(lang, request.kategoria, ticket, True)
     print(f'wysylka: ticket={ticket} kategoria={request.kategoria} sukces=True')
     return WyslijOdpowiedz(ticket=ticket)
