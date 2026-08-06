@@ -90,7 +90,9 @@ export default function ChatApp() {
   const abortControllers = useRef<Map<string, AbortController>>(new Map());
   const wysylkaTimery = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const threadsRef = useRef<Thread[]>(threads);
-  threadsRef.current = threads;
+  useEffect(() => {
+    threadsRef.current = threads;
+  }, [threads]);
 
   function oznaczWysylke(id: string, wysyla: boolean) {
     setSendingIds((ids) => {
