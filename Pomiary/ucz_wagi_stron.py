@@ -16,6 +16,7 @@
 #     python ucz_wagi_stron.py
 
 import hashlib
+import inspect
 import json
 import math
 import statistics
@@ -34,6 +35,7 @@ import simplemma
 from spell import tokenize_words, MIN_DLUGOSC
 from lang_config import LANG
 from guards import normalizuj
+from strony import prior_strony
 from measure_routing_strony import prior_markery, MARKERY_R5_CZYSTY_PL
 
 ALFA0 = 500.0
@@ -152,6 +154,18 @@ def przewidziana_strona(suma: float) -> str | None:
     return None
 
 
+def zdecyduj_r9(suma: float, tau_mocny: float, tau_slaby: float, agent_poprzedni: str | None,
+                 czy_followup: bool) -> tuple[str | None, str | None]:
+    strona = przewidziana_strona(suma)
+    if strona is not None and abs(suma) >= tau_mocny:
+        return strona, 'leksykalna'
+    if agent_poprzedni and czy_followup:
+        return ('sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'), 'lepka'
+    if strona is not None and abs(suma) >= tau_slaby:
+        return strona, 'leksykalna_slaba'
+    return None, None
+
+
 def wpisy_do_krzywej(rekordy: list[dict], tabela: dict) -> list[tuple[float, bool]]:
     wpisy = []
     for r in rekordy:
@@ -226,6 +240,7 @@ def zapisz_modul(tabela: dict, tau_mocny: float, tau_slaby: float, n_calosc: int
         "",
         "import simplemma",
         "from spell import tokenize_words, MIN_DLUGOSC",
+        "from strony import prior_strony",
         "",
         f"TAU_MOCNY = {tau_mocny!r}",
         f"TAU_SLABY = {tau_slaby!r}",
@@ -237,23 +252,22 @@ def zapisz_modul(tabela: dict, tau_mocny: float, tau_slaby: float, n_calosc: int
     linie.append("}")
     linie.append("")
     linie.append("")
+    linie.append(inspect.getsource(suma_wazona).rstrip())
+    linie.append("")
+    linie.append("")
+    linie.append(inspect.getsource(przewidziana_strona).rstrip())
+    linie.append("")
+    linie.append("")
+    linie.append(inspect.getsource(zdecyduj_r9).rstrip())
+    linie.append("")
+    linie.append("")
     linie.append("def prior_wazony(query, agent_poprzedni, lang, czy_followup):")
-    linie.append("    if lang == 'pl':")
-    linie.append("        tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]")
-    linie.append("        lematy_pytania = {simplemma.lemmatize(t, lang='pl') for t in tokeny}")
-    linie.append("        suma = sum(WAGI[t] for t in lematy_pytania if t in WAGI)")
-    linie.append("        if abs(suma) >= TAU_MOCNY:")
-    linie.append("            return ('sprzedajacy' if suma > 0 else 'kupujacy'), 'leksykalna'")
-    linie.append("        if agent_poprzedni and czy_followup:")
-    linie.append("            strona = 'sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'")
-    linie.append("            return strona, 'lepka'")
-    linie.append("        if abs(suma) >= TAU_SLABY:")
-    linie.append("            return ('sprzedajacy' if suma > 0 else 'kupujacy'), 'leksykalna_slaba'")
-    linie.append("        return None, None")
-    linie.append("    if agent_poprzedni and czy_followup:")
-    linie.append("        strona = 'sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'")
-    linie.append("        return strona, 'lepka'")
-    linie.append("    return None, None")
+    linie.append("    if lang != 'pl':")
+    linie.append("        return prior_strony(query, agent_poprzedni, lang, czy_followup)")
+    linie.append("    tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]")
+    linie.append("    lematy_pytania = {simplemma.lemmatize(t, lang='pl') for t in tokeny}")
+    linie.append("    suma = suma_wazona(lematy_pytania, WAGI)")
+    linie.append("    return zdecyduj_r9(suma, TAU_MOCNY, TAU_SLABY, agent_poprzedni, czy_followup)")
     linie.append("")
 
     plik = SRC / 'wagi_stron.py'

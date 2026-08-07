@@ -63,14 +63,24 @@ def cache_zapisz(klucz: tuple, wynik: dict) -> None:
         _cache.popitem(last=False)
 
 
-def loguj_zapytanie(lang: str, agent: str, latencja: float, cache_hit: bool, query: str, strona: str) -> None:
+def powod_wyniku(dane: dict) -> str:
+    if not dane:
+        return 'brak_wyniku'
+    if dane.get('agent'):
+        return 'odpowiedz'
+    return dane.get('powod_odmowy') or 'odmowa'
+
+
+def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str) -> None:
     try:
+        agent = (dane or {}).get('agent') or ''
         wpis = {
             'czas': datetime.now(timezone.utc).isoformat(),
             'lang': lang,
             'strona': strona,
             'sekcja': agent or None,
             'wynik': 'odpowiedz' if agent else 'odmowa',
+            'powod': powod_wyniku(dane),
             'latencja_s': round(latencja, 3),
             'cache_hit': cache_hit,
             'pytanie': redaguj(query),
@@ -267,7 +277,7 @@ def chat(request: ChatRequest):
                         bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang, strona=strona)
             if klucz:
                 cache_zapisz(klucz, wynik)
-        loguj_zapytanie(lang, wynik.get('agent', ''), time.perf_counter() - start, cache_hit, request.message, request.strona)
+        loguj_zapytanie(lang, wynik, time.perf_counter() - start, cache_hit, request.message, request.strona)
         return wynik
     except Exception as e:
         print(f'blad /chat: {type(e).__name__}: {e}')
@@ -291,7 +301,7 @@ def chat_stream(request: ChatRequest):
             cached = cache_pobierz(klucz) if klucz else None
             if cached is not None:
                 yield f"data: {json.dumps({'typ': 'wynik', 'dane': cached}, ensure_ascii=False)}\n\n"
-                loguj_zapytanie(lang, cached.get('agent', ''), time.perf_counter() - start, True, request.message, request.strona)
+                loguj_zapytanie(lang, cached, time.perf_counter() - start, True, request.message, request.strona)
                 return
             wynik = {}
             for ev in run_stream(request.message, bielik_model=request.bielik_model,
@@ -303,7 +313,7 @@ def chat_stream(request: ChatRequest):
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
             if klucz:
                 cache_zapisz(klucz, wynik)
-            loguj_zapytanie(lang, wynik.get('agent', ''), time.perf_counter() - start, False, request.message, request.strona)
+            loguj_zapytanie(lang, wynik, time.perf_counter() - start, False, request.message, request.strona)
         except Exception as e:
             print(f'blad /chat/stream: {type(e).__name__}: {e}')
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': LANG[lang]['bledy']['model_niedostepny']}, ensure_ascii=False)}\n\n"

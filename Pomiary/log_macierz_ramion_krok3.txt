@@ -1,0 +1,118 @@
+=== Wczytywanie tablicy rerankera ===
+odcisk zgodny, 5299 pytan w tablicy, urzadzenie=cuda:0
+
+=== Budowa piesciu tabel fold-specyficznych (r9, poza foldem) ===
+  fold 0: tabela=60 TAU_MOCNY=4.398 TAU_SLABY=0.000
+  fold 1: tabela=59 TAU_MOCNY=4.103 TAU_SLABY=0.000
+  fold 2: tabela=60 TAU_MOCNY=5.468 TAU_SLABY=0.000
+  fold 3: tabela=63 TAU_MOCNY=2.942 TAU_SLABY=0.000
+  fold 4: tabela=60 TAU_MOCNY=8.714 TAU_SLABY=0.000
+
+=== Macierz ramion, baza realna, poza foldem ===
+  [kupujacy_pl] 1629 pytan poza foldem
+    [kupujacy_pl][r5] poprawna/bledna
+    [kupujacy_pl][r7] poprawna/bledna
+    [kupujacy_pl][r5_czysty] poprawna/bledna
+    [kupujacy_pl][r9] poprawna/bledna
+    [kupujacy_pl][brak_markery_stron] trafnosc=0.6397 zbyte=0.1799 zla_cicha=0.1805
+    [kupujacy_pl][brak_r5_czysty] trafnosc=0.5470 zbyte=0.2234 zla_cicha=0.2296
+    [kupujacy_pl][brak_r9] trafnosc=0.6280 zbyte=0.0952 zla_cicha=0.2769
+    [kupujacy_pl][r5_poprawna] trafnosc=0.9957 zbyte=0.0031 zla_cicha=0.0012
+    [kupujacy_pl][r5_bledna] trafnosc=0.0123 zbyte=0.0233 zla_cicha=0.9644
+    [kupujacy_pl][r7_poprawna] trafnosc=0.9816 zbyte=0.0031 zla_cicha=0.0153
+    [kupujacy_pl][r7_bledna] trafnosc=0.2382 zbyte=0.0209 zla_cicha=0.7409
+    [kupujacy_pl][r5_czysty_poprawna] trafnosc=0.9797 zbyte=0.0031 zla_cicha=0.0172
+    [kupujacy_pl][r5_czysty_bledna] trafnosc=0.0786 zbyte=0.0227 zla_cicha=0.8987
+    [kupujacy_pl][r9_poprawna] trafnosc=0.9613 zbyte=0.0043 zla_cicha=0.0344
+    [kupujacy_pl][r9_bledna] trafnosc=0.1872 zbyte=0.0203 zla_cicha=0.7925
+  [sprzedaz_pl] 2267 pytan poza foldem
+    [sprzedaz_pl][r5] poprawna/bledna
+    [sprzedaz_pl][r7] poprawna/bledna
+    [sprzedaz_pl][r5_czysty] poprawna/bledna
+    [sprzedaz_pl][r9] poprawna/bledna
+    [sprzedaz_pl][brak_markery_stron] trafnosc=0.3917 zbyte=0.1584 zla_cicha=0.4499
+    [sprzedaz_pl][brak_r5_czysty] trafnosc=0.4821 zbyte=0.1884 zla_cicha=0.3295
+    [sprzedaz_pl][brak_r9] trafnosc=0.6334 zbyte=0.0728 zla_cicha=0.2938
+    [sprzedaz_pl][r5_poprawna] trafnosc=0.9779 zbyte=0.0132 zla_cicha=0.0088
+    [sprzedaz_pl][r5_bledna] trafnosc=0.0150 zbyte=0.0309 zla_cicha=0.9541
+    [sprzedaz_pl][r7_poprawna] trafnosc=0.7997 zbyte=0.0146 zla_cicha=0.1857
+    [sprzedaz_pl][r7_bledna] trafnosc=0.0904 zbyte=0.0300 zla_cicha=0.8796
+    [sprzedaz_pl][r5_czysty_poprawna] trafnosc=0.9647 zbyte=0.0119 zla_cicha=0.0234
+    [sprzedaz_pl][r5_czysty_bledna] trafnosc=0.1015 zbyte=0.0318 zla_cicha=0.8668
+    [sprzedaz_pl][r9_poprawna] trafnosc=0.9343 zbyte=0.0128 zla_cicha=0.0529
+    [sprzedaz_pl][r9_bledna] trafnosc=0.1954 zbyte=0.0251 zla_cicha=0.7794
+
+=== Macierz ramion, cztery zestawy golden ===
+  [kupujacy_pl] 50 pytan golden
+    [kupujacy_pl][brak_markery_stron] hit5=0.720 zbyte=0.100 zla_strona_po=70
+    [kupujacy_pl][brak_r5_czysty] hit5=0.700 zbyte=0.120 zla_strona_po=67
+    [kupujacy_pl][brak_r9] hit5=0.760 zbyte=0.020 zla_strona_po=79
+    [kupujacy_pl][r5_poprawna] hit5=0.820 zbyte=0.000 zla_strona_po=69
+    [kupujacy_pl][r5_bledna] hit5=0.640 zbyte=0.140 zla_strona_po=92
+    [kupujacy_pl][r7_poprawna] hit5=0.820 zbyte=0.000 zla_strona_po=70
+    [kupujacy_pl][r7_bledna] hit5=0.660 zbyte=0.120 zla_strona_po=90
+    [kupujacy_pl][r5_czysty_poprawna] hit5=0.820 zbyte=0.000 zla_strona_po=70
+    [kupujacy_pl][r5_czysty_bledna] hit5=0.660 zbyte=0.120 zla_strona_po=90
+    [kupujacy_pl][r9_poprawna] hit5=0.820 zbyte=0.000 zla_strona_po=68
+    [kupujacy_pl][r9_bledna] hit5=0.680 zbyte=0.100 zla_strona_po=88
+  [sprzedaz_pl] 20 pytan golden
+    [sprzedaz_pl][brak_markery_stron] hit5=0.950 zbyte=0.000 zla_strona_po=40
+    [sprzedaz_pl][brak_r5_czysty] hit5=0.950 zbyte=0.000 zla_strona_po=40
+    [sprzedaz_pl][brak_r9] hit5=0.800 zbyte=0.150 zla_strona_po=34
+    [sprzedaz_pl][r5_poprawna] hit5=0.950 zbyte=0.000 zla_strona_po=32
+    [sprzedaz_pl][r5_bledna] hit5=0.650 zbyte=0.350 zla_strona_po=37
+    [sprzedaz_pl][r7_poprawna] hit5=0.950 zbyte=0.000 zla_strona_po=33
+    [sprzedaz_pl][r7_bledna] hit5=0.650 zbyte=0.350 zla_strona_po=36
+    [sprzedaz_pl][r5_czysty_poprawna] hit5=0.950 zbyte=0.000 zla_strona_po=32
+    [sprzedaz_pl][r5_czysty_bledna] hit5=0.650 zbyte=0.350 zla_strona_po=36
+    [sprzedaz_pl][r9_poprawna] hit5=0.950 zbyte=0.000 zla_strona_po=33
+    [sprzedaz_pl][r9_bledna] hit5=0.750 zbyte=0.250 zla_strona_po=36
+  [kupujacy_en] 50 pytan golden
+    [kupujacy_en][brak_markery_stron] hit5=0.680 zbyte=0.200 zla_strona_po=96
+    [kupujacy_en][brak_r5_czysty] hit5=0.680 zbyte=0.200 zla_strona_po=96
+    [kupujacy_en][brak_r9] hit5=0.680 zbyte=0.200 zla_strona_po=98
+    [kupujacy_en][r5_poprawna] hit5=0.720 zbyte=0.060 zla_strona_po=108
+    [kupujacy_en][r5_bledna] hit5=0.620 zbyte=0.120 zla_strona_po=131
+    [kupujacy_en][r7_poprawna] hit5=0.720 zbyte=0.060 zla_strona_po=107
+    [kupujacy_en][r7_bledna] hit5=0.620 zbyte=0.120 zla_strona_po=127
+    [kupujacy_en][r5_czysty_poprawna] hit5=0.720 zbyte=0.060 zla_strona_po=108
+    [kupujacy_en][r5_czysty_bledna] hit5=0.620 zbyte=0.120 zla_strona_po=131
+    [kupujacy_en][r9_poprawna] hit5=0.720 zbyte=0.060 zla_strona_po=108
+    [kupujacy_en][r9_bledna] hit5=0.620 zbyte=0.120 zla_strona_po=131
+  [sprzedaz_en] 19 pytan golden
+    [sprzedaz_en][brak_markery_stron] hit5=0.789 zbyte=0.158 zla_strona_po=15
+    [sprzedaz_en][brak_r5_czysty] hit5=0.789 zbyte=0.158 zla_strona_po=15
+    [sprzedaz_en][brak_r9] hit5=0.789 zbyte=0.158 zla_strona_po=16
+    [sprzedaz_en][r5_poprawna] hit5=0.947 zbyte=0.000 zla_strona_po=20
+    [sprzedaz_en][r5_bledna] hit5=0.579 zbyte=0.421 zla_strona_po=24
+    [sprzedaz_en][r7_poprawna] hit5=0.947 zbyte=0.000 zla_strona_po=20
+    [sprzedaz_en][r7_bledna] hit5=0.684 zbyte=0.263 zla_strona_po=22
+    [sprzedaz_en][r5_czysty_poprawna] hit5=0.947 zbyte=0.000 zla_strona_po=20
+    [sprzedaz_en][r5_czysty_bledna] hit5=0.579 zbyte=0.421 zla_strona_po=24
+    [sprzedaz_en][r9_poprawna] hit5=0.947 zbyte=0.000 zla_strona_po=20
+    [sprzedaz_en][r9_bledna] hit5=0.579 zbyte=0.421 zla_strona_po=24
+
+=== McNemar, stan brak (metryka decyzyjna) ===
+  [kupujacy_pl_r9_wobec_r5] b=98 c=201 p=0.0 (chi_kwadrat_z_korekta) wykluczone_zapytal=338
+  [kupujacy_pl_r9_wobec_r5_czysty] b=135 c=150 p=0.406941 (chi_kwadrat_z_korekta) wykluczone_zapytal=388
+  [sprzedaz_pl_r9_wobec_r5] b=519 c=129 p=0.0 (chi_kwadrat_z_korekta) wykluczone_zapytal=397
+  [sprzedaz_pl_r9_wobec_r5_czysty] b=338 c=182 p=0.0 (chi_kwadrat_z_korekta) wykluczone_zapytal=451
+
+=== Odmowy OOD, r5(dzis) wobec r9, rozbicie P1: odmowa/doprecyzowanie/przepuszczone ===
+  [pl] dzis(r5): odmowa=2 doprecyzowanie=9 przepuszczone=18 (zlapane=11/29)
+  [pl] r9:       odmowa=3 doprecyzowanie=1 przepuszczone=25 (zlapane=4/29)
+  [en] dzis(r5): odmowa=3 doprecyzowanie=3 przepuszczone=23 (zlapane=6/29)
+  [en] r9:       odmowa=3 doprecyzowanie=3 przepuszczone=23 (zlapane=6/29)
+
+=== Bramki PLAN_WAGI_STRON.md / PLAN_POMIARY_GPU.md ===
+BRAMKI NIE PRZESZLY:
+  - [bramka 1] trafnosc sprzedaz_pl brak_r9: 0.6334 < 0.7 (dzis 0.42)
+  - [bramka 2] trafnosc kupujacy_pl brak_r9: 0.6280 < 0.75 (dzis 0.653)
+  - [bramka 3] zla_cicha sprzedaz_pl brak_r9: 0.2938 >= 0.2 (dzis 0.427)
+  - [bramka 4] precyzja leksykalna_mocny kupujacy_pl: 0.8421 < 0.85
+  - [bramka 4] precyzja leksykalna_mocny sprzedaz_pl: 0.7989 < 0.85
+  - [bramka 6] golden sprzedaz_pl brak: hit5 r9=0.8000 < r5(dzis)=0.9500
+  - [bramka 6] golden sprzedaz_pl brak: odsetek_zbytych r9=0.1500 > r5(dzis)=0.0000
+Bramka 9 (czas prior_strony < 1ms) nie jest tu liczona: PLAN_POMIARY_GPU.md Faza 4 trzyma latencje poza tablica, na sprzecie klasy produkcyjnej. Sprawdzana w Kroku 7.
+
+zapisano: C:\Dev\allegro-rag-agents\outputs\macierz_ramion.json
