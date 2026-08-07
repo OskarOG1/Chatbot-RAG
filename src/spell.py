@@ -29,11 +29,6 @@ def tokenize_words(tekst: str) -> list[str]:
 
 
 def detect_lang(query: str) -> str | None:
-    """Sumuje zipf_frequency tokenow w 'pl' vs 'en', zwraca jezyk z wyzsza suma.
-    None przy remisie (w tym 0=0) albo za krotkim zapytaniu - wtedy wywolujacy
-    ma uzyc przelacznika z UI jako fallbacku. Odporne na polski bez ogonkow, bo
-    liczy sie suma po calym zapytaniu - jedno-dwa mocno polskie slowo (np. "jak")
-    przewazaja nad pojedynczym niejednoznacznym tokenem bez diakrytykow."""
     tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]
     if len(tokeny) < MIN_TOKENY_DETEKCJI:
         return None
@@ -52,7 +47,7 @@ def fold(tekst: str) -> str:
     return ''.join(z for z in tekst if not unicodedata.combining(z))
 
 
-def distance(a: str, b: str) -> int:
+def distance(a: str, b: str, dozwolona: int | None = None) -> int:
 
     dl_a, dl_b = len(a), len(b)
     macierz = [[0] * (dl_b + 1) for _ in range(dl_a + 1)]
@@ -72,6 +67,8 @@ def distance(a: str, b: str) -> int:
             )
             if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
                 macierz[i][j] = min(macierz[i][j], macierz[i - 2][j - 2] + 1)
+        if dozwolona is not None and min(macierz[i]) > dozwolona + (dl_a - i):
+            return dozwolona + 1
 
     return macierz[dl_a][dl_b]
 
@@ -131,32 +128,39 @@ def load_dictionary() -> Counter:
 
 
 FOLDED_CACHE = None
-def folded_index(slownik: Counter) -> list:
+def folded_index(slownik: Counter) -> dict[int, list[tuple[str, int, str, int]]]:
     global FOLDED_CACHE
     if FOLDED_CACHE is None:
-        FOLDED_CACHE = [(slowo, czestosc, fold(slowo)) for slowo, czestosc in slownik.items()]
+        kubelki: dict[int, list[tuple[str, int, str, int]]] = {}
+        for indeks, (slowo, czestosc) in enumerate(slownik.items()):
+            zlozone = fold(slowo)
+            kubelki.setdefault(len(zlozone), []).append((slowo, czestosc, zlozone, indeks))
+        FOLDED_CACHE = kubelki
     return FOLDED_CACHE
 
 
 def best_candidate(token: str, slownik: Counter) -> str | None:
 
     zlozony = fold(token)
+    dlugosc = len(zlozony)
     dozwolona = 1 if len(token) <= 6 else MAX_ODLEGLOSC
     najlepszy = None
     najlepsza_odleglosc = dozwolona + 1
     najlepsza_czestosc = 0
+    najlepszy_indeks = -1
 
-    for slowo, czestosc, zlozone in folded_index(slownik):
-        if abs(len(zlozone) - len(zlozony)) > dozwolona:
-            continue
-
-        odleglosc = distance(zlozony, zlozone)
-        if odleglosc < najlepsza_odleglosc or (
-            odleglosc == najlepsza_odleglosc and czestosc > najlepsza_czestosc
-        ):
-            najlepszy = slowo
-            najlepsza_odleglosc = odleglosc
-            najlepsza_czestosc = czestosc
+    kubelki = folded_index(slownik)
+    for dlugosc_kubelka in range(dlugosc - dozwolona, dlugosc + dozwolona + 1):
+        for slowo, czestosc, zlozone, indeks in kubelki.get(dlugosc_kubelka, []):
+            odleglosc = distance(zlozony, zlozone, dozwolona)
+            if (odleglosc < najlepsza_odleglosc
+                    or (odleglosc == najlepsza_odleglosc and czestosc > najlepsza_czestosc)
+                    or (odleglosc == najlepsza_odleglosc and czestosc == najlepsza_czestosc
+                        and najlepszy is not None and indeks < najlepszy_indeks)):
+                najlepszy = slowo
+                najlepsza_odleglosc = odleglosc
+                najlepsza_czestosc = czestosc
+                najlepszy_indeks = indeks
 
     if najlepszy is not None and najlepsza_odleglosc <= dozwolona:
         return najlepszy
@@ -194,16 +198,3 @@ def correct(query: str) -> dict:
         'zmiany': zmiany,
         'nieznane': nieznane,
     }
-
-
-if __name__ == '__main__':
-  
-    slownik = build_dictionary()
-    print(f'słownik: {len(slownik)} słów, zapisano do {SLOWNIK_PLIK}')
-
-    testy = ['jak zmienić haslo do kotno', 'zaplacilem smrtem', 'gdzie jest przesylak']
-    for zapytanie in testy:
-        wynik = correct(zapytanie)
-        print(f'\n"{zapytanie}"')
-        print(f'  -> "{wynik["poprawione"]}"')
-        print(f'  zmiany: {wynik["zmiany"]} | nieznane: {wynik["nieznane"]}')

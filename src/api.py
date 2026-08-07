@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 from typing import Literal
-from pipeline import run, run_stream, MODELE, corpus_stamp, redaguj
+from pipeline import run, run_stream, MODELE, corpus_stamp, redaguj, IDF_DANE
 from rankings import get_reranker, get_bm25, get_faiss
-from spell import detect_lang
+from spell import detect_lang, load_dictionary
 from guards import MAX_ZNAKI, normalizuj
 from lang_config import LANG, DOMYSLNY_JEZYK
 from wysylka import wyslij_potwierdzenie, WysylkaCzesciowaError
@@ -16,12 +16,24 @@ import httpx
 import os
 import re
 import sys
+import threading
 import time
+import traceback
 import json
+
+AGENCI_ROZGRZEWKA_PL = ('kupujacy', 'sprzedaz', 'konto', 'zakupy', 'platnosci')
+AGENCI_ROZGRZEWKA_EN = ('kupujacy', 'sprzedaz')
+
+_zamek = threading.Lock()
 
 LIMIT_MIN = int(os.getenv('LIMIT_MIN', '15'))
 LIMIT_DZIEN = int(os.getenv('LIMIT_DZIEN', '200'))
 _zapytania = deque()
+
+LIMIT_IP_MIN = int(os.getenv('LIMIT_IP_MIN', '10'))
+LIMIT_IP_DZIEN = int(os.getenv('LIMIT_IP_DZIEN', '40'))
+IP_SLOWNIK_MAX = int(os.getenv('IP_SLOWNIK_MAX', '5000'))
+_zapytania_ip: 'OrderedDict[str, deque]' = OrderedDict()
 
 LIMIT_WYSYLKA_MIN = int(os.getenv('LIMIT_WYSYLKA_MIN', '5'))
 LIMIT_WYSYLKA_DZIEN = int(os.getenv('LIMIT_WYSYLKA_DZIEN', '40'))
@@ -36,6 +48,7 @@ CACHE_MAX = int(os.getenv('CACHE_MAX', '200'))
 _cache: 'OrderedDict[tuple, dict]' = OrderedDict()
 LOG_ANALYTICS = Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.jsonl'
 OSTRZEZONO_O_LOGU = False
+OSTRZEZONO_O_LOGU_WYSYLKI = False
 
 
 def cache_zdatny(request: 'ChatRequest') -> bool:
@@ -57,10 +70,11 @@ def cache_pobierz(klucz: tuple) -> dict | None:
 def cache_zapisz(klucz: tuple, wynik: dict) -> None:
     if not wynik.get('agent'):
         return
-    _cache[klucz] = wynik
-    _cache.move_to_end(klucz)
-    if len(_cache) > CACHE_MAX:
-        _cache.popitem(last=False)
+    with _zamek:
+        _cache[klucz] = wynik
+        _cache.move_to_end(klucz)
+        if len(_cache) > CACHE_MAX:
+            _cache.popitem(last=False)
 
 
 def powod_wyniku(dane: dict) -> str:
@@ -96,13 +110,37 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
 
 def w_limicie() -> bool:
     teraz = time.time()
-    while _zapytania and _zapytania[0] < teraz - 86400:
-        _zapytania.popleft()
-    ostatnia_minuta = sum(1 for t in _zapytania if t > teraz - 60)
-    if ostatnia_minuta >= LIMIT_MIN or len(_zapytania) >= LIMIT_DZIEN:
-        return False
-    _zapytania.append(teraz)
-    return True
+    with _zamek:
+        while _zapytania and _zapytania[0] < teraz - 86400:
+            _zapytania.popleft()
+        ostatnia_minuta = sum(1 for t in _zapytania if t > teraz - 60)
+        if ostatnia_minuta >= LIMIT_MIN or len(_zapytania) >= LIMIT_DZIEN:
+            return False
+        _zapytania.append(teraz)
+        return True
+
+
+def adres_klienta(request: Request) -> str:
+    naglowek = request.headers.get('x-forwarded-for')
+    if naglowek:
+        return naglowek.split(',')[-1].strip()
+    return request.client.host if request.client else ''
+
+
+def w_limicie_ip(ip: str) -> bool:
+    teraz = time.time()
+    with _zamek:
+        kolejka = _zapytania_ip.setdefault(ip, deque())
+        while kolejka and kolejka[0] < teraz - 86400:
+            kolejka.popleft()
+        ostatnia_minuta = sum(1 for t in kolejka if t > teraz - 60)
+        if ostatnia_minuta >= LIMIT_IP_MIN or len(kolejka) >= LIMIT_IP_DZIEN:
+            return False
+        kolejka.append(teraz)
+        _zapytania_ip.move_to_end(ip)
+        if len(_zapytania_ip) > IP_SLOWNIK_MAX:
+            _zapytania_ip.popitem(last=False)
+        return True
 
 
 def efektywny_jezyk(message: str, podpowiedz: str | None) -> str:
@@ -111,60 +149,67 @@ def efektywny_jezyk(message: str, podpowiedz: str | None) -> str:
 
 def w_limicie_wysylki() -> bool:
     teraz = time.time()
-    while _wysylki and _wysylki[0] < teraz - 86400:
-        _wysylki.popleft()
-    ostatnia_minuta = sum(1 for t in _wysylki if t > teraz - 60)
-    if ostatnia_minuta >= LIMIT_WYSYLKA_MIN or len(_wysylki) >= LIMIT_WYSYLKA_DZIEN:
-        return False
-    _wysylki.append(teraz)
-    return True
+    with _zamek:
+        while _wysylki and _wysylki[0] < teraz - 86400:
+            _wysylki.popleft()
+        ostatnia_minuta = sum(1 for t in _wysylki if t > teraz - 60)
+        if ostatnia_minuta >= LIMIT_WYSYLKA_MIN or len(_wysylki) >= LIMIT_WYSYLKA_DZIEN:
+            return False
+        _wysylki.append(teraz)
+        return True
 
 
 def w_limicie_adresu(email: str) -> bool:
     teraz = time.time()
     klucz = email.lower()
-    for k in [k for k, t in _wysylki_adres.items() if t < teraz - LIMIT_WYSYLKA_ADRES_S]:
-        del _wysylki_adres[k]
-    if klucz in _wysylki_adres:
-        return False
-    _wysylki_adres[klucz] = teraz
-    _wysylki_adres.move_to_end(klucz)
-    if len(_wysylki_adres) > 500:
-        _wysylki_adres.popitem(last=False)
-    return True
+    with _zamek:
+        for k in [k for k, t in _wysylki_adres.items() if t < teraz - LIMIT_WYSYLKA_ADRES_S]:
+            del _wysylki_adres[k]
+        if klucz in _wysylki_adres:
+            return False
+        _wysylki_adres[klucz] = teraz
+        _wysylki_adres.move_to_end(klucz)
+        if len(_wysylki_adres) > 500:
+            _wysylki_adres.popitem(last=False)
+        return True
 
 
 def zwolnij_limit_adresu(email: str) -> None:
-    _wysylki_adres.pop(email.lower(), None)
+    with _zamek:
+        _wysylki_adres.pop(email.lower(), None)
 
 
 def rejestruj_adres(email: str) -> None:
     klucz = email.lower()
-    _wysylki_adres[klucz] = time.time()
-    _wysylki_adres.move_to_end(klucz)
-    if len(_wysylki_adres) > 500:
-        _wysylki_adres.popitem(last=False)
+    with _zamek:
+        _wysylki_adres[klucz] = time.time()
+        _wysylki_adres.move_to_end(klucz)
+        if len(_wysylki_adres) > 500:
+            _wysylki_adres.popitem(last=False)
 
 
 def zarejestruj_ticket(ticket: str, email: str) -> None:
-    _tickety[ticket] = {'email': email.lower(), 'uzyty': False}
-    _tickety.move_to_end(ticket)
-    if len(_tickety) > TICKET_MAX:
-        _tickety.popitem(last=False)
+    with _zamek:
+        _tickety[ticket] = {'email': email.lower(), 'uzyty': False}
+        _tickety.move_to_end(ticket)
+        if len(_tickety) > TICKET_MAX:
+            _tickety.popitem(last=False)
 
 
 def w_limicie_korekty(ticket: str, email: str) -> bool:
-    wpis = _tickety.get(ticket)
-    if wpis is None or wpis['email'] != email.lower() or wpis['uzyty']:
-        return False
-    wpis['uzyty'] = True
-    return True
+    with _zamek:
+        wpis = _tickety.get(ticket)
+        if wpis is None or wpis['email'] != email.lower() or wpis['uzyty']:
+            return False
+        wpis['uzyty'] = True
+        return True
 
 
 def zwolnij_limit_korekty(ticket: str) -> None:
-    wpis = _tickety.get(ticket)
-    if wpis is not None:
-        wpis['uzyty'] = False
+    with _zamek:
+        wpis = _tickety.get(ticket)
+        if wpis is not None:
+            wpis['uzyty'] = False
 
 
 def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: bool, blad: str | None = None) -> None:
@@ -181,8 +226,11 @@ def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: 
             wpis['blad'] = blad
         with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
             w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
-    except OSError:
-        pass
+    except OSError as e:
+        global OSTRZEZONO_O_LOGU_WYSYLKI
+        if not OSTRZEZONO_O_LOGU_WYSYLKI:
+            print(f'UWAGA: nie moge pisac do {LOG_ANALYTICS}: {e}', file=sys.stderr, flush=True)
+            OSTRZEZONO_O_LOGU_WYSYLKI = True
 
 
 @asynccontextmanager
@@ -197,12 +245,21 @@ async def lifespan(app: FastAPI):
             MODELE[lang].encode([cfg['query_prefix'] + 'rozgrzewka'])
         except Exception:
             pass
-    for lang in LANG:
+    try:
+        load_dictionary()
+    except Exception:
+        pass
+    for lang, agenci in (('pl', AGENCI_ROZGRZEWKA_PL), ('en', AGENCI_ROZGRZEWKA_EN)):
         try:
-            get_faiss('all', lang)
-            get_bm25('all', lang)
+            IDF_DANE[lang]
         except Exception:
             pass
+        for agent in agenci:
+            try:
+                get_faiss(agent, lang)
+                get_bm25(agent, lang)
+            except Exception:
+                pass
     yield
 
 MAX_ZNAKI_WPISU = int(os.getenv('MAX_ZNAKI_WPISU', '8000'))
@@ -251,6 +308,7 @@ class ChatResponse(BaseModel):
    naglowek_ui: str | None = None
    tryb: Literal['rag', 'email'] = 'rag'
    pyta_strona: bool = False
+   powod_odmowy: str | None = None
 
 app = FastAPI(lifespan=lifespan)
 
@@ -259,8 +317,10 @@ def health():
     return {'status': 'ok'}
 
 @app.post('/chat', response_model=ChatResponse)
-def chat(request: ChatRequest):
+def chat(request: ChatRequest, http_request: Request):
     lang = efektywny_jezyk(request.message, request.lang)
+    if not w_limicie_ip(adres_klienta(http_request)):
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     if not w_limicie():
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     start = time.perf_counter()
@@ -280,17 +340,20 @@ def chat(request: ChatRequest):
         loguj_zapytanie(lang, wynik, time.perf_counter() - start, cache_hit, request.message, request.strona)
         return wynik
     except Exception as e:
-        print(f'blad /chat: {type(e).__name__}: {e}')
+        print(f'blad /chat: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
         raise HTTPException(status_code=503, detail=LANG[lang]['bledy']['model_niedostepny'])
 
 
 @app.post('/chat/stream')
-def chat_stream(request: ChatRequest):
+def chat_stream(request: ChatRequest, http_request: Request):
     lang = efektywny_jezyk(request.message, request.lang)
 
     strona = None if request.strona == 'auto' else request.strona
 
     def gen():
+        if not w_limicie_ip(adres_klienta(http_request)):
+            yield f"data: {json.dumps({'typ': 'blad', 'kod': 429, 'tekst': LANG[lang]['bledy']['limit_zapytan']}, ensure_ascii=False)}\n\n"
+            return
         if not w_limicie():
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 429, 'tekst': LANG[lang]['bledy']['limit_zapytan']}, ensure_ascii=False)}\n\n"
             return
@@ -315,7 +378,7 @@ def chat_stream(request: ChatRequest):
                 cache_zapisz(klucz, wynik)
             loguj_zapytanie(lang, wynik, time.perf_counter() - start, False, request.message, request.strona)
         except Exception as e:
-            print(f'blad /chat/stream: {type(e).__name__}: {e}')
+            print(f'blad /chat/stream: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': LANG[lang]['bledy']['model_niedostepny']}, ensure_ascii=False)}\n\n"
     return StreamingResponse(gen(), media_type='text/event-stream')
 

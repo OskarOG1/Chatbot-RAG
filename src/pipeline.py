@@ -105,10 +105,10 @@ def corpus_stamp(lang: str) -> int:
         return 0
 
 
-def zaladuj_idf(lang: str) -> tuple[dict, float]:
+def zaladuj_idf(lang: str) -> tuple[dict, float, bool]:
     chunks_json = chunks_path(lang)
     idf_cache = chunks_json.parent / f'idf{LANG[lang]["suffix"]}.pkl'
-    idf, idf_max = {}, 1.0
+    idf, idf_max, powodzenie = {}, 1.0, True
     try:
         stamp = int(chunks_json.stat().st_mtime)
         zapis = None
@@ -134,7 +134,8 @@ def zaladuj_idf(lang: str) -> tuple[dict, float]:
             idf_max = zapis['idf_max']
     except Exception as e:
         print(f'blad ladowania idf ({lang}): {type(e).__name__}: {e}')
-    return idf, idf_max
+        powodzenie = False
+    return idf, idf_max, powodzenie
 
 
 class IdfLeniwe(dict):
@@ -145,13 +146,14 @@ class IdfLeniwe(dict):
 
 
 IDF_DANE = IdfLeniwe()
+OSTRZEZONO_BRAK_IDF: set[str] = set()
 
 
 def pokrycie_idf(tekst: str, chunks: list, lang: str = 'pl') -> float:
     odp = lematy(tekst, lang)
     if not odp:
         return 0.0
-    idf, idf_max = IDF_DANE[lang]
+    idf, idf_max, _ = IDF_DANE[lang]
     kontekst = set()
     for c, _ in chunks:
         kontekst |= lematy(c['tekst'], lang)
@@ -187,24 +189,6 @@ def loguj_trudne(query: str, nieznane: list) -> None:
     except OSError:
         pass
 
-pytania = [
-
-    "Jak sprawdzić, gdzie jest moja przesyłka?",
-    "Kupiłem coś przez pomyłkę, da się anulować zamówienie?",
-    "Czy mogę odebrać zamówienie w automacie paczkowym?",
-    "Towar przyszedł uszkodzony, co mi przysługuje?",
-    "Jak długo mam na zwrot po odebraniu paczki?",
-    "Sprzedawca chce, żebym zapłacił poza Allegro - czy to bezpieczne?",
-
-    "Jak rozłożyć zakup na raty?",
-    "Płatność się nie powiodła, a pieniądze zniknęły z konta.",
-    "Gdzie znajdę fakturę za zakupy?",
-    "Jak dodać nową kartę do płatności?",
-    "Czy mogę zapłacić BLIKIEM?",
-    "Ile kosztuje przesyłka kurierem?",
-]
-
-
 def cytaty_lub_zrodla(cytaty: list[dict], chunks: list[tuple[dict, float]]) -> list[dict]:
     if cytaty:
         return cytaty
@@ -226,10 +210,11 @@ def run_stream(query:str, bielik_model:str | None=None,
         return {'typ': 'wynik', 'dane': d}
 
     yield krok(cfg['kroki']['sprawdzam_pytanie'])
-    powod = sprawdz(query, cfg['guardy'])
-    if powod:
+    wynik_guardu = sprawdz(query, cfg['guardy'])
+    if wynik_guardu:
+        powod, nazwa_guardu = wynik_guardu
         yield wynik({'agent': '', 'answer': powod, 'sources': [], 'citations': [],
-                     'doprecyzowanie': None, 'powod_odmowy': 'guard'})
+                     'doprecyzowanie': None, 'powod_odmowy': f'guard_{nazwa_guardu}'})
         return
     history = (history or [])[-OKNO_HISTORII:]
     bez_korekty = bez_korekty or lang != 'pl'
@@ -339,7 +324,18 @@ def run_stream(query:str, bielik_model:str | None=None,
         elif ev['typ'] == 'koniec':
             odpowiedz = ev['dane']
 
-    if odpowiedz is None or pokrycie_idf(odpowiedz['tekst'], chunks, lang) < cfg['prog_pokrycia']:
+    if odpowiedz is None:
+        yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
+                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
+                     'powod_odmowy': 'pokrycie'})
+        return
+
+    _, _, idf_ok = IDF_DANE[lang]
+    if not idf_ok:
+        if lang not in OSTRZEZONO_BRAK_IDF:
+            print(f'UWAGA: bramka pokrycia pominieta dla lang={lang}, IDF_DANE nie zaladowane')
+            OSTRZEZONO_BRAK_IDF.add(lang)
+    elif pokrycie_idf(odpowiedz['tekst'], chunks, lang) < cfg['prog_pokrycia']:
         yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
                      'powod_odmowy': 'pokrycie'})
@@ -379,24 +375,3 @@ def run(query:str, bielik_model:str | None=None,
         if ev['typ'] == 'wynik':
             dane = ev['dane']
     return dane
-
-
-if __name__ == '__main__':
-    linie = []
-
-    for i, p in enumerate(pytania, 1):
-        wynik = run(p)
-        blok = (
-            f"{'='*60}\n"
-            f"[{i}] PYTANIE: {p}\n"
-            f"AGENT: {wynik['agent']}\n"
-            f"SOURCES: {wynik['sources']}\n"
-            f"ODPOWIEDŹ:\n{wynik['answer']}\n"
-        )
-        print(blok)
-        linie.append(blok)
-
-    out = Path(__file__).resolve().parent.parent / 'outputs' / 'eval.md'
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, 'w', encoding='utf-8') as f:
-        f.write('\n'.join(linie))

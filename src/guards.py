@@ -15,8 +15,8 @@ WZORCE_INJEKCJI = tuple(re.compile(wzorzec) for wzorzec in (
     r'(?:previous|prior|above|earlier|all|any|your|system|instruction|rule)',
     r'\b(?:system|systemow\w*)\s*prompt',
     r'\bprompt\w*\s+systemow',
-    r'\b(?:nowa|nowe)\s+(?:instrukcj|polecen)',
-    r'\bnew\s+(?:instruction|rule|system)',
+    r'\b(?:nowa|nowe)\s+instrukcj\w*(?:\s+\w+){0,3}\s+(?:system\w*|model\w*|prompt\w*|asystent\w*)',
+    r'\bnew\s+(?:instruction|system)',
     r'\bact\s+as\b',
     r'\budawaj\b',
     r'\bpretend\s+(?:to\s+be|you|that)',
@@ -51,7 +51,7 @@ def wykryj_injekcje(q: str) -> bool:
             return True
     return False
 
-def sprawdz(query: str, guardy: dict | None = None) -> str | None:
+def sprawdz(query: str, guardy: dict | None = None) -> tuple[str, str] | None:
     g = guardy or {
         'za_krotkie': 'Napisz proszę pełne pytanie.',
         'za_dlugie': 'Pytanie jest za długie, opisz jeden problem na raz.',
@@ -62,15 +62,15 @@ def sprawdz(query: str, guardy: dict | None = None) -> str | None:
     q = query.strip()
 
     if len(q) < MIN_ZNAKI:
-        return g['za_krotkie']
+        return g['za_krotkie'], 'za_krotkie'
     if len(q) > MAX_ZNAKI:
-        return g['za_dlugie']
+        return g['za_dlugie'], 'za_dlugie'
     if liter(q) < 0.4:
-        return g['nie_rozumiem']
+        return g['nie_rozumiem'], 'nie_rozumiem'
     if alfabet_lacinski(q) < 0.5:
-        return g['zly_alfabet']
+        return g['zly_alfabet'], 'zly_alfabet'
 
     if wykryj_injekcje(q):
-        return g['injekcja']
+        return g['injekcja'], 'injekcja'
 
     return None
