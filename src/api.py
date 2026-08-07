@@ -16,12 +16,15 @@ import httpx
 import os
 import re
 import sys
+import threading
 import time
 import traceback
 import json
 
 AGENCI_ROZGRZEWKA_PL = ('kupujacy', 'sprzedaz', 'konto', 'zakupy', 'platnosci')
 AGENCI_ROZGRZEWKA_EN = ('kupujacy', 'sprzedaz')
+
+_zamek = threading.Lock()
 
 LIMIT_MIN = int(os.getenv('LIMIT_MIN', '15'))
 LIMIT_DZIEN = int(os.getenv('LIMIT_DZIEN', '200'))
@@ -67,10 +70,11 @@ def cache_pobierz(klucz: tuple) -> dict | None:
 def cache_zapisz(klucz: tuple, wynik: dict) -> None:
     if not wynik.get('agent'):
         return
-    _cache[klucz] = wynik
-    _cache.move_to_end(klucz)
-    if len(_cache) > CACHE_MAX:
-        _cache.popitem(last=False)
+    with _zamek:
+        _cache[klucz] = wynik
+        _cache.move_to_end(klucz)
+        if len(_cache) > CACHE_MAX:
+            _cache.popitem(last=False)
 
 
 def powod_wyniku(dane: dict) -> str:
@@ -106,13 +110,14 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
 
 def w_limicie() -> bool:
     teraz = time.time()
-    while _zapytania and _zapytania[0] < teraz - 86400:
-        _zapytania.popleft()
-    ostatnia_minuta = sum(1 for t in _zapytania if t > teraz - 60)
-    if ostatnia_minuta >= LIMIT_MIN or len(_zapytania) >= LIMIT_DZIEN:
-        return False
-    _zapytania.append(teraz)
-    return True
+    with _zamek:
+        while _zapytania and _zapytania[0] < teraz - 86400:
+            _zapytania.popleft()
+        ostatnia_minuta = sum(1 for t in _zapytania if t > teraz - 60)
+        if ostatnia_minuta >= LIMIT_MIN or len(_zapytania) >= LIMIT_DZIEN:
+            return False
+        _zapytania.append(teraz)
+        return True
 
 
 def adres_klienta(request: Request) -> str:
@@ -124,17 +129,18 @@ def adres_klienta(request: Request) -> str:
 
 def w_limicie_ip(ip: str) -> bool:
     teraz = time.time()
-    kolejka = _zapytania_ip.setdefault(ip, deque())
-    while kolejka and kolejka[0] < teraz - 86400:
-        kolejka.popleft()
-    ostatnia_minuta = sum(1 for t in kolejka if t > teraz - 60)
-    if ostatnia_minuta >= LIMIT_IP_MIN or len(kolejka) >= LIMIT_IP_DZIEN:
-        return False
-    kolejka.append(teraz)
-    _zapytania_ip.move_to_end(ip)
-    if len(_zapytania_ip) > IP_SLOWNIK_MAX:
-        _zapytania_ip.popitem(last=False)
-    return True
+    with _zamek:
+        kolejka = _zapytania_ip.setdefault(ip, deque())
+        while kolejka and kolejka[0] < teraz - 86400:
+            kolejka.popleft()
+        ostatnia_minuta = sum(1 for t in kolejka if t > teraz - 60)
+        if ostatnia_minuta >= LIMIT_IP_MIN or len(kolejka) >= LIMIT_IP_DZIEN:
+            return False
+        kolejka.append(teraz)
+        _zapytania_ip.move_to_end(ip)
+        if len(_zapytania_ip) > IP_SLOWNIK_MAX:
+            _zapytania_ip.popitem(last=False)
+        return True
 
 
 def efektywny_jezyk(message: str, podpowiedz: str | None) -> str:
@@ -143,60 +149,67 @@ def efektywny_jezyk(message: str, podpowiedz: str | None) -> str:
 
 def w_limicie_wysylki() -> bool:
     teraz = time.time()
-    while _wysylki and _wysylki[0] < teraz - 86400:
-        _wysylki.popleft()
-    ostatnia_minuta = sum(1 for t in _wysylki if t > teraz - 60)
-    if ostatnia_minuta >= LIMIT_WYSYLKA_MIN or len(_wysylki) >= LIMIT_WYSYLKA_DZIEN:
-        return False
-    _wysylki.append(teraz)
-    return True
+    with _zamek:
+        while _wysylki and _wysylki[0] < teraz - 86400:
+            _wysylki.popleft()
+        ostatnia_minuta = sum(1 for t in _wysylki if t > teraz - 60)
+        if ostatnia_minuta >= LIMIT_WYSYLKA_MIN or len(_wysylki) >= LIMIT_WYSYLKA_DZIEN:
+            return False
+        _wysylki.append(teraz)
+        return True
 
 
 def w_limicie_adresu(email: str) -> bool:
     teraz = time.time()
     klucz = email.lower()
-    for k in [k for k, t in _wysylki_adres.items() if t < teraz - LIMIT_WYSYLKA_ADRES_S]:
-        del _wysylki_adres[k]
-    if klucz in _wysylki_adres:
-        return False
-    _wysylki_adres[klucz] = teraz
-    _wysylki_adres.move_to_end(klucz)
-    if len(_wysylki_adres) > 500:
-        _wysylki_adres.popitem(last=False)
-    return True
+    with _zamek:
+        for k in [k for k, t in _wysylki_adres.items() if t < teraz - LIMIT_WYSYLKA_ADRES_S]:
+            del _wysylki_adres[k]
+        if klucz in _wysylki_adres:
+            return False
+        _wysylki_adres[klucz] = teraz
+        _wysylki_adres.move_to_end(klucz)
+        if len(_wysylki_adres) > 500:
+            _wysylki_adres.popitem(last=False)
+        return True
 
 
 def zwolnij_limit_adresu(email: str) -> None:
-    _wysylki_adres.pop(email.lower(), None)
+    with _zamek:
+        _wysylki_adres.pop(email.lower(), None)
 
 
 def rejestruj_adres(email: str) -> None:
     klucz = email.lower()
-    _wysylki_adres[klucz] = time.time()
-    _wysylki_adres.move_to_end(klucz)
-    if len(_wysylki_adres) > 500:
-        _wysylki_adres.popitem(last=False)
+    with _zamek:
+        _wysylki_adres[klucz] = time.time()
+        _wysylki_adres.move_to_end(klucz)
+        if len(_wysylki_adres) > 500:
+            _wysylki_adres.popitem(last=False)
 
 
 def zarejestruj_ticket(ticket: str, email: str) -> None:
-    _tickety[ticket] = {'email': email.lower(), 'uzyty': False}
-    _tickety.move_to_end(ticket)
-    if len(_tickety) > TICKET_MAX:
-        _tickety.popitem(last=False)
+    with _zamek:
+        _tickety[ticket] = {'email': email.lower(), 'uzyty': False}
+        _tickety.move_to_end(ticket)
+        if len(_tickety) > TICKET_MAX:
+            _tickety.popitem(last=False)
 
 
 def w_limicie_korekty(ticket: str, email: str) -> bool:
-    wpis = _tickety.get(ticket)
-    if wpis is None or wpis['email'] != email.lower() or wpis['uzyty']:
-        return False
-    wpis['uzyty'] = True
-    return True
+    with _zamek:
+        wpis = _tickety.get(ticket)
+        if wpis is None or wpis['email'] != email.lower() or wpis['uzyty']:
+            return False
+        wpis['uzyty'] = True
+        return True
 
 
 def zwolnij_limit_korekty(ticket: str) -> None:
-    wpis = _tickety.get(ticket)
-    if wpis is not None:
-        wpis['uzyty'] = False
+    with _zamek:
+        wpis = _tickety.get(ticket)
+        if wpis is not None:
+            wpis['uzyty'] = False
 
 
 def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: bool, blad: str | None = None) -> None:
@@ -295,6 +308,7 @@ class ChatResponse(BaseModel):
    naglowek_ui: str | None = None
    tryb: Literal['rag', 'email'] = 'rag'
    pyta_strona: bool = False
+   powod_odmowy: str | None = None
 
 app = FastAPI(lifespan=lifespan)
 

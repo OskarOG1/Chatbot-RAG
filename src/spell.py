@@ -29,11 +29,6 @@ def tokenize_words(tekst: str) -> list[str]:
 
 
 def detect_lang(query: str) -> str | None:
-    """Sumuje zipf_frequency tokenow w 'pl' vs 'en', zwraca jezyk z wyzsza suma.
-    None przy remisie (w tym 0=0) albo za krotkim zapytaniu - wtedy wywolujacy
-    ma uzyc przelacznika z UI jako fallbacku. Odporne na polski bez ogonkow, bo
-    liczy sie suma po calym zapytaniu - jedno-dwa mocno polskie slowo (np. "jak")
-    przewazaja nad pojedynczym niejednoznacznym tokenem bez diakrytykow."""
     tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]
     if len(tokeny) < MIN_TOKENY_DETEKCJI:
         return None
@@ -203,16 +198,3 @@ def correct(query: str) -> dict:
         'zmiany': zmiany,
         'nieznane': nieznane,
     }
-
-
-if __name__ == '__main__':
-  
-    slownik = build_dictionary()
-    print(f'słownik: {len(slownik)} słów, zapisano do {SLOWNIK_PLIK}')
-
-    testy = ['jak zmienić haslo do kotno', 'zaplacilem smrtem', 'gdzie jest przesylak']
-    for zapytanie in testy:
-        wynik = correct(zapytanie)
-        print(f'\n"{zapytanie}"')
-        print(f'  -> "{wynik["poprawione"]}"')
-        print(f'  zmiany: {wynik["zmiany"]} | nieznane: {wynik["nieznane"]}')

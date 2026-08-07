@@ -26,6 +26,7 @@ def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: s
         )
 
     t = LANG[lang]['wysylka']
+    temat = temat.replace('\r', ' ').replace('\n', ' ')
     korekta = ticket is not None
     ticket = ticket or secrets.token_hex(4).upper()
     naglowki = {'Authorization': f'Bearer {klucz}', 'Content-Type': 'application/json'}

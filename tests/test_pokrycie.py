@@ -6,7 +6,7 @@ import pipeline
 def maly_idf(monkeypatch):
     idf = {'konto': 1.0, 'haslo': 2.0, 'zwrot': 1.5}
     idf_max = 3.0
-    monkeypatch.setitem(pipeline.IDF_DANE, 'pl', (idf, idf_max))
+    monkeypatch.setitem(pipeline.IDF_DANE, 'pl', (idf, idf_max, True))
 
 
 def _chunk(tekst):

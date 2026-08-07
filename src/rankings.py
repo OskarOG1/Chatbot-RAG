@@ -2,11 +2,10 @@ import json
 from pathlib import Path
 import numpy as np
 import faiss
-from sentence_transformers import SentenceTransformer, CrossEncoder
+from sentence_transformers import CrossEncoder
 import unicodedata
 import pickle
 import os
-from collections import Counter
 import simplemma
 from lang_config import LANG
 
@@ -34,9 +33,6 @@ def NO_dedup(query, query_emb, agent, k_surowe, lang='pl'):
     posortowane = sorted(punkty, key=punkty.get, reverse=True)
 
     return [(chunki[idx], punkty[idx]) for idx in posortowane][:k_surowe]
-
-def search_reranked(query, query_emb, agent, k=3, k_surowe=20, lang='pl'):
-    return search_reranked_multi(query, query_emb, [agent], k, k_surowe, lang)
 
 def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl'):
     linki = []
@@ -153,24 +149,6 @@ def dedup(wyniki):
     return unikalne
 
 
-def search_route(query:str, query_emb, k:int=5) -> tuple[str, list[tuple]]:
-    
-    chunki = wczytaj_chunki('all')
-    r_faiss = ranking_faiss(query_emb, 'all', chunki)
-    r_bm25 = ranking_bm25(query, 'all')
-    punkty = rrf([r_faiss, r_bm25])
-
-    posortowane = sorted(punkty, key=punkty.get, reverse=True)
-   
-    wyniki = [(chunki[idx], punkty[idx]) for idx in posortowane]
-    wyniki = dedup(wyniki)
-    wyniki = wyniki[:k]
-
-    agenci = [chunk['agent'] for chunk, _ in wyniki]
-    agent = Counter(agenci).most_common(1)[0][0]
-
-    return agent,wyniki
-
 def search_hybrid(query: str, query_emb, agent: str, k:int= 5, lang:str='pl') -> list[tuple]:
 
     chunki = wczytaj_chunki(agent, lang)
@@ -182,28 +160,3 @@ def search_hybrid(query: str, query_emb, agent: str, k:int= 5, lang:str='pl') ->
     wyniki = [(chunki[idx], punkty[idx]) for idx in posortowane]
     wyniki = dedup(wyniki)
     return wyniki[:k]
-
-
-
-
-if __name__ == '__main__':
-    from sentence_transformers import SentenceTransformer
-    model = SentenceTransformer(MODEL_NAME)
-
-    testy = [
-        ("jak zmienić haslo", "konto"),
-    ]
-
-    for query, agent in testy:
-        print(f'\n=== "{query}" [{agent}] ===')
-
-        q_emb = model.encode(['zapytanie: ' + query]).astype('float32')
-        faiss.normalize_L2(q_emb)
-
-        wybrany_agent, wyniki = search_route(query, q_emb, k=3)
-        print(f'oczekiwano: {agent} | routing: {wybrany_agent}')
-
-        for chunk, score in wyniki:
-            print(f'{score:.4f} | {chunk["tytul"]}')
-            print(chunk['tekst'][:200])
-            print('---')
