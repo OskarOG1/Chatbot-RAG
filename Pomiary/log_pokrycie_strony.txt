@@ -1,79 +1,0 @@
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 2184.70it/s]
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights:  72%|#######1  | 143/199 [00:00<00:00, 1425.07it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 1506.90it/s]
-
---- etap 1: kupujacy_pl (50 pytan) ---
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 2884.76it/s]
-Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|##########| 201/201 [00:00<00:00, 2117.30it/s]
-  deklaracja: n=50 mediana=5.0 ponizej_5=0
-  prior (trafiony): n=6 mediana=5.0 ponizej_5=0
-
---- etap 1: sprzedaz_pl (20 pytan) ---
-  deklaracja: n=20 mediana=5.0 ponizej_5=1
-  prior (trafiony): n=1 mediana=5 ponizej_5=0
-
---- etap 1: kupujacy_en (50 pytan) ---
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 2645.10it/s]
-  deklaracja: n=50 mediana=5.0 ponizej_5=0
-  prior (trafiony): n=6 mediana=5.0 ponizej_5=0
-
---- etap 1: sprzedaz_en (19 pytan) ---
-  deklaracja: n=19 mediana=5 ponizej_5=0
-  prior (trafiony): n=5 mediana=5 ponizej_5=0
-
-=== etap 1 podsumowanie: 0 podejrzanych, 40 kontrolnych, razem 80 wywolan generacji ===
-
---- etap 2: kupujacy_pl (0 podejrzanych + 10 kontrolnych) ---
-  A=0.669(d5) B=0.743(d5)  jak zmieniæ has³o
-  A=0.551(d5) B=0.801(d5)  nie mogê siê zalogowaæ
-  A=0.724(d5) B=0.572(d5)  jak usun¹æ konto
-  A=0.835(d5) B=0.389(d5)  zapomnia³em loginu
-  A=0.856(d5) B=0.828(d5)  jak zmieniæ adres e-mail przypisany do konta
-  A=0.208(d5) B=0.332(d5)  ktoœ w³ama³ siê na moje konto
-  A=0.814(d5) B=0.565(d5)  jak za³o¿yæ konto firmowe
-  A=0.914(d5) B=0.849(d5)  jak œledziæ przesy³kê
-  A=0.713(d5) B=0.576(d5)  towar nie dotar³
-  A=0.920(d5) B=0.772(d5)  chcê zwróciæ kupiony produkt
-
---- etap 2: sprzedaz_pl (0 podejrzanych + 10 kontrolnych) ---
-  A=0.771(d5) B=0.962(d5)  jak zarejestrowaæ konto firmowe
-  A=0.835(d5) B=0.778(d5)  jak zmieniæ konto zwyk³e na firmowe
-  A=0.860(d5) B=0.860(d5)  co to jest one fulfillment by allegro
-  A=0.850(d5) B=0.972(d5)  jak dodaæ informacje o fakturze i stawce vat
-  A=0.893(d5) B=1.000(d5)  kiedy dostanê pieni¹dze za zamówienie z p³at
-  A=1.000(d5) B=1.000(d5)  jak utworzyæ rabat hurtowy
-  A=0.804(d5) B=0.873(d5)  co zrobiæ gdy kupuj¹cy zg³asza reklamacjê pr
-  A=0.496(d5) B=0.714(d5)  jak zamkn¹æ konto na allegro jako sprzedawca
-  A=0.660(d5) B=0.644(d5)  czym s¹ cenniki dostawy i jak je utworzyæ
-  A=0.701(d5) B=0.562(d5)  jak wystawiæ przedmiot na sprzeda¿
-
---- etap 2: kupujacy_en (0 podejrzanych + 10 kontrolnych) ---
-  A=0.697(d5) B=0.812(d5)  How do I change my password
-  A=0.497(d5) B=0.497(d5)  I can't log in
-  A=0.683(d5) B=0.400(d5)  How do I delete my account
-  A=0.638(d5) B=0.433(d5)  I forgot my username
-  A=0.775(d5) B=0.931(d5)  How do I change the email address attached t
-  A=0.324(d5) B=0.272(d5)  Someone hacked into my account  <-- odmowa w obu ramionach
-  A=0.862(d5) B=0.617(d5)  How do I set up a business account
-  A=0.966(d5) B=0.946(d5)  How do I track a shipment
-  A=0.800(d5) B=0.835(d5)  The item didn't arrive
-  A=0.856(d5) B=0.787(d5)  I want to return a purchased product
-
---- etap 2: sprzedaz_en (0 podejrzanych + 10 kontrolnych) ---
-  A=0.721(d5) B=0.861(d5)  how do I register a business account
-  A=0.937(d5) B=0.881(d5)  how do I convert a regular account into a bu
-  A=0.817(d5) B=0.817(d5)  what is one fulfillment by allegro
-  A=0.812(d5) B=0.873(d5)  how do I add invoice and vat information to 
-  A=0.828(d5) B=0.895(d5)  when will I get money for orders paid on del
-  A=0.750(d5) B=0.656(d5)  how do I create a wholesale discount
-  A=0.856(d5) B=0.856(d5)  what should I do if the buyer files a compla
-  A=0.862(d5) B=0.732(d5)  how do I close an invoice account
-  A=0.835(d5) B=0.835(d5)  how do I create a shipping price list
-  A=0.952(d5) B=0.799(d5)  how do I list a product for sale
-
-=== bramki ===
-  [kupujacy_pl] n=10 falszywe_odmowy=0 min_B=0.33218567114976144 mediana_A=0.7688680451444971 mediana_B=0.6593609925906372 prog=0.2
-  [sprzedaz_pl] n=10 falszywe_odmowy=0 min_B=0.5615104119254112 mediana_A=0.8193080600993483 mediana_B=0.8663206015984779 prog=0.2
-  [kupujacy_en] n=10 falszywe_odmowy=0 min_B=0.2716266873987918 mediana_A=0.7359878723516353 mediana_B=0.7021148217031141 prog=0.35
-  [sprzedaz_en] n=10 falszywe_odmowy=0 min_B=0.6557073704295885 mediana_A=0.831593300113334 mediana_B=0.8457690509220018 prog=0.35
-
-zapisano: C:\Dev\allegro-rag-agents\outputs\measure_pokrycie_strony.json

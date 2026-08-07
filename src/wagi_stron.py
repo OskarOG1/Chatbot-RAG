@@ -1,8 +1,8 @@
-# Wygenerowano przez Pomiary/ucz_wagi_stron.py, 2026-08-07T12:59:41.562715+00:00 UTC, na 3896
-# przykladach z RAG/pytania_realne.jsonl (cala baza). TAU_MOCNY/TAU_SLABY/Z_SILNY to
-# srednia z 5 foldow walidacji krzyzowej. Patrz Pomiary/PLAN_WAGI_STRON.md,
-# Pomiary/PLAN_KALIBRACJA_R9.md i Pomiary/POMIAR_WAGI_STRON.md. Nie edytowac recznie,
-# ponowne uruchomienie skryptu nadpisuje ten plik.
+# Wygenerowano przez Pomiary/ucz_wagi_stron.py, 2026-08-07T15:18:36.892412+00:00 UTC, na 3896
+# przykladach z RAG/pytania_realne.jsonl (cala baza). TAU_MOCNY i TAU_SLABY to srednia z 5
+# foldow walidacji krzyzowej, Z_SILNY to stala wejsciowa wybrana w P4 (przemiatanie_z_silny.py).
+# Patrz Pomiary/PLAN_WAGI_STRON.md, Pomiary/PLAN_KALIBRACJA_R9.md i Pomiary/POMIAR_WAGI_STRON.md.
+# Nie edytowac recznie, ponowne uruchomienie skryptu nadpisuje ten plik.
 
 import math
 import simplemma
@@ -92,23 +92,19 @@ WAGI = {
     'sprzedaj': 1.8275298637765198,
     'zamowienia': -1.433085483542546,
     'kupilem': -1.1698769022847064,
-    'wystawic': 0.9180859808166432,
     'wyplatać': 0.9180859808166432,
-    'zamowilam': -0.8270635866427202,
+    'wystawic': 0.9180859808166432,
     'kupilam': -0.8270635866427202,
+    'zamowilam': -0.8270635866427202,
     'przesylke': -0.7239296035263163,
+    'wyplate': 0.6490667778021496,
     'wyplaty': 0.6490667778021496,
     'wystawilem': 0.6490667778021496,
-    'wyplate': 0.6490667778021496,
     'paczke': -0.46579627775187765,
 }
 
 
 def ocena_pytania(lematy_pytania: set, tabela: dict) -> dict:
-    """P3: suma znormalizowana przez sqrt(k), k = liczba dopasowanych lematow, zeby dlugie
-    pytanie nie przekraczalo progu samym nazbieraniem slabych wag. P2: dowod to |z| pojedynczego
-    najmocniejszego dopasowanego lematu, osobno od sumy, bo suma wybiera strone, a dowod
-    rozstrzyga, czy w ogole wolno miec zdanie."""
     dopasowane = [tabela[t] for t in lematy_pytania if t in tabela]
     if not dopasowane:
         return {'suma_norm': 0.0, 'dowod': 0.0, 'k': 0}

@@ -8,6 +8,8 @@
 #     python migruj_tablice_klucz.py
 
 import json
+import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -45,11 +47,21 @@ def main() -> None:
         nowe_wyniki[klucz(lang, query)] = tablica['wyniki'][query]
 
     print(f'zmigrowane: {len(nowe_wyniki)}, bez znanego lang (pominiete): {len(brak_lang)}')
-    for q in brak_lang[:20]:
-        print(f'  POMINIETE (brak lang): {q[:80]!r}')
+    if brak_lang:
+        for q in brak_lang[:20]:
+            print(f'  BRAK LANG: {q[:80]!r}')
+        print('przerwano, plik wejsciowy nietkniety: wpisy bez znanego lang oznaczaja rozjazd '
+              'wczytaj_pytania() ze zrodlem tablicy, nie powod do skrocenia artefaktu.')
+        sys.exit(1)
+
+    kopia = PLIK.with_suffix('.json.bak')
+    shutil.copy2(PLIK, kopia)
+    print(f'kopia zapasowa: {kopia}')
 
     tablica['wyniki'] = nowe_wyniki
-    PLIK.write_text(json.dumps(tablica, ensure_ascii=False), encoding='utf-8')
+    tymczasowy = PLIK.with_suffix('.json.tmp')
+    tymczasowy.write_text(json.dumps(tablica, ensure_ascii=False), encoding='utf-8')
+    os.replace(tymczasowy, PLIK)
     print(f'zapisano: {PLIK}')
 
 

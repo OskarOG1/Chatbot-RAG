@@ -108,52 +108,54 @@ def main() -> None:
     print(f'  pl odmowa={ood_dzis_pl}  en odmowa={ood_dzis_en}')
 
     powierzchnia = []
-    for z_silny in SIATKA_Z_SILNY:
-        print(f'\n=== Z_SILNY={z_silny} ===')
-        kandydat = ocen_kandydata(z_silny, rekordy_wszystkie)
-        naruszenia = spelnia_ograniczenia(kandydat, ood_dzis_pl, ood_dzis_en)
-        kandydat['naruszenia'] = naruszenia
-        kandydat['dopuszczalny'] = not naruszenia
-        powierzchnia.append(kandydat)
-        print(f'  TAU_MOCNY={kandydat["tau_mocny_produkcyjne"]:.3f} '
-              f'TAU_SLABY={kandydat["tau_slaby_produkcyjne"]:.3f} '
-              f'tabela={kandydat["rozmiar_tabeli"]} '
-              f'zla_cicha_wazona={kandydat["zla_cicha_wazona"]:.4f}')
-        print(f'  kupujacy_pl: trafnosc={kandydat["kupujacy_pl"]["trafnosc"]:.4f} '
-              f'zla_cicha={kandydat["kupujacy_pl"]["zla_cicha"]:.4f} '
-              f'zbyte={kandydat["kupujacy_pl"]["odsetek_zbytych"]:.4f}')
-        print(f'  sprzedaz_pl: trafnosc={kandydat["sprzedaz_pl"]["trafnosc"]:.4f} '
-              f'zla_cicha={kandydat["sprzedaz_pl"]["zla_cicha"]:.4f} '
-              f'zbyte={kandydat["sprzedaz_pl"]["odsetek_zbytych"]:.4f}')
-        print(f'  ood_pl_odmowa={kandydat["ood_pl_odmowa"]} ood_en_odmowa={kandydat["ood_en_odmowa"]} '
-              f'dopuszczalny={kandydat["dopuszczalny"]}')
-        if naruszenia:
-            for n in naruszenia:
-                print(f'    narusza: {n}')
+    try:
+        for z_silny in SIATKA_Z_SILNY:
+            print(f'\n=== Z_SILNY={z_silny} ===')
+            kandydat = ocen_kandydata(z_silny, rekordy_wszystkie)
+            naruszenia = spelnia_ograniczenia(kandydat, ood_dzis_pl, ood_dzis_en)
+            kandydat['naruszenia'] = naruszenia
+            kandydat['dopuszczalny'] = not naruszenia
+            powierzchnia.append(kandydat)
+            print(f'  TAU_MOCNY={kandydat["tau_mocny_produkcyjne"]:.3f} '
+                  f'TAU_SLABY={kandydat["tau_slaby_produkcyjne"]:.3f} '
+                  f'tabela={kandydat["rozmiar_tabeli"]} '
+                  f'zla_cicha_wazona={kandydat["zla_cicha_wazona"]:.4f}')
+            print(f'  kupujacy_pl: trafnosc={kandydat["kupujacy_pl"]["trafnosc"]:.4f} '
+                  f'zla_cicha={kandydat["kupujacy_pl"]["zla_cicha"]:.4f} '
+                  f'zbyte={kandydat["kupujacy_pl"]["odsetek_zbytych"]:.4f}')
+            print(f'  sprzedaz_pl: trafnosc={kandydat["sprzedaz_pl"]["trafnosc"]:.4f} '
+                  f'zla_cicha={kandydat["sprzedaz_pl"]["zla_cicha"]:.4f} '
+                  f'zbyte={kandydat["sprzedaz_pl"]["odsetek_zbytych"]:.4f}')
+            print(f'  ood_pl_odmowa={kandydat["ood_pl_odmowa"]} ood_en_odmowa={kandydat["ood_en_odmowa"]} '
+                  f'dopuszczalny={kandydat["dopuszczalny"]}')
+            if naruszenia:
+                for n in naruszenia:
+                    print(f'    narusza: {n}')
 
-    dopuszczalni = [k for k in powierzchnia if k['dopuszczalny']]
-    if dopuszczalni:
-        najlepszy = min(dopuszczalni, key=lambda k: k['zla_cicha_wazona'])
-        print(f'\n=== Wybor: Z_SILNY={najlepszy["z_silny"]} (dopuszczalny, min. zla_cicha_wazona) ===')
-    else:
-        najlepszy = min(powierzchnia, key=lambda k: len(k['naruszenia']))
-        print(f'\n=== Zaden kandydat nie spelnia wszystkich ograniczen. Najblizszy: '
-              f'Z_SILNY={najlepszy["z_silny"]} ({len(najlepszy["naruszenia"])} naruszen) ===')
+        dopuszczalni = [k for k in powierzchnia if k['dopuszczalny']]
+        if dopuszczalni:
+            najlepszy = min(dopuszczalni, key=lambda k: k['zla_cicha_wazona'])
+            print(f'\n=== Wybor: Z_SILNY={najlepszy["z_silny"]} (dopuszczalny, min. zla_cicha_wazona) ===')
+        else:
+            najlepszy = min(powierzchnia, key=lambda k: len(k['naruszenia']))
+            print(f'\n=== Zaden kandydat nie spelnia wszystkich ograniczen, wybor to rozstrzygniecie '
+                  f'remisu na liczbie naruszen, nie spelnienie ograniczen. Najblizszy: '
+                  f'Z_SILNY={najlepszy["z_silny"]} ({len(najlepszy["naruszenia"])} naruszen) ===')
 
-    OUT_DIR.mkdir(exist_ok=True)
-    wynik = {
-        'siatka_z_silny': SIATKA_Z_SILNY,
-        'ood_dzis_pl_odmowa': ood_dzis_pl, 'ood_dzis_en_odmowa': ood_dzis_en,
-        'powierzchnia': powierzchnia,
-        'z_silny_wybrany': najlepszy['z_silny'],
-        'wszyscy_dopuszczalni': [k['z_silny'] for k in dopuszczalni],
-    }
-    plik = OUT_DIR / 'przemiatanie_z_silny.json'
-    plik.write_text(json.dumps(wynik, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(f'\nzapisano: {plik}')
-
-    print(f'\nOdtwarzanie tabeli produkcyjnej dla wybranego Z_SILNY={najlepszy["z_silny"]}...')
-    ocen_kandydata(najlepszy['z_silny'], rekordy_wszystkie)
+        OUT_DIR.mkdir(exist_ok=True)
+        wynik = {
+            'siatka_z_silny': SIATKA_Z_SILNY,
+            'ood_dzis_pl_odmowa': ood_dzis_pl, 'ood_dzis_en_odmowa': ood_dzis_en,
+            'powierzchnia': powierzchnia,
+            'z_silny_wybrany': najlepszy['z_silny'],
+            'wszyscy_dopuszczalni': [k['z_silny'] for k in dopuszczalni],
+        }
+        plik = OUT_DIR / 'przemiatanie_z_silny.json'
+        plik.write_text(json.dumps(wynik, ensure_ascii=False, indent=2), encoding='utf-8')
+        print(f'\nzapisano: {plik}')
+    finally:
+        print(f'\nPrzywracanie tabeli produkcyjnej (Z_SILNY={uws.Z_SILNY_PRODUKCYJNY})...')
+        ocen_kandydata(uws.Z_SILNY_PRODUKCYJNY, rekordy_wszystkie)
 
 
 if __name__ == '__main__':
