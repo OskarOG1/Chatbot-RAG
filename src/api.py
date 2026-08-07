@@ -15,6 +15,7 @@ from pathlib import Path
 import httpx
 import os
 import re
+import sys
 import time
 import json
 
@@ -34,6 +35,7 @@ EMAIL_WZORZEC = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+')
 CACHE_MAX = int(os.getenv('CACHE_MAX', '200'))
 _cache: 'OrderedDict[tuple, dict]' = OrderedDict()
 LOG_ANALYTICS = Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.jsonl'
+OSTRZEZONO_O_LOGU = False
 
 
 def cache_zdatny(request: 'ChatRequest') -> bool:
@@ -75,8 +77,11 @@ def loguj_zapytanie(lang: str, agent: str, latencja: float, cache_hit: bool, que
         }
         with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
             w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
-    except OSError:
-        pass
+    except OSError as e:
+        global OSTRZEZONO_O_LOGU
+        if not OSTRZEZONO_O_LOGU:
+            print(f'UWAGA: nie moge pisac do {LOG_ANALYTICS}: {e}', file=sys.stderr, flush=True)
+            OSTRZEZONO_O_LOGU = True
 
 
 def w_limicie() -> bool:
