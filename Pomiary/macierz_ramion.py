@@ -44,6 +44,7 @@ ZLA_CICHA_SPRZEDAZ_DZIS = 0.427
 BRAMKA_PRECYZJA_MOCNY = 0.85
 BRAMKA_ODSETEK_ZBYTYCH = 0.15
 BRAMKA_PRZEWAGA_NAD_RECZNA = 0.05
+Z_SILNY = 3.5  # P4: wybrany przez Pomiary/przemiatanie_z_silny.py, patrz outputs/przemiatanie_z_silny.json
 
 WARIANTY = ('r5', 'r7', 'r5_czysty', 'r9')
 
@@ -55,7 +56,7 @@ def wczytaj_tablice_z_odciskiem() -> dict:
 def podmien_search(tablica: dict) -> None:
     def search_z_tablicy(query, query_emb, agenci, k=3, k_surowe=20, lang='pl'):
         return tablica_rerank.search_reranked_multi_z_tablicy(
-            tablica, query, agenci, k=k, k_surowe=k_surowe)
+            tablica, query, agenci, k=k, k_surowe=k_surowe, lang=lang)
     rankings.search_reranked_multi = search_z_tablicy
 
 
@@ -85,27 +86,30 @@ def mcnemar(b: int, c: int) -> dict:
     return {'b': b, 'c': c, 'n': n, 'p': round(p, 6), 'metoda': metoda}
 
 
-def buduj_tabele_foldow(rekordy: list[dict], p_tla: dict[str, float]) -> dict[int, dict]:
+def buduj_tabele_foldow(rekordy: list[dict], z_silny: float) -> dict[int, dict]:
     tabele = {}
     for test_fold in range(uws.LICZBA_FOLDOW):
         kalibracja_fold = (test_fold + 1) % uws.LICZBA_FOLDOW
         trening = [r for r in rekordy if r['fold'] not in (test_fold, kalibracja_fold)]
         kalibracja = [r for r in rekordy if r['fold'] == kalibracja_fold]
-        z_dane, _, _ = uws.policz_z(trening, p_tla)
+        p_tla_fold = uws.policz_p_tla(trening)
+        z_dane, _, _ = uws.policz_z(trening, p_tla_fold)
         dodatki, _ = uws.audytuj_manualne(z_dane)
         tabela = uws.zbuduj_tabele(z_dane, dodatki)
-        krzywa_kal = uws.krzywa_z_wpisow(uws.wpisy_do_krzywej(kalibracja, tabela))
+        krzywa_kal = uws.krzywa_z_wpisow(uws.wpisy_do_krzywej(kalibracja, tabela, z_silny))
         tau_mocny = uws.wybierz_tau_mocny(krzywa_kal)
-        tau_slaby, _ = uws.wybierz_tau_slaby(kalibracja, tabela, tau_mocny)
-        tabele[test_fold] = {'tabela': tabela, 'tau_mocny': tau_mocny, 'tau_slaby': tau_slaby}
+        tau_slaby, _ = uws.wybierz_tau_slaby(kalibracja, tabela, tau_mocny, z_silny)
+        tabele[test_fold] = {'tabela': tabela, 'tau_mocny': tau_mocny, 'tau_slaby': tau_slaby,
+                              'z_silny': z_silny}
     return tabele
 
 
 def prior_r9_poza_foldem(rekord: dict, agent_poprzedni: str | None, czy_followup: bool,
                           tabele_foldow: dict) -> tuple[str | None, str | None]:
     info = tabele_foldow[rekord['fold']]
-    suma = uws.suma_wazona(rekord['lematy'], info['tabela'])
-    return uws.zdecyduj_r9(suma, info['tau_mocny'], info['tau_slaby'], agent_poprzedni, czy_followup)
+    ocena = uws.ocena_pytania(rekord['lematy'], info['tabela'])
+    return uws.zdecyduj_r9(ocena['suma_norm'], ocena['dowod'], info['tau_mocny'], info['tau_slaby'],
+                            info['z_silny'], agent_poprzedni, czy_followup)
 
 
 def prior_dla_realny(rekord: dict, agent_poprzedni: str | None, czy_followup: bool,
@@ -357,8 +361,7 @@ def main() -> None:
 
     print('\n=== Budowa piesciu tabel fold-specyficznych (r9, poza foldem) ===')
     rekordy_wszystkie = uws.wczytaj_wszystkie()
-    p_tla = uws.policz_p_tla(rekordy_wszystkie)
-    tabele_foldow = buduj_tabele_foldow(rekordy_wszystkie, p_tla)
+    tabele_foldow = buduj_tabele_foldow(rekordy_wszystkie, Z_SILNY)
     for fold, info in tabele_foldow.items():
         print(f'  fold {fold}: tabela={len(info["tabela"])} TAU_MOCNY={info["tau_mocny"]:.3f} '
               f'TAU_SLABY={info["tau_slaby"]:.3f}')

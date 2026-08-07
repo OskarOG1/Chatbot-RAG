@@ -43,6 +43,8 @@ Z_MIN = 1.96
 DF_MIN = 20
 MAX_WPISOW = 400
 PRECYZJA_MIN_MOCNY = 0.85
+BRAMKA_ODSETEK_ZBYTYCH = 0.15
+Z_SILNY_DOMYSLNY = 1.96
 TOP_N_RAPORT = 40
 LICZBA_FOLDOW = 5
 
@@ -85,6 +87,10 @@ def policz_p_tla(rekordy: list[dict]) -> dict[str, float]:
 
 
 def policz_z(rekordy_uczenie: list[dict], p_tla: dict[str, float]) -> tuple[dict, int, int]:
+    """P0.7: p_tla liczone przez wywolujacego na samym zbiorze uczacym (foldu), nie na calej
+    bazie, zeby czestosci tla nie widzialy foldu testowego. P7: brak filtra po DF_MIN tutaj,
+    kazdy lemat z co najmniej jednym wystapieniem dostaje realny z-score z danych (filtr po
+    DF_MIN przenosi sie do zbuduj_tabele, gdzie decyduje o wejsciu automatycznym, nie tutaj)."""
     y_s, y_k, df_all = Counter(), Counter(), Counter()
     n_s = sum(1 for r in rekordy_uczenie if r['etykieta'] == 'sprzedajacy')
     n_k = sum(1 for r in rekordy_uczenie if r['etykieta'] == 'kupujacy')
@@ -98,8 +104,6 @@ def policz_z(rekordy_uczenie: list[dict], p_tla: dict[str, float]) -> tuple[dict
 
     wyniki = {}
     for t, df in df_all.items():
-        if df < DF_MIN:
-            continue
         alfa = ALFA0 * p_tla.get(t, 0.0)
         ys, yk = y_s[t], y_k[t]
         delta = (math.log((ys + alfa) / (n_s + ALFA0 - ys - alfa))
@@ -120,6 +124,10 @@ def manualne_lematy() -> dict[str, str]:
 
 
 def audytuj_manualne(z_dane: dict) -> tuple[dict, list]:
+    """P7: bez danych (lemat nieobecny, df=0) dostaje wprost oczekiwany_znak * Z_MIN, to jedyny
+    prawdziwy przypadek zero-danych. Gdy dane sa, ale ponizej DF_MIN, wchodzi realny z-score z
+    danych (male df, wiec sam wariancja/mianownik formuly Monroe go i tak scisnie), zamiast
+    pelnej sily Z_MIN bez pokrycia w danych."""
     dodatki, obalone = {}, []
     for lemat, strona in manualne_lematy().items():
         oczekiwany_znak = 1.0 if strona == 'sprzedajacy' else -1.0
@@ -129,49 +137,76 @@ def audytuj_manualne(z_dane: dict) -> tuple[dict, list]:
             if znak_danych != oczekiwany_znak:
                 obalone.append({'lemat': lemat, 'strona_manualna': strona,
                                  'z': round(info['z'], 3), 'df': info['df']})
+            elif info['df'] < DF_MIN:
+                dodatki[lemat] = info['z']
         else:
             dodatki[lemat] = oczekiwany_znak * Z_MIN
     return dodatki, obalone
 
 
 def zbuduj_tabele(z_dane: dict, dodatki_manualne: dict) -> dict[str, float]:
-    tabela = {t: info['z'] for t, info in z_dane.items() if abs(info['z']) >= Z_MIN}
+    tabela = {t: info['z'] for t, info in z_dane.items()
+              if info['df'] >= DF_MIN and abs(info['z']) >= Z_MIN}
     for lemat, waga in dodatki_manualne.items():
         tabela.setdefault(lemat, waga)
     posortowane = sorted(tabela.items(), key=lambda kv: abs(kv[1]), reverse=True)[:MAX_WPISOW]
     return dict(posortowane)
 
 
-def suma_wazona(lematy_pytania: set, tabela: dict) -> float:
-    return sum(tabela[t] for t in lematy_pytania if t in tabela)
+def ocena_pytania(lematy_pytania: set, tabela: dict) -> dict:
+    """P3: suma znormalizowana przez sqrt(k), k = liczba dopasowanych lematow, zeby dlugie
+    pytanie nie przekraczalo progu samym nazbieraniem slabych wag. P2: dowod to |z| pojedynczego
+    najmocniejszego dopasowanego lematu, osobno od sumy, bo suma wybiera strone, a dowod
+    rozstrzyga, czy w ogole wolno miec zdanie."""
+    dopasowane = [tabela[t] for t in lematy_pytania if t in tabela]
+    if not dopasowane:
+        return {'suma_norm': 0.0, 'dowod': 0.0, 'k': 0}
+    suma = sum(dopasowane)
+    return {'suma_norm': suma / math.sqrt(len(dopasowane)),
+            'dowod': max(abs(w) for w in dopasowane), 'k': len(dopasowane)}
 
 
-def przewidziana_strona(suma: float) -> str | None:
-    if suma > 0:
+def przewidziana_strona(suma_norm: float) -> str | None:
+    if suma_norm > 0:
         return 'sprzedajacy'
-    if suma < 0:
+    if suma_norm < 0:
         return 'kupujacy'
     return None
 
 
-def zdecyduj_r9(suma: float, tau_mocny: float, tau_slaby: float, agent_poprzedni: str | None,
+def zdecyduj_r9(suma_norm: float, dowod: float, tau_mocny: float, tau_slaby: float,
+                 z_silny: float, agent_poprzedni: str | None,
                  czy_followup: bool) -> tuple[str | None, str | None]:
-    strona = przewidziana_strona(suma)
-    if strona is not None and abs(suma) >= tau_mocny:
+    strona = przewidziana_strona(suma_norm)
+    ma_dowod = strona is not None and dowod >= z_silny
+    if ma_dowod and abs(suma_norm) >= tau_mocny:
         return strona, 'leksykalna'
     if agent_poprzedni and czy_followup:
         return ('sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'), 'lepka'
-    if strona is not None and abs(suma) >= tau_slaby:
+    if ma_dowod and abs(suma_norm) >= tau_slaby:
         return strona, 'leksykalna_slaba'
     return None, None
 
 
-def wpisy_do_krzywej(rekordy: list[dict], tabela: dict) -> list[tuple[float, bool]]:
+def wpisy_do_krzywej(rekordy: list[dict], tabela: dict, z_silny: float) -> list[tuple[float, bool]]:
     wpisy = []
     for r in rekordy:
-        suma = suma_wazona(r['lematy'], tabela)
-        wpisy.append((abs(suma), przewidziana_strona(suma) == r['etykieta']))
+        ocena = ocena_pytania(r['lematy'], tabela)
+        if ocena['dowod'] < z_silny:
+            wpisy.append((0.0, False))
+            continue
+        wpisy.append((abs(ocena['suma_norm']), przewidziana_strona(ocena['suma_norm']) == r['etykieta']))
     return wpisy
+
+
+def wilson_dolna(k: int, n: int, z: float = 1.96) -> float:
+    if n == 0:
+        return 0.0
+    phat = k / n
+    denom = 1 + z * z / n
+    center = phat + z * z / (2 * n)
+    margines = z * math.sqrt(phat * (1 - phat) / n + z * z / (4 * n * n))
+    return (center - margines) / denom
 
 
 def krzywa_z_wpisow(wpisy: list[tuple[float, bool]]) -> list[dict]:
@@ -180,44 +215,73 @@ def krzywa_z_wpisow(wpisy: list[tuple[float, bool]]) -> list[dict]:
     krzywa = []
     for prog in progi:
         objete = [poprawne for waga, poprawne in wpisy if waga >= prog]
+        trafne = sum(objete)
         krzywa.append({
             'prog': round(prog, 4),
             'pokrycie': round(len(objete) / n, 4),
-            'precyzja': round(sum(objete) / len(objete), 4) if objete else 0.0,
+            'precyzja': round(trafne / len(objete), 4) if objete else 0.0,
+            'precyzja_dolna_wilson': round(wilson_dolna(trafne, len(objete)), 4),
             'n_objete': len(objete),
         })
     return krzywa
 
 
 def wybierz_tau_mocny(krzywa: list[dict]) -> float:
-    kandydaci = [w for w in krzywa if w['precyzja'] >= PRECYZJA_MIN_MOCNY]
+    """P0.6: dolna granica Wilsona zamiast punktowej precyzji, zeby prog nie osiadal na
+    przypadkowym szczycie krzywej wspartym garstka przykladow (D4/D6)."""
+    kandydaci = [w for w in krzywa if w['precyzja_dolna_wilson'] >= PRECYZJA_MIN_MOCNY]
     if not kandydaci:
         return krzywa[0]['prog'] if krzywa else float('inf')
     return min(kandydaci, key=lambda w: w['prog'])['prog']
 
 
-def trafnosc_dla_progu(rekordy: list[dict], tabela: dict, tau_slaby: float) -> float:
-    poprawne = 0
+def wynik_dla_progu(rekordy: list[dict], tabela: dict, tau_slaby: float, z_silny: float) -> dict:
+    n = len(rekordy)
+    poprawne = zle = 0
     for r in rekordy:
-        suma = suma_wazona(r['lematy'], tabela)
-        strona = przewidziana_strona(suma)
-        if strona is None or abs(suma) < tau_slaby:
+        ocena = ocena_pytania(r['lematy'], tabela)
+        if ocena['dowod'] < z_silny:
+            continue
+        strona = przewidziana_strona(ocena['suma_norm'])
+        if strona is None or abs(ocena['suma_norm']) < tau_slaby:
             continue
         if strona == r['etykieta']:
             poprawne += 1
-    return poprawne / len(rekordy)
+        else:
+            zle += 1
+    return {'trafnosc': poprawne / n, 'zla_cicha': zle / n,
+            'odsetek_zbytych': (n - poprawne - zle) / n,
+            'poprawne': poprawne, 'zle': zle, 'n': n}
 
 
-def wybierz_tau_slaby(rekordy: list[dict], tabela: dict, tau_mocny: float) -> tuple[float, float]:
-    sumy_abs = {round(abs(suma_wazona(r['lematy'], tabela)), 4) for r in rekordy}
-    progi_kandydujace = sorted(p for p in sumy_abs if p <= tau_mocny)
+def trafnosc_dla_progu(rekordy: list[dict], tabela: dict, tau_slaby: float, z_silny: float) -> float:
+    return wynik_dla_progu(rekordy, tabela, tau_slaby, z_silny)['trafnosc']
+
+
+def wybierz_tau_slaby(rekordy: list[dict], tabela: dict, tau_mocny: float,
+                       z_silny: float) -> tuple[float, float]:
+    """P0.5: metryka karzaca blad (zla_cicha), nie trafnosc/N_stale: ta druga jest niemalejaca
+    przy obnizaniu progu (D5), wiec petla ponizej zawsze zwracala minimum. Pierwsza wersja tej
+    funkcji dodatkowo odrzucala kazdego kandydata z odsetek_zbytych >= 0.15 w petli wewnetrznej,
+    ale ten cel z P4 jest wlasnoscia calej konfiguracji (sprawdzana przez przemiatanie_z_silny),
+    nie pojedynczego foldu kalibracji: przy malej tabeli wiekszosc pytan nie dopasowuje zadnego
+    lematu, wiec podloga odsetek_zbytych z samej bramki dowodu bywa powyzej 15% niezaleznie od
+    progu, i twardy filtr tutaj zapadal zawsze na tau_mocny (TAU_SLABY == TAU_MOCNY dla kazdego
+    Z_SILNY, zmierzone w przemiatanie_z_silny.py). Zamiast tego: schodzimy od tau_mocny w dol,
+    najnizszy prog przy ktorym zla_cicha nie rosnie ponad minimum osiagniete po drodze."""
+    sumy_abs = set()
+    for r in rekordy:
+        ocena = ocena_pytania(r['lematy'], tabela)
+        if ocena['dowod'] >= z_silny:
+            sumy_abs.add(round(abs(ocena['suma_norm']), 4))
+    progi_kandydujace = sorted((p for p in sumy_abs if p <= tau_mocny), reverse=True)
     najlepszy_prog = tau_mocny
-    najlepsza_trafnosc = trafnosc_dla_progu(rekordy, tabela, tau_mocny)
+    najlepsza_zla_cicha = wynik_dla_progu(rekordy, tabela, tau_mocny, z_silny)['zla_cicha']
     for prog in progi_kandydujace:
-        trafnosc = trafnosc_dla_progu(rekordy, tabela, prog)
-        if trafnosc > najlepsza_trafnosc:
-            najlepsza_trafnosc, najlepszy_prog = trafnosc, prog
-    return najlepszy_prog, najlepsza_trafnosc
+        zla_cicha = wynik_dla_progu(rekordy, tabela, prog, z_silny)['zla_cicha']
+        if zla_cicha <= najlepsza_zla_cicha:
+            najlepsza_zla_cicha, najlepszy_prog = zla_cicha, prog
+    return najlepszy_prog, najlepsza_zla_cicha
 
 
 def trafnosc_r5_czysty(rekordy: list[dict]) -> float:
@@ -229,21 +293,23 @@ def trafnosc_r5_czysty(rekordy: list[dict]) -> float:
     return poprawne / len(rekordy)
 
 
-def zapisz_modul(tabela: dict, tau_mocny: float, tau_slaby: float, n_calosc: int) -> None:
+def zapisz_modul(tabela: dict, tau_mocny: float, tau_slaby: float, z_silny: float, n_calosc: int) -> None:
     stempel = datetime.now(timezone.utc).isoformat()
     linie = [
         f"# Wygenerowano przez Pomiary/ucz_wagi_stron.py, {stempel} UTC, na {n_calosc}",
-        f"# przykladach z RAG/pytania_realne.jsonl (cala baza). TAU_MOCNY/TAU_SLABY to srednia",
-        f"# z 5 foldow walidacji krzyzowej. Patrz Pomiary/PLAN_WAGI_STRON.md,",
-        f"# Pomiary/PLAN_POMIARY_GPU.md i Pomiary/POMIAR_WAGI_STRON.md. Nie edytowac recznie,",
+        f"# przykladach z RAG/pytania_realne.jsonl (cala baza). TAU_MOCNY/TAU_SLABY/Z_SILNY to",
+        f"# srednia z 5 foldow walidacji krzyzowej. Patrz Pomiary/PLAN_WAGI_STRON.md,",
+        f"# Pomiary/PLAN_KALIBRACJA_R9.md i Pomiary/POMIAR_WAGI_STRON.md. Nie edytowac recznie,",
         f"# ponowne uruchomienie skryptu nadpisuje ten plik.",
         "",
+        "import math",
         "import simplemma",
         "from spell import tokenize_words, MIN_DLUGOSC",
         "from strony import prior_strony",
         "",
         f"TAU_MOCNY = {tau_mocny!r}",
         f"TAU_SLABY = {tau_slaby!r}",
+        f"Z_SILNY = {z_silny!r}",
         "",
         "WAGI = {",
     ]
@@ -252,7 +318,7 @@ def zapisz_modul(tabela: dict, tau_mocny: float, tau_slaby: float, n_calosc: int
     linie.append("}")
     linie.append("")
     linie.append("")
-    linie.append(inspect.getsource(suma_wazona).rstrip())
+    linie.append(inspect.getsource(ocena_pytania).rstrip())
     linie.append("")
     linie.append("")
     linie.append(inspect.getsource(przewidziana_strona).rstrip())
@@ -266,8 +332,9 @@ def zapisz_modul(tabela: dict, tau_mocny: float, tau_slaby: float, n_calosc: int
     linie.append("        return prior_strony(query, agent_poprzedni, lang, czy_followup)")
     linie.append("    tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]")
     linie.append("    lematy_pytania = {simplemma.lemmatize(t, lang='pl') for t in tokeny}")
-    linie.append("    suma = suma_wazona(lematy_pytania, WAGI)")
-    linie.append("    return zdecyduj_r9(suma, TAU_MOCNY, TAU_SLABY, agent_poprzedni, czy_followup)")
+    linie.append("    ocena = ocena_pytania(lematy_pytania, WAGI)")
+    linie.append("    return zdecyduj_r9(ocena['suma_norm'], ocena['dowod'], TAU_MOCNY, TAU_SLABY, "
+                  "Z_SILNY, agent_poprzedni, czy_followup)")
     linie.append("")
 
     plik = SRC / 'wagi_stron.py'
@@ -275,14 +342,22 @@ def zapisz_modul(tabela: dict, tau_mocny: float, tau_slaby: float, n_calosc: int
     print(f'zapisano: {plik}')
 
 
-def main() -> None:
-    rekordy = wczytaj_wszystkie()
-    p_tla = policz_p_tla(rekordy)
+def przebieg(rekordy: list[dict], z_silny: float, cichy: bool = False) -> dict:
+    """Piec foldow walidacji krzyzowej dla ustalonego Z_SILNY. P0.7: p_tla liczone osobno na
+    zbiorze uczacym kazdego foldu (trening), nie raz na calej bazie, zeby fold testowy nie
+    wplywal na prior Dirichleta modelu, ktory ma go nie widziec. Uzywane zarowno przez main()
+    (pojedynczy przebieg produkcyjny) jak i przez przemiatanie_z_silny.py (P4, siatka po
+    Z_SILNY)."""
+    def wypisz(tekst: str) -> None:
+        if not cichy:
+            print(tekst)
+
     liczebnosc_foldow = Counter(r['fold'] for r in rekordy)
-    print(f'rekordow razem: {len(rekordy)}, foldy: {dict(sorted(liczebnosc_foldow.items()))}')
+    wypisz(f'rekordow razem: {len(rekordy)}, foldy: {dict(sorted(liczebnosc_foldow.items()))}')
 
     wpisy_poza_foldem = []
     trafnosci_foldow, tau_mocny_foldow, tau_slaby_foldow = [], [], []
+    poprawne_total = zle_total = n_total = 0
 
     for test_fold in range(LICZBA_FOLDOW):
         kalibracja_fold = (test_fold + 1) % LICZBA_FOLDOW
@@ -290,80 +365,86 @@ def main() -> None:
         kalibracja = [r for r in rekordy if r['fold'] == kalibracja_fold]
         test = [r for r in rekordy if r['fold'] == test_fold]
 
-        z_dane_fold, _, _ = policz_z(trening, p_tla)
+        p_tla_fold = policz_p_tla(trening)
+        z_dane_fold, _, _ = policz_z(trening, p_tla_fold)
         dodatki_fold, _ = audytuj_manualne(z_dane_fold)
         tabela_fold = zbuduj_tabele(z_dane_fold, dodatki_fold)
 
-        krzywa_kal = krzywa_z_wpisow(wpisy_do_krzywej(kalibracja, tabela_fold))
+        krzywa_kal = krzywa_z_wpisow(wpisy_do_krzywej(kalibracja, tabela_fold, z_silny))
         tau_mocny = wybierz_tau_mocny(krzywa_kal)
-        tau_slaby, _ = wybierz_tau_slaby(kalibracja, tabela_fold, tau_mocny)
+        tau_slaby, _ = wybierz_tau_slaby(kalibracja, tabela_fold, tau_mocny, z_silny)
 
-        wpisy_test = wpisy_do_krzywej(test, tabela_fold)
+        wpisy_test = wpisy_do_krzywej(test, tabela_fold, z_silny)
         wpisy_poza_foldem.extend(wpisy_test)
-        trafnosc_foldu = trafnosc_dla_progu(test, tabela_fold, tau_slaby)
+        wynik_testu = wynik_dla_progu(test, tabela_fold, tau_slaby, z_silny)
 
-        print(f'fold {test_fold}: trening={len(trening)} kalibracja={len(kalibracja)} '
-              f'test={len(test)} tabela={len(tabela_fold)} TAU_MOCNY={tau_mocny:.3f} '
-              f'TAU_SLABY={tau_slaby:.3f} trafnosc_out_of_fold={trafnosc_foldu:.4f}')
+        wypisz(f'fold {test_fold}: trening={len(trening)} kalibracja={len(kalibracja)} '
+               f'test={len(test)} tabela={len(tabela_fold)} TAU_MOCNY={tau_mocny:.3f} '
+               f'TAU_SLABY={tau_slaby:.3f} trafnosc_out_of_fold={wynik_testu["trafnosc"]:.4f} '
+               f'zla_cicha_out_of_fold={wynik_testu["zla_cicha"]:.4f}')
 
-        trafnosci_foldow.append(trafnosc_foldu)
+        trafnosci_foldow.append(wynik_testu['trafnosc'])
         tau_mocny_foldow.append(tau_mocny)
         tau_slaby_foldow.append(tau_slaby)
+        poprawne_total += wynik_testu['poprawne']
+        zle_total += wynik_testu['zle']
+        n_total += wynik_testu['n']
 
     trafnosc_srednia = statistics.mean(trafnosci_foldow)
     trafnosc_std = statistics.stdev(trafnosci_foldow)
-    print(f'\n=== walidacja krzyzowa, {LICZBA_FOLDOW} foldow ===')
-    print(f'trafnosc pierwszej tury (r9) per fold: {[round(t, 4) for t in trafnosci_foldow]}')
-    print(f'srednia: {trafnosc_srednia:.4f}, odchylenie std.: {trafnosc_std:.4f} '
-          f'(bramka: < 0.04, {"PRZESZLA" if trafnosc_std < 0.04 else "NIE PRZESZLA"})')
+    wypisz(f'\n=== walidacja krzyzowa, {LICZBA_FOLDOW} foldow, Z_SILNY={z_silny} ===')
+    wypisz(f'trafnosc pierwszej tury (r9) per fold: {[round(t, 4) for t in trafnosci_foldow]}')
+    wypisz(f'srednia: {trafnosc_srednia:.4f}, odchylenie std.: {trafnosc_std:.4f} '
+           f'(bramka: < 0.04, {"PRZESZLA" if trafnosc_std < 0.04 else "NIE PRZESZLA"})')
 
     trafnosc_r5c = trafnosc_r5_czysty(rekordy)
-    print(f'trafnosc pierwszej tury (r5_czysty, cala baza, punkt odniesienia): {trafnosc_r5c:.4f}')
-    print(f'przewaga r9 (srednia z foldow) nad r5_czysty: {trafnosc_srednia - trafnosc_r5c:+.4f}')
+    wypisz(f'trafnosc pierwszej tury (r5_czysty, cala baza, punkt odniesienia): {trafnosc_r5c:.4f}')
+    wypisz(f'przewaga r9 (srednia z foldow) nad r5_czysty: {trafnosc_srednia - trafnosc_r5c:+.4f}')
 
     krzywa_pelna = krzywa_z_wpisow(wpisy_poza_foldem)
+    zla_cicha_pelna = round(zle_total / n_total, 4)
+    zbyte_pelna = round((n_total - poprawne_total - zle_total) / n_total, 4)
 
     tau_mocny_prod = statistics.mean(tau_mocny_foldow)
     tau_slaby_prod = statistics.mean(tau_slaby_foldow)
-    print(f'\nTAU_MOCNY produkcyjne (srednia z foldow): {tau_mocny_prod:.4f}')
-    print(f'TAU_SLABY produkcyjne (srednia z foldow): {tau_slaby_prod:.4f}')
+    wypisz(f'\nTAU_MOCNY produkcyjne (srednia z foldow): {tau_mocny_prod:.4f}')
+    wypisz(f'TAU_SLABY produkcyjne (srednia z foldow): {tau_slaby_prod:.4f}')
 
-    z_dane_pelne, n_s, n_k = policz_z(rekordy, p_tla)
-    print(f'\nn_s (sprzedajacy, cala baza): {n_s}, n_k (kupujacy, cala baza): {n_k}')
-    print(f'lematow z df >= {DF_MIN}: {len(z_dane_pelne)}')
+    p_tla_pelne = policz_p_tla(rekordy)
+    z_dane_pelne, n_s, n_k = policz_z(rekordy, p_tla_pelne)
+    lematow_df_min = sum(1 for info in z_dane_pelne.values() if info['df'] >= DF_MIN)
+    wypisz(f'\nn_s (sprzedajacy, cala baza): {n_s}, n_k (kupujacy, cala baza): {n_k}')
+    wypisz(f'lematow z df >= {DF_MIN}: {lematow_df_min} (widzianych lacznie: {len(z_dane_pelne)})')
 
     dodatki_manualne, obalone = audytuj_manualne(z_dane_pelne)
     tabela_prod = zbuduj_tabele(z_dane_pelne, dodatki_manualne)
-    print(f'tabela produkcyjna: {len(tabela_prod)} wpisow (limit {MAX_WPISOW}), '
-          f'w tym {len(dodatki_manualne)} dodatkow manualnych (df < {DF_MIN})')
+    wypisz(f'tabela produkcyjna: {len(tabela_prod)} wpisow (limit {MAX_WPISOW}), '
+           f'w tym {len(dodatki_manualne)} dodatkow manualnych (df < {DF_MIN})')
 
     posortowane = sorted(tabela_prod.items(), key=lambda kv: kv[1])
     top_kupujacy = posortowane[:TOP_N_RAPORT]
     top_sprzedaz = list(reversed(posortowane[-TOP_N_RAPORT:]))
 
-    print(f'\n=== top {TOP_N_RAPORT} lematow, kupujacy (z ujemne) ===')
-    for lemat, z in top_kupujacy:
-        print(f'  {lemat:20s} z={z:+.3f}')
-    print(f'\n=== top {TOP_N_RAPORT} lematow, sprzedajacy (z dodatnie) ===')
-    for lemat, z in top_sprzedaz:
-        print(f'  {lemat:20s} z={z:+.3f}')
+    if not cichy:
+        print(f'\n=== top {TOP_N_RAPORT} lematow, kupujacy (z ujemne) ===')
+        for lemat, z in top_kupujacy:
+            print(f'  {lemat:20s} z={z:+.3f}')
+        print(f'\n=== top {TOP_N_RAPORT} lematow, sprzedajacy (z dodatnie) ===')
+        for lemat, z in top_sprzedaz:
+            print(f'  {lemat:20s} z={z:+.3f}')
 
-    print(f'\n=== markery reczne obalone przez dane (df >= {DF_MIN}, przeciwny znak) ===')
-    if not obalone:
-        print('  brak')
-    for wpis in obalone:
-        print(f"  {wpis['lemat']:20s} manualnie={wpis['strona_manualna']:12s} "
-              f"z_danych={wpis['z']:+.3f} df={wpis['df']}")
+        print(f'\n=== markery reczne obalone przez dane (przeciwny znak) ===')
+        if not obalone:
+            print('  brak')
+        for wpis in obalone:
+            print(f"  {wpis['lemat']:20s} manualnie={wpis['strona_manualna']:12s} "
+                  f"z_danych={wpis['z']:+.3f} df={wpis['df']}")
 
-    zapisz_modul(tabela_prod, tau_mocny_prod, tau_slaby_prod, len(rekordy))
-
-    OUT_DIR.mkdir(exist_ok=True)
-    wynik = {
-        'czas_utc': datetime.now(timezone.utc).isoformat(),
-        'n_razem': len(rekordy), 'liczba_foldow': LICZBA_FOLDOW,
+    return {
+        'z_silny': z_silny, 'n_razem': len(rekordy), 'liczba_foldow': LICZBA_FOLDOW,
         'liczebnosc_foldow': {str(k): v for k, v in sorted(liczebnosc_foldow.items())},
         'n_s_calosc': n_s, 'n_k_calosc': n_k,
-        'lematow_df_min': len(z_dane_pelne), 'rozmiar_tabeli_produkcyjnej': len(tabela_prod),
+        'lematow_df_min': lematow_df_min, 'rozmiar_tabeli_produkcyjnej': len(tabela_prod),
         'dodatkow_manualnych': len(dodatki_manualne), 'obalone_markery': obalone,
         'top_kupujacy': [{'lemat': l, 'z': round(z, 3)} for l, z in top_kupujacy],
         'top_sprzedaz': [{'lemat': l, 'z': round(z, 3)} for l, z in top_sprzedaz],
@@ -371,18 +452,36 @@ def main() -> None:
         'trafnosc_r9_srednia': round(trafnosc_srednia, 4),
         'trafnosc_r9_odchylenie_std': round(trafnosc_std, 4),
         'stabilnosc_bramka_0_04': trafnosc_std < 0.04,
+        'zla_cicha_poza_foldem': zla_cicha_pelna, 'odsetek_zbytych_poza_foldem': zbyte_pelna,
         'trafnosc_r5_czysty_cala_baza': round(trafnosc_r5c, 4),
         'tau_mocny_foldow': [round(t, 4) for t in tau_mocny_foldow],
         'tau_slaby_foldow': [round(t, 4) for t in tau_slaby_foldow],
         'tau_mocny_produkcyjne': round(tau_mocny_prod, 4),
         'tau_slaby_produkcyjne': round(tau_slaby_prod, 4),
         'krzywa_poza_foldem_pelna_baza': krzywa_pelna,
-        'z_min': Z_MIN, 'df_min': DF_MIN, 'alfa0': ALFA0,
-        'precyzja_min_mocny': PRECYZJA_MIN_MOCNY,
+        'tabela_prod': tabela_prod,
     }
+
+
+def main(z_silny: float = Z_SILNY_DOMYSLNY) -> dict:
+    rekordy = wczytaj_wszystkie()
+    wynik = przebieg(rekordy, z_silny)
+
+    zapisz_modul(wynik['tabela_prod'], wynik['tau_mocny_produkcyjne'], wynik['tau_slaby_produkcyjne'],
+                 z_silny, wynik['n_razem'])
+
+    OUT_DIR.mkdir(exist_ok=True)
+    do_zapisu = {k: v for k, v in wynik.items() if k != 'tabela_prod'}
+    do_zapisu['czas_utc'] = datetime.now(timezone.utc).isoformat()
+    do_zapisu['z_min'] = Z_MIN
+    do_zapisu['df_min'] = DF_MIN
+    do_zapisu['alfa0'] = ALFA0
+    do_zapisu['precyzja_min_mocny'] = PRECYZJA_MIN_MOCNY
+    do_zapisu['bramka_odsetek_zbytych'] = BRAMKA_ODSETEK_ZBYTYCH
     plik_wynik = OUT_DIR / 'ucz_wagi_stron.json'
-    plik_wynik.write_text(json.dumps(wynik, ensure_ascii=False, indent=2), encoding='utf-8')
+    plik_wynik.write_text(json.dumps(do_zapisu, ensure_ascii=False, indent=2), encoding='utf-8')
     print(f'zapisano: {plik_wynik}')
+    return wynik
 
 
 if __name__ == '__main__':

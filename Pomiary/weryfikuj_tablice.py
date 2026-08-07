@@ -27,6 +27,7 @@ from lang_config import LANG
 from rankings import MODEL_NAME, get_reranker
 from buduj_tablice_wynikow import oblicz_wpis
 from measure_routing_strony import wczytaj_realny
+from tablica_rerank import klucz
 
 
 def main() -> None:
@@ -45,7 +46,7 @@ def main() -> None:
 
     tablica_wyniki = {}
     for query in zapytania:
-        tablica_wyniki[query] = oblicz_wpis(query, 'pl', embedery, reranker, args.top_n, 16)
+        tablica_wyniki[klucz('pl', query)] = oblicz_wpis(query, 'pl', embedery, reranker, args.top_n, 16)
     tablica = {'odcisk': {'top_n': args.top_n}, 'wyniki': tablica_wyniki}
 
     niezgodne = []
@@ -58,7 +59,8 @@ def main() -> None:
         chunks_model = rankings.search_reranked_multi(query, emb, list(kwoty), k=10, k_surowe=kwoty, lang='pl')
         zwyciezca_model, _, pytac_model = strony.rozstrzygnij(chunks_model, prior, sila, k=5)
 
-        chunks_tabela = tablica_rerank.search_reranked_multi_z_tablicy(tablica, query, list(kwoty), k=10, k_surowe=kwoty)
+        chunks_tabela = tablica_rerank.search_reranked_multi_z_tablicy(
+            tablica, query, list(kwoty), k=10, k_surowe=kwoty, lang='pl')
         zwyciezca_tabela, _, pytac_tabela = strony.rozstrzygnij(chunks_tabela, prior, sila, k=5)
 
         if (zwyciezca_model, pytac_model) != (zwyciezca_tabela, pytac_tabela):
