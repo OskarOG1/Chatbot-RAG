@@ -26,15 +26,16 @@ def main() -> None:
     with open(plik_b, encoding='utf-8') as f:
         tab_b = json.load(f)
 
-    pytania = sorted(set(tab_a['wyniki']) & set(tab_b['wyniki']))
-    print(f'wspolne pytania: {len(pytania)}')
+    klucze = sorted(set(tab_a['wyniki']) & set(tab_b['wyniki']))
+    pytania_pl = [k.split('|', 1)[1] for k in klucze if k.startswith('pl|')]
+    print(f'wspolne wpisy: {len(klucze)} (w tym pl: {len(pytania_pl)})')
 
     max_roznica = 0.0
     zmiana_kolejnosci_top10 = 0
-    for query in pytania:
+    for k in klucze:
         for agent in ('kupujacy', 'sprzedaz'):
-            a = tab_a['wyniki'][query].get(agent, [])
-            b = tab_b['wyniki'][query].get(agent, [])
+            a = tab_a['wyniki'][k].get(agent, [])
+            b = tab_b['wyniki'][k].get(agent, [])
             skory_a = {url: s for url, s in a}
             skory_b = {url: s for url, s in b}
             for url in set(skory_a) & set(skory_b):
@@ -47,24 +48,26 @@ def main() -> None:
                 zmiana_kolejnosci_top10 += 1
 
     print(f'max bezwzgledna roznica score: {max_roznica:.6f}')
-    print(f'zmiana kolejnosci top10 (pytanie x agent): {zmiana_kolejnosci_top10}/{len(pytania) * 2}')
+    print(f'zmiana kolejnosci top10 (wpis x agent): {zmiana_kolejnosci_top10}/{len(klucze) * 2}')
 
     zgodne = 0
-    for query in pytania:
+    for query in pytania_pl:
         prior, sila = strony.prior_strony(query, None, 'pl', False)
         kwoty = strony.przydzial_kandydatow(prior, sila)
 
-        chunks_a = tablica_rerank.search_reranked_multi_z_tablicy(tab_a, query, list(kwoty), k=10, k_surowe=kwoty)
+        chunks_a = tablica_rerank.search_reranked_multi_z_tablicy(
+            tab_a, query, list(kwoty), k=10, k_surowe=kwoty, lang='pl')
         zwyciezca_a, _, pytac_a = strony.rozstrzygnij(chunks_a, prior, sila, k=5)
 
-        chunks_b = tablica_rerank.search_reranked_multi_z_tablicy(tab_b, query, list(kwoty), k=10, k_surowe=kwoty)
+        chunks_b = tablica_rerank.search_reranked_multi_z_tablicy(
+            tab_b, query, list(kwoty), k=10, k_surowe=kwoty, lang='pl')
         zwyciezca_b, _, pytac_b = strony.rozstrzygnij(chunks_b, prior, sila, k=5)
 
         if (zwyciezca_a, pytac_a) == (zwyciezca_b, pytac_b):
             zgodne += 1
 
-    zgodnosc = zgodne / len(pytania)
-    print(f'zgodnosc decyzji strony (rozstrzygnij, r5): {zgodne}/{len(pytania)} = {zgodnosc:.4f}')
+    zgodnosc = zgodne / len(pytania_pl)
+    print(f'zgodnosc decyzji strony (rozstrzygnij, r5, pl): {zgodne}/{len(pytania_pl)} = {zgodnosc:.4f}')
     print('BRAMKA (>=0.99): ' + ('PRZESZLA' if zgodnosc >= 0.99 else 'NIE PRZESZLA'))
 
 

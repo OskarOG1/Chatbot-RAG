@@ -37,6 +37,7 @@ from lang_config import LANG
 from measure import GOLDEN, OOD
 from measure_en import golden_en, ood_en
 from measure_sprzedaz import golden_sprzedaz
+from tablica_rerank import klucz
 
 RAG_DIR = ROOT / 'RAG'
 OUT_DIR = ROOT / 'outputs'
@@ -159,7 +160,7 @@ def main() -> None:
 
     start = time.time()
     for i, (query, lang) in enumerate(pytania, 1):
-        wyniki[query] = oblicz_wpis(query, lang, embedery, reranker, args.top_n, args.wsad)
+        wyniki[klucz(lang, query)] = oblicz_wpis(query, lang, embedery, reranker, args.top_n, args.wsad)
 
         if i == 100:
             tempo = (time.time() - start) / i

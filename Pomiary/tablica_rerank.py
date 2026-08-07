@@ -20,6 +20,12 @@ class NiezgodnyOdcisk(Exception):
     pass
 
 
+def klucz(lang: str, query: str) -> str:
+    """P8: klucz tablicy nosi jezyk, nie sam tekst pytania, zeby identyczny string w dwoch
+    jezykach (albo pomylka lang przy odczycie) nie trafial cicho w wpis drugiego jezyka."""
+    return f'{lang}|{query}'
+
+
 def sha256_pliku(sciezka: Path) -> str:
     h = hashlib.sha256()
     with open(sciezka, 'rb') as f:
@@ -56,18 +62,18 @@ def wczytaj_tablice(sciezka: Path | None = None) -> dict:
 
 
 def search_reranked_multi_z_tablicy(tablica: dict, query: str, agenci: list[str], k: int = 3,
-                                     k_surowe: dict | int = 20) -> list[tuple[dict, float]]:
+                                     k_surowe: dict | int = 20, lang: str = 'pl') -> list[tuple[dict, float]]:
     top_n = tablica['odcisk']['top_n']
-    wpis = tablica['wyniki'].get(query)
+    wpis = tablica['wyniki'].get(klucz(lang, query))
     if wpis is None:
-        raise KeyError(f'pytanie nie ma wpisu w tablicy: {query!r}')
+        raise KeyError(f'pytanie nie ma wpisu w tablicy dla lang={lang!r}: {query!r}')
 
     linki = []
     for agent in agenci:
         k_surowe_agenta = k_surowe[agent] if isinstance(k_surowe, dict) else k_surowe
         if k_surowe_agenta > top_n:
             raise ValueError(f'k_surowe={k_surowe_agenta} przekracza top_n={top_n} zapisane w tablicy')
-        for url, score in wpis.get(agent, [])[:k_surowe_agenta]:
+        for url, score in wpis[agent][:k_surowe_agenta]:
             linki.append(({'agent': agent, 'url': url}, score))
 
     if not linki:

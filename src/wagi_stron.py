@@ -1,14 +1,17 @@
-# Wygenerowano przez Pomiary/ucz_wagi_stron.py, 2026-08-06T22:19:13.723076+00:00 UTC, na 3896
-# przykladach z RAG/pytania_realne.jsonl (cala baza). TAU_MOCNY/TAU_SLABY to srednia
-# z 5 foldow walidacji krzyzowej. Patrz Pomiary/PLAN_WAGI_STRON.md,
-# Pomiary/PLAN_POMIARY_GPU.md i Pomiary/POMIAR_WAGI_STRON.md. Nie edytowac recznie,
+# Wygenerowano przez Pomiary/ucz_wagi_stron.py, 2026-08-07T12:59:41.562715+00:00 UTC, na 3896
+# przykladach z RAG/pytania_realne.jsonl (cala baza). TAU_MOCNY/TAU_SLABY/Z_SILNY to
+# srednia z 5 foldow walidacji krzyzowej. Patrz Pomiary/PLAN_WAGI_STRON.md,
+# Pomiary/PLAN_KALIBRACJA_R9.md i Pomiary/POMIAR_WAGI_STRON.md. Nie edytowac recznie,
 # ponowne uruchomienie skryptu nadpisuje ten plik.
 
+import math
 import simplemma
 from spell import tokenize_words, MIN_DLUGOSC
+from strony import prior_strony
 
-TAU_MOCNY = 5.12512
-TAU_SLABY = 0
+TAU_MOCNY = 7.8616
+TAU_SLABY = 6.8341
+Z_SILNY = 3.5
 
 WAGI = {
     'zakup': -7.853431281287691,
@@ -75,6 +78,7 @@ WAGI = {
     'kupujący': 2.2245093400493863,
     'działać': -2.1886009746631148,
     'móc': -2.183953230910873,
+    'sprzedawać': 2.1592454911957626,
     'sprzedawca': -2.1516759673401804,
     'przesylka': -2.1460994655552312,
     'oszustwo': -2.108953508432444,
@@ -84,39 +88,61 @@ WAGI = {
     'konto': 2.0102415078292832,
     'witać': -1.9796495851551712,
     'adres': -1.9723225420451118,
-    'zamowilam': -1.96,
-    'kupilem': -1.96,
-    'zamowien': -1.96,
-    'paczke': -1.96,
-    'kupilam': -1.96,
-    'przesylke': -1.96,
     'zamowilem': -1.96,
-    'zamowienia': -1.96,
-    'zamowienie': -1.96,
-    'sprzedaj': 1.96,
-    'wyplatać': 1.96,
-    'wyplaty': 1.96,
-    'wystawilem': 1.96,
-    'sprzedawać': 1.96,
-    'wystawic': 1.96,
-    'wyplate': 1.96,
+    'sprzedaj': 1.8275298637765198,
+    'zamowienia': -1.433085483542546,
+    'kupilem': -1.1698769022847064,
+    'wystawic': 0.9180859808166432,
+    'wyplatać': 0.9180859808166432,
+    'zamowilam': -0.8270635866427202,
+    'kupilam': -0.8270635866427202,
+    'przesylke': -0.7239296035263163,
+    'wyplaty': 0.6490667778021496,
+    'wystawilem': 0.6490667778021496,
+    'wyplate': 0.6490667778021496,
+    'paczke': -0.46579627775187765,
 }
 
 
-def prior_wazony(query, agent_poprzedni, lang, czy_followup):
-    if lang == 'pl':
-        tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]
-        lematy_pytania = {simplemma.lemmatize(t, lang='pl') for t in tokeny}
-        suma = sum(WAGI[t] for t in lematy_pytania if t in WAGI)
-        if abs(suma) >= TAU_MOCNY:
-            return ('sprzedajacy' if suma > 0 else 'kupujacy'), 'leksykalna'
-        if agent_poprzedni and czy_followup:
-            strona = 'sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'
-            return strona, 'lepka'
-        if abs(suma) >= TAU_SLABY:
-            return ('sprzedajacy' if suma > 0 else 'kupujacy'), 'leksykalna_slaba'
-        return None, None
+def ocena_pytania(lematy_pytania: set, tabela: dict) -> dict:
+    """P3: suma znormalizowana przez sqrt(k), k = liczba dopasowanych lematow, zeby dlugie
+    pytanie nie przekraczalo progu samym nazbieraniem slabych wag. P2: dowod to |z| pojedynczego
+    najmocniejszego dopasowanego lematu, osobno od sumy, bo suma wybiera strone, a dowod
+    rozstrzyga, czy w ogole wolno miec zdanie."""
+    dopasowane = [tabela[t] for t in lematy_pytania if t in tabela]
+    if not dopasowane:
+        return {'suma_norm': 0.0, 'dowod': 0.0, 'k': 0}
+    suma = sum(dopasowane)
+    return {'suma_norm': suma / math.sqrt(len(dopasowane)),
+            'dowod': max(abs(w) for w in dopasowane), 'k': len(dopasowane)}
+
+
+def przewidziana_strona(suma_norm: float) -> str | None:
+    if suma_norm > 0:
+        return 'sprzedajacy'
+    if suma_norm < 0:
+        return 'kupujacy'
+    return None
+
+
+def zdecyduj_r9(suma_norm: float, dowod: float, tau_mocny: float, tau_slaby: float,
+                 z_silny: float, agent_poprzedni: str | None,
+                 czy_followup: bool) -> tuple[str | None, str | None]:
+    strona = przewidziana_strona(suma_norm)
+    ma_dowod = strona is not None and dowod >= z_silny
+    if ma_dowod and abs(suma_norm) >= tau_mocny:
+        return strona, 'leksykalna'
     if agent_poprzedni and czy_followup:
-        strona = 'sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'
-        return strona, 'lepka'
+        return ('sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'), 'lepka'
+    if ma_dowod and abs(suma_norm) >= tau_slaby:
+        return strona, 'leksykalna_slaba'
     return None, None
+
+
+def prior_wazony(query, agent_poprzedni, lang, czy_followup):
+    if lang != 'pl':
+        return prior_strony(query, agent_poprzedni, lang, czy_followup)
+    tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]
+    lematy_pytania = {simplemma.lemmatize(t, lang='pl') for t in tokeny}
+    ocena = ocena_pytania(lematy_pytania, WAGI)
+    return zdecyduj_r9(ocena['suma_norm'], ocena['dowod'], TAU_MOCNY, TAU_SLABY, Z_SILNY, agent_poprzedni, czy_followup)
