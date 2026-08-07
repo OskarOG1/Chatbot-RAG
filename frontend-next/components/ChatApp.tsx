@@ -348,22 +348,30 @@ export default function ChatApp() {
         messages: [...x.messages, { id: nextMsgId(), role: 'assistant', content: t.panelOpened }],
       }));
     } else {
-      updateThread(tid, (x) => ({
-        ...x,
-        messages: [
-          ...x.messages,
-          {
-            id: nextMsgId(),
-            role: 'assistant',
-            content: dane?.answer ?? bladTekst ?? t.noResponse,
-            citations: dane?.citations ?? [],
-            doprecyzowanie: dane?.doprecyzowanie ?? null,
-            action: dane?.oferta ?? null,
-            pytaStrona: dane?.pyta_strona ?? false,
-            zapytanieDoStrony: dane?.pyta_strona ? wiadomosc : undefined,
-          },
-        ],
-      }));
+      updateThread(tid, (x) => {
+        const poprzednia = x.messages[x.messages.length - 1];
+        const powtorzonaDoprecyzacja =
+          Boolean(pomijDymkeUzytkownika) &&
+          poprzednia?.role === 'assistant' &&
+          Boolean(dane?.doprecyzowanie) &&
+          poprzednia.doprecyzowanie === dane?.doprecyzowanie;
+        return {
+          ...x,
+          messages: [
+            ...x.messages,
+            {
+              id: nextMsgId(),
+              role: 'assistant',
+              content: dane?.answer ?? bladTekst ?? t.noResponse,
+              citations: dane?.citations ?? [],
+              doprecyzowanie: powtorzonaDoprecyzacja ? null : dane?.doprecyzowanie ?? null,
+              action: dane?.oferta ?? null,
+              pytaStrona: dane?.pyta_strona ?? false,
+              zapytanieDoStrony: dane?.pyta_strona ? wiadomosc : undefined,
+            },
+          ],
+        };
+      });
     }
   }
 
