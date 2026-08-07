@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
@@ -22,6 +22,11 @@ import json
 LIMIT_MIN = int(os.getenv('LIMIT_MIN', '15'))
 LIMIT_DZIEN = int(os.getenv('LIMIT_DZIEN', '200'))
 _zapytania = deque()
+
+LIMIT_IP_MIN = int(os.getenv('LIMIT_IP_MIN', '10'))
+LIMIT_IP_DZIEN = int(os.getenv('LIMIT_IP_DZIEN', '40'))
+IP_SLOWNIK_MAX = int(os.getenv('IP_SLOWNIK_MAX', '5000'))
+_zapytania_ip: 'OrderedDict[str, deque]' = OrderedDict()
 
 LIMIT_WYSYLKA_MIN = int(os.getenv('LIMIT_WYSYLKA_MIN', '5'))
 LIMIT_WYSYLKA_DZIEN = int(os.getenv('LIMIT_WYSYLKA_DZIEN', '40'))
@@ -102,6 +107,28 @@ def w_limicie() -> bool:
     if ostatnia_minuta >= LIMIT_MIN or len(_zapytania) >= LIMIT_DZIEN:
         return False
     _zapytania.append(teraz)
+    return True
+
+
+def adres_klienta(request: Request) -> str:
+    naglowek = request.headers.get('x-forwarded-for')
+    if naglowek:
+        return naglowek.split(',')[-1].strip()
+    return request.client.host if request.client else ''
+
+
+def w_limicie_ip(ip: str) -> bool:
+    teraz = time.time()
+    kolejka = _zapytania_ip.setdefault(ip, deque())
+    while kolejka and kolejka[0] < teraz - 86400:
+        kolejka.popleft()
+    ostatnia_minuta = sum(1 for t in kolejka if t > teraz - 60)
+    if ostatnia_minuta >= LIMIT_IP_MIN or len(kolejka) >= LIMIT_IP_DZIEN:
+        return False
+    kolejka.append(teraz)
+    _zapytania_ip.move_to_end(ip)
+    if len(_zapytania_ip) > IP_SLOWNIK_MAX:
+        _zapytania_ip.popitem(last=False)
     return True
 
 
@@ -259,8 +286,10 @@ def health():
     return {'status': 'ok'}
 
 @app.post('/chat', response_model=ChatResponse)
-def chat(request: ChatRequest):
+def chat(request: ChatRequest, http_request: Request):
     lang = efektywny_jezyk(request.message, request.lang)
+    if not w_limicie_ip(adres_klienta(http_request)):
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     if not w_limicie():
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     start = time.perf_counter()
@@ -285,12 +314,15 @@ def chat(request: ChatRequest):
 
 
 @app.post('/chat/stream')
-def chat_stream(request: ChatRequest):
+def chat_stream(request: ChatRequest, http_request: Request):
     lang = efektywny_jezyk(request.message, request.lang)
 
     strona = None if request.strona == 'auto' else request.strona
 
     def gen():
+        if not w_limicie_ip(adres_klienta(http_request)):
+            yield f"data: {json.dumps({'typ': 'blad', 'kod': 429, 'tekst': LANG[lang]['bledy']['limit_zapytan']}, ensure_ascii=False)}\n\n"
+            return
         if not w_limicie():
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 429, 'tekst': LANG[lang]['bledy']['limit_zapytan']}, ensure_ascii=False)}\n\n"
             return

@@ -4,10 +4,15 @@ const FASTAPI_URL = process.env.FASTAPI_URL ?? 'http://127.0.0.1:8000';
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (forwardedFor) {
+    headers['x-forwarded-for'] = forwardedFor;
+  }
 
   const upstream = await fetch(`${FASTAPI_URL}/chat/stream`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers,
     body,
   });
 
