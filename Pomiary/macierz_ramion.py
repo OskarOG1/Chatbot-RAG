@@ -44,7 +44,7 @@ ZLA_CICHA_SPRZEDAZ_DZIS = 0.427
 BRAMKA_PRECYZJA_MOCNY = 0.85
 BRAMKA_ODSETEK_ZBYTYCH = 0.15
 BRAMKA_PRZEWAGA_NAD_RECZNA = 0.05
-Z_SILNY = 3.5  # P4: wybrany przez Pomiary/przemiatanie_z_silny.py, patrz outputs/przemiatanie_z_silny.json
+Z_SILNY = uws.Z_SILNY_PRODUKCYJNY
 
 WARIANTY = ('r5', 'r7', 'r5_czysty', 'r9')
 

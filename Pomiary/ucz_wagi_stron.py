@@ -15,6 +15,7 @@
 # Uzycie:
 #     python ucz_wagi_stron.py
 
+import ast
 import hashlib
 import inspect
 import json
@@ -44,7 +45,10 @@ DF_MIN = 20
 MAX_WPISOW = 400
 PRECYZJA_MIN_MOCNY = 0.85
 BRAMKA_ODSETEK_ZBYTYCH = 0.15
-Z_SILNY_DOMYSLNY = 1.96
+# P4: zadna wartosc z SIATKA_Z_SILNY nie spelnila ograniczen (outputs/przemiatanie_z_silny.json,
+# wszyscy_dopuszczalni pusty). 3.5 wygralo remis na liczbie naruszen z 4.0 i 4.5 kolejnoscia w
+# siatce, nie jakoscia. Zostaje, bo caly Krok 8 i POMIAR_WAGI_STRON.md policzono przy tej wartosci.
+Z_SILNY_PRODUKCYJNY = 3.5
 TOP_N_RAPORT = 40
 LICZBA_FOLDOW = 5
 
@@ -149,15 +153,15 @@ def zbuduj_tabele(z_dane: dict, dodatki_manualne: dict) -> dict[str, float]:
               if info['df'] >= DF_MIN and abs(info['z']) >= Z_MIN}
     for lemat, waga in dodatki_manualne.items():
         tabela.setdefault(lemat, waga)
-    posortowane = sorted(tabela.items(), key=lambda kv: abs(kv[1]), reverse=True)[:MAX_WPISOW]
+    posortowane = sorted(tabela.items(), key=lambda kv: (-abs(kv[1]), kv[0]))[:MAX_WPISOW]
     return dict(posortowane)
 
 
+# P3: suma znormalizowana przez sqrt(k), k = liczba dopasowanych lematow, zeby dlugie
+# pytanie nie przekraczalo progu samym nazbieraniem slabych wag. P2: dowod to |z| pojedynczego
+# najmocniejszego dopasowanego lematu, osobno od sumy, bo suma wybiera strone, a dowod
+# rozstrzyga, czy w ogole wolno miec zdanie.
 def ocena_pytania(lematy_pytania: set, tabela: dict) -> dict:
-    """P3: suma znormalizowana przez sqrt(k), k = liczba dopasowanych lematow, zeby dlugie
-    pytanie nie przekraczalo progu samym nazbieraniem slabych wag. P2: dowod to |z| pojedynczego
-    najmocniejszego dopasowanego lematu, osobno od sumy, bo suma wybiera strone, a dowod
-    rozstrzyga, czy w ogole wolno miec zdanie."""
     dopasowane = [tabela[t] for t in lematy_pytania if t in tabela]
     if not dopasowane:
         return {'suma_norm': 0.0, 'dowod': 0.0, 'k': 0}
@@ -293,14 +297,26 @@ def trafnosc_r5_czysty(rekordy: list[dict]) -> float:
     return poprawne / len(rekordy)
 
 
+def zrodlo_bez_docstringa(funkcja) -> str:
+    zrodlo = inspect.getsource(funkcja)
+    wezel = ast.parse(zrodlo).body[0]
+    pierwszy = wezel.body[0] if wezel.body else None
+    if (isinstance(pierwszy, ast.Expr) and isinstance(pierwszy.value, ast.Constant)
+            and isinstance(pierwszy.value.value, str)):
+        linie = zrodlo.splitlines()
+        del linie[pierwszy.lineno - 1:pierwszy.end_lineno]
+        return '\n'.join(linie).rstrip()
+    return zrodlo.rstrip()
+
+
 def zapisz_modul(tabela: dict, tau_mocny: float, tau_slaby: float, z_silny: float, n_calosc: int) -> None:
     stempel = datetime.now(timezone.utc).isoformat()
     linie = [
         f"# Wygenerowano przez Pomiary/ucz_wagi_stron.py, {stempel} UTC, na {n_calosc}",
-        f"# przykladach z RAG/pytania_realne.jsonl (cala baza). TAU_MOCNY/TAU_SLABY/Z_SILNY to",
-        f"# srednia z 5 foldow walidacji krzyzowej. Patrz Pomiary/PLAN_WAGI_STRON.md,",
-        f"# Pomiary/PLAN_KALIBRACJA_R9.md i Pomiary/POMIAR_WAGI_STRON.md. Nie edytowac recznie,",
-        f"# ponowne uruchomienie skryptu nadpisuje ten plik.",
+        "# przykladach z RAG/pytania_realne.jsonl (cala baza). TAU_MOCNY i TAU_SLABY to srednia z 5",
+        "# foldow walidacji krzyzowej, Z_SILNY to stala wejsciowa wybrana w P4 (przemiatanie_z_silny.py).",
+        "# Patrz Pomiary/PLAN_WAGI_STRON.md, Pomiary/PLAN_KALIBRACJA_R9.md i Pomiary/POMIAR_WAGI_STRON.md.",
+        "# Nie edytowac recznie, ponowne uruchomienie skryptu nadpisuje ten plik.",
         "",
         "import math",
         "import simplemma",
@@ -313,18 +329,18 @@ def zapisz_modul(tabela: dict, tau_mocny: float, tau_slaby: float, z_silny: floa
         "",
         "WAGI = {",
     ]
-    for lemat, waga in sorted(tabela.items(), key=lambda kv: -abs(kv[1])):
+    for lemat, waga in sorted(tabela.items(), key=lambda kv: (-abs(kv[1]), kv[0])):
         linie.append(f"    {lemat!r}: {waga!r},")
     linie.append("}")
     linie.append("")
     linie.append("")
-    linie.append(inspect.getsource(ocena_pytania).rstrip())
+    linie.append(zrodlo_bez_docstringa(ocena_pytania))
     linie.append("")
     linie.append("")
-    linie.append(inspect.getsource(przewidziana_strona).rstrip())
+    linie.append(zrodlo_bez_docstringa(przewidziana_strona))
     linie.append("")
     linie.append("")
-    linie.append(inspect.getsource(zdecyduj_r9).rstrip())
+    linie.append(zrodlo_bez_docstringa(zdecyduj_r9))
     linie.append("")
     linie.append("")
     linie.append("def prior_wazony(query, agent_poprzedni, lang, czy_followup):")
@@ -463,7 +479,7 @@ def przebieg(rekordy: list[dict], z_silny: float, cichy: bool = False) -> dict:
     }
 
 
-def main(z_silny: float = Z_SILNY_DOMYSLNY) -> dict:
+def main(z_silny: float = Z_SILNY_PRODUKCYJNY) -> dict:
     rekordy = wczytaj_wszystkie()
     wynik = przebieg(rekordy, z_silny)
 
