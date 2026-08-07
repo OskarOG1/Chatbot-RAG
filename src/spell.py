@@ -52,7 +52,7 @@ def fold(tekst: str) -> str:
     return ''.join(z for z in tekst if not unicodedata.combining(z))
 
 
-def distance(a: str, b: str) -> int:
+def distance(a: str, b: str, dozwolona: int | None = None) -> int:
 
     dl_a, dl_b = len(a), len(b)
     macierz = [[0] * (dl_b + 1) for _ in range(dl_a + 1)]
@@ -72,6 +72,8 @@ def distance(a: str, b: str) -> int:
             )
             if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
                 macierz[i][j] = min(macierz[i][j], macierz[i - 2][j - 2] + 1)
+        if dozwolona is not None and min(macierz[i]) > dozwolona + (dl_a - i):
+            return dozwolona + 1
 
     return macierz[dl_a][dl_b]
 
@@ -131,32 +133,39 @@ def load_dictionary() -> Counter:
 
 
 FOLDED_CACHE = None
-def folded_index(slownik: Counter) -> list:
+def folded_index(slownik: Counter) -> dict[int, list[tuple[str, int, str, int]]]:
     global FOLDED_CACHE
     if FOLDED_CACHE is None:
-        FOLDED_CACHE = [(slowo, czestosc, fold(slowo)) for slowo, czestosc in slownik.items()]
+        kubelki: dict[int, list[tuple[str, int, str, int]]] = {}
+        for indeks, (slowo, czestosc) in enumerate(slownik.items()):
+            zlozone = fold(slowo)
+            kubelki.setdefault(len(zlozone), []).append((slowo, czestosc, zlozone, indeks))
+        FOLDED_CACHE = kubelki
     return FOLDED_CACHE
 
 
 def best_candidate(token: str, slownik: Counter) -> str | None:
 
     zlozony = fold(token)
+    dlugosc = len(zlozony)
     dozwolona = 1 if len(token) <= 6 else MAX_ODLEGLOSC
     najlepszy = None
     najlepsza_odleglosc = dozwolona + 1
     najlepsza_czestosc = 0
+    najlepszy_indeks = -1
 
-    for slowo, czestosc, zlozone in folded_index(slownik):
-        if abs(len(zlozone) - len(zlozony)) > dozwolona:
-            continue
-
-        odleglosc = distance(zlozony, zlozone)
-        if odleglosc < najlepsza_odleglosc or (
-            odleglosc == najlepsza_odleglosc and czestosc > najlepsza_czestosc
-        ):
-            najlepszy = slowo
-            najlepsza_odleglosc = odleglosc
-            najlepsza_czestosc = czestosc
+    kubelki = folded_index(slownik)
+    for dlugosc_kubelka in range(dlugosc - dozwolona, dlugosc + dozwolona + 1):
+        for slowo, czestosc, zlozone, indeks in kubelki.get(dlugosc_kubelka, []):
+            odleglosc = distance(zlozony, zlozone, dozwolona)
+            if (odleglosc < najlepsza_odleglosc
+                    or (odleglosc == najlepsza_odleglosc and czestosc > najlepsza_czestosc)
+                    or (odleglosc == najlepsza_odleglosc and czestosc == najlepsza_czestosc
+                        and najlepszy is not None and indeks < najlepszy_indeks)):
+                najlepszy = slowo
+                najlepsza_odleglosc = odleglosc
+                najlepsza_czestosc = czestosc
+                najlepszy_indeks = indeks
 
     if najlepszy is not None and najlepsza_odleglosc <= dozwolona:
         return najlepszy
