@@ -3,9 +3,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 from typing import Literal
-from pipeline import run, run_stream, MODELE, corpus_stamp, redaguj
+from pipeline import run, run_stream, MODELE, corpus_stamp, redaguj, IDF_DANE
 from rankings import get_reranker, get_bm25, get_faiss
-from spell import detect_lang
+from spell import detect_lang, load_dictionary
 from guards import MAX_ZNAKI, normalizuj
 from lang_config import LANG, DOMYSLNY_JEZYK
 from wysylka import wyslij_potwierdzenie, WysylkaCzesciowaError
@@ -17,7 +17,11 @@ import os
 import re
 import sys
 import time
+import traceback
 import json
+
+AGENCI_ROZGRZEWKA_PL = ('kupujacy', 'sprzedaz', 'konto', 'zakupy', 'platnosci')
+AGENCI_ROZGRZEWKA_EN = ('kupujacy', 'sprzedaz')
 
 LIMIT_MIN = int(os.getenv('LIMIT_MIN', '15'))
 LIMIT_DZIEN = int(os.getenv('LIMIT_DZIEN', '200'))
@@ -41,6 +45,7 @@ CACHE_MAX = int(os.getenv('CACHE_MAX', '200'))
 _cache: 'OrderedDict[tuple, dict]' = OrderedDict()
 LOG_ANALYTICS = Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.jsonl'
 OSTRZEZONO_O_LOGU = False
+OSTRZEZONO_O_LOGU_WYSYLKI = False
 
 
 def cache_zdatny(request: 'ChatRequest') -> bool:
@@ -208,8 +213,11 @@ def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: 
             wpis['blad'] = blad
         with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
             w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
-    except OSError:
-        pass
+    except OSError as e:
+        global OSTRZEZONO_O_LOGU_WYSYLKI
+        if not OSTRZEZONO_O_LOGU_WYSYLKI:
+            print(f'UWAGA: nie moge pisac do {LOG_ANALYTICS}: {e}', file=sys.stderr, flush=True)
+            OSTRZEZONO_O_LOGU_WYSYLKI = True
 
 
 @asynccontextmanager
@@ -224,12 +232,21 @@ async def lifespan(app: FastAPI):
             MODELE[lang].encode([cfg['query_prefix'] + 'rozgrzewka'])
         except Exception:
             pass
-    for lang in LANG:
+    try:
+        load_dictionary()
+    except Exception:
+        pass
+    for lang, agenci in (('pl', AGENCI_ROZGRZEWKA_PL), ('en', AGENCI_ROZGRZEWKA_EN)):
         try:
-            get_faiss('all', lang)
-            get_bm25('all', lang)
+            IDF_DANE[lang]
         except Exception:
             pass
+        for agent in agenci:
+            try:
+                get_faiss(agent, lang)
+                get_bm25(agent, lang)
+            except Exception:
+                pass
     yield
 
 MAX_ZNAKI_WPISU = int(os.getenv('MAX_ZNAKI_WPISU', '8000'))
@@ -309,7 +326,7 @@ def chat(request: ChatRequest, http_request: Request):
         loguj_zapytanie(lang, wynik, time.perf_counter() - start, cache_hit, request.message, request.strona)
         return wynik
     except Exception as e:
-        print(f'blad /chat: {type(e).__name__}: {e}')
+        print(f'blad /chat: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
         raise HTTPException(status_code=503, detail=LANG[lang]['bledy']['model_niedostepny'])
 
 
@@ -347,7 +364,7 @@ def chat_stream(request: ChatRequest, http_request: Request):
                 cache_zapisz(klucz, wynik)
             loguj_zapytanie(lang, wynik, time.perf_counter() - start, False, request.message, request.strona)
         except Exception as e:
-            print(f'blad /chat/stream: {type(e).__name__}: {e}')
+            print(f'blad /chat/stream: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': LANG[lang]['bledy']['model_niedostepny']}, ensure_ascii=False)}\n\n"
     return StreamingResponse(gen(), media_type='text/event-stream')
 
