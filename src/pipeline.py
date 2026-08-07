@@ -226,10 +226,11 @@ def run_stream(query:str, bielik_model:str | None=None,
         return {'typ': 'wynik', 'dane': d}
 
     yield krok(cfg['kroki']['sprawdzam_pytanie'])
-    powod = sprawdz(query, cfg['guardy'])
-    if powod:
+    wynik_guardu = sprawdz(query, cfg['guardy'])
+    if wynik_guardu:
+        powod, nazwa_guardu = wynik_guardu
         yield wynik({'agent': '', 'answer': powod, 'sources': [], 'citations': [],
-                     'doprecyzowanie': None, 'powod_odmowy': 'guard'})
+                     'doprecyzowanie': None, 'powod_odmowy': f'guard_{nazwa_guardu}'})
         return
     history = (history or [])[-OKNO_HISTORII:]
     bez_korekty = bez_korekty or lang != 'pl'
