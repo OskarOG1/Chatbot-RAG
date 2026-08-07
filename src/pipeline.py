@@ -228,7 +228,8 @@ def run_stream(query:str, bielik_model:str | None=None,
     yield krok(cfg['kroki']['sprawdzam_pytanie'])
     powod = sprawdz(query, cfg['guardy'])
     if powod:
-        yield wynik({'agent': '', 'answer': powod, 'sources': [], 'citations': [], 'doprecyzowanie': None})
+        yield wynik({'agent': '', 'answer': powod, 'sources': [], 'citations': [],
+                     'doprecyzowanie': None, 'powod_odmowy': 'guard'})
         return
     history = (history or [])[-OKNO_HISTORII:]
     bez_korekty = bez_korekty or lang != 'pl'
@@ -245,7 +246,8 @@ def run_stream(query:str, bielik_model:str | None=None,
 
             if tokeny and len(korekta['nieznane']) >= len(tokeny):
                 yield wynik({'agent': '', 'answer': cfg['nie_zrozumialem'],
-                             'sources': [], 'citations': [], 'doprecyzowanie': None})
+                             'sources': [], 'citations': [], 'doprecyzowanie': None,
+                             'powod_odmowy': 'nie_zrozumialem'})
                 return
         doprecyzowanie = f'Szukam dla: „{query}", czy o to chodziło?' if korekta['zmieniono'] else None
 
@@ -261,7 +263,8 @@ def run_stream(query:str, bielik_model:str | None=None,
             kategoria = sedzia_kategoria_mail(history + [{'role': 'user', 'content': query}], router_chunks, lang)
         if kategoria is None:
             yield wynik({'agent': '', 'answer': cfg['mail_doprecyzuj'],
-                         'sources': [], 'citations': [], 'doprecyzowanie': None, 'oferta': None, 'tryb': 'rag'})
+                         'sources': [], 'citations': [], 'doprecyzowanie': None, 'oferta': None,
+                         'tryb': 'rag', 'powod_odmowy': 'mail_doprecyzuj'})
             return
         kat_cfg = cfg['mail_kategorie'][kategoria]
         mail_emb = embed_query(lang, kat_cfg['zapytanie'])
@@ -303,7 +306,7 @@ def run_stream(query:str, bielik_model:str | None=None,
     if czy_pytac:
         yield wynik({'agent': '', 'answer': cfg['strona_doprecyzuj'],
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
-                     'pyta_strona': True})
+                     'pyta_strona': True, 'powod_odmowy': 'pytanie_o_strone'})
         return
 
     if strona_wybrana:
@@ -314,14 +317,16 @@ def run_stream(query:str, bielik_model:str | None=None,
     if not chunks or chunks[0][1] < cfg['prog_rerank']:
         yield krok(cfg['kroki']['poza_zakresem'])
         yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
-                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
+                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
+                     'powod_odmowy': 'prog_rerank'})
         return
 
     if (SEDZIA_ON if sedzia is None else sedzia) and chunks:
         yield krok(cfg['kroki']['sprawdzam_kontekst'])
         if not czy_kontekst_odpowiada(zapytanie_ret, chunks, lang=lang):
             yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
-                         'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
+                         'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
+                         'powod_odmowy': 'sedzia'})
             return
 
     etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
@@ -336,7 +341,8 @@ def run_stream(query:str, bielik_model:str | None=None,
 
     if odpowiedz is None or pokrycie_idf(odpowiedz['tekst'], chunks, lang) < cfg['prog_pokrycia']:
         yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
-                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie})
+                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
+                     'powod_odmowy': 'pokrycie'})
         return
 
     for ev in tokeny_bufor:

@@ -15,6 +15,7 @@
 import json
 import math
 import sys
+from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -104,14 +105,7 @@ def prior_r9_poza_foldem(rekord: dict, agent_poprzedni: str | None, czy_followup
                           tabele_foldow: dict) -> tuple[str | None, str | None]:
     info = tabele_foldow[rekord['fold']]
     suma = uws.suma_wazona(rekord['lematy'], info['tabela'])
-    if abs(suma) >= info['tau_mocny']:
-        return uws.przewidziana_strona(suma), 'leksykalna'
-    if agent_poprzedni and czy_followup:
-        strona = 'sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'
-        return strona, 'lepka'
-    if abs(suma) >= info['tau_slaby']:
-        return uws.przewidziana_strona(suma), 'leksykalna_slaba'
-    return None, None
+    return uws.zdecyduj_r9(suma, info['tau_mocny'], info['tau_slaby'], agent_poprzedni, czy_followup)
 
 
 def prior_dla_realny(rekord: dict, agent_poprzedni: str | None, czy_followup: bool,
@@ -123,9 +117,8 @@ def prior_dla_realny(rekord: dict, agent_poprzedni: str | None, czy_followup: bo
 
 def ramie_realny(rekordy: list[dict], oczekiwana: str, agent_poprzedni: str | None,
                   czy_followup: bool, wariant: str, tabele_foldow: dict) -> dict:
-    poprawne_lista = []
+    stany = []
     sila_mocny_poprawne = sila_mocny_n = 0
-    zbyte = 0
     for r in rekordy:
         prior, sila = prior_dla_realny(r, agent_poprzedni, czy_followup, wariant, tabele_foldow)
         kwoty = strony.przydzial_kandydatow(prior, sila)
@@ -133,24 +126,26 @@ def ramie_realny(rekordy: list[dict], oczekiwana: str, agent_poprzedni: str | No
             r['pytanie'], None, list(kwoty), k=10, k_surowe=kwoty, lang='pl')
         zwyciezca, _, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=5)
         if czy_pytac:
-            zbyte += 1
-            poprawne_lista.append(False)
+            stany.append('zapytal')
             continue
         poprawne = zwyciezca == oczekiwana
-        poprawne_lista.append(poprawne)
+        stany.append('trafiona' if poprawne else 'zla_strona')
         if sila == 'leksykalna':
             sila_mocny_n += 1
             sila_mocny_poprawne += poprawne
 
     n = len(rekordy)
-    k = sum(poprawne_lista)
+    trafiona = stany.count('trafiona')
+    zbyte = stany.count('zapytal')
+    zla = stany.count('zla_strona')
     return {
-        'n': n, 'poprawne': k, 'trafnosc': round(k / n, 4), 'wilson_trafnosc': wilson(k, n),
+        'n': n, 'poprawne': trafiona, 'trafnosc': round(trafiona / n, 4),
+        'wilson_trafnosc': wilson(trafiona, n),
         'zbyte': zbyte, 'odsetek_zbytych': round(zbyte / n, 4),
-        'zla_cicha': round((n - k - zbyte) / n, 4),
+        'zla_cicha': round(zla / n, 4),
         'precyzja_leksykalna_mocny': round(sila_mocny_poprawne / sila_mocny_n, 4) if sila_mocny_n else None,
         'n_leksykalna_mocny': sila_mocny_n,
-        'poprawne_lista': poprawne_lista,
+        'stany': stany,
     }
 
 
@@ -231,40 +226,66 @@ def macierz_golden(tabele_foldow: dict) -> dict:
     return wynik
 
 
+def pary_na_odpowiedziach(stany_a: list[str], stany_b: list[str]) -> dict:
+    """McNemar liczy sie wylacznie na pytaniach, gdzie OBA warianty faktycznie odpowiedzialy
+    (zaden nie ma stanu 'zapytal'), inaczej pytanie zwrotne jednego wariantu wpada do b/c jako
+    jego "blad" wobec drugiego, mimo ze wcale sie nie pomylil, tylko sie wstrzymal (D8)."""
+    b = c = wykluczone = 0
+    for a, x in zip(stany_a, stany_b):
+        if a == 'zapytal' or x == 'zapytal':
+            wykluczone += 1
+            continue
+        a_ok, x_ok = a == 'trafiona', x == 'trafiona'
+        if a_ok and not x_ok:
+            b += 1
+        elif not a_ok and x_ok:
+            c += 1
+    return {'b': b, 'c': c, 'wykluczone_zapytal': wykluczone}
+
+
 def testy_statystyczne(macierz_r: dict) -> dict:
     wyniki = {}
     for nazwa, ramiona in macierz_r.items():
-        lista_r9 = ramiona['brak_r9']['poprawne_lista']
-        lista_r5 = ramiona['brak_markery_stron']['poprawne_lista']
-        lista_r5c = ramiona['brak_r5_czysty']['poprawne_lista']
+        stany_r9 = ramiona['brak_r9']['stany']
+        stany_r5 = ramiona['brak_markery_stron']['stany']
+        stany_r5c = ramiona['brak_r5_czysty']['stany']
 
-        def pary(lista_a, lista_b):
-            b = sum(1 for a, x in zip(lista_a, lista_b) if a and not x)
-            c = sum(1 for a, x in zip(lista_a, lista_b) if not a and x)
-            return b, c
+        pary_r5 = pary_na_odpowiedziach(stany_r9, stany_r5)
+        wyniki[f'{nazwa}_r9_wobec_r5'] = mcnemar(pary_r5['b'], pary_r5['c'])
+        wyniki[f'{nazwa}_r9_wobec_r5']['wykluczone_zapytal'] = pary_r5['wykluczone_zapytal']
 
-        b, c = pary(lista_r9, lista_r5)
-        wyniki[f'{nazwa}_r9_wobec_r5'] = mcnemar(b, c)
-        b, c = pary(lista_r9, lista_r5c)
-        wyniki[f'{nazwa}_r9_wobec_r5_czysty'] = mcnemar(b, c)
+        pary_r5c = pary_na_odpowiedziach(stany_r9, stany_r5c)
+        wyniki[f'{nazwa}_r9_wobec_r5_czysty'] = mcnemar(pary_r5c['b'], pary_r5c['c'])
+        wyniki[f'{nazwa}_r9_wobec_r5_czysty']['wykluczone_zapytal'] = pary_r5c['wykluczone_zapytal']
     return wyniki
 
 
 def przygotuj_ood(pytania: list, lang: str, wariant: str) -> dict:
+    """P1: trzy rozlaczne kategorie, w tej samej kolejnosci co pipeline.py sprawdza je
+    naprawde (czy_pytac zwraca wczesniej niz prog_rerank, patrz pipeline.py:303 i :314):
+    'doprecyzowanie' to strona_doprecyzuj (pytanie o strone, NIE jest odmowa), 'odmowa' to
+    faktyczny brak_wiedzy przez prog_rerank, 'przepuszczone' przechodzi dalej (do sedziego
+    i pokrycia_idf, ktorych ten pomiar nie sprawdza - patrz D2/'Poza zakresem')."""
     from lang_config import LANG
     prog = LANG[lang]['prog_rerank']
-    zlapane = 0
+    kategorie = Counter()
     for p in pytania:
         query = p['query'] if isinstance(p, dict) else p
         prior, sila = mrs.prior_wariant(query, None, lang, False, wariant)
         kwoty = strony.przydzial_kandydatow(prior, sila)
         chunks_szerokie = rankings.search_reranked_multi(
             query, None, list(kwoty), k=10, k_surowe=kwoty, lang=lang)
-        zwyciezca, chunks, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=1)
-        if czy_pytac or not chunks or chunks[0][1] < prog:
-            zlapane += 1
+        _, chunks, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=1)
+        if czy_pytac:
+            kategorie['doprecyzowanie'] += 1
+        elif not chunks or chunks[0][1] < prog:
+            kategorie['odmowa'] += 1
+        else:
+            kategorie['przepuszczone'] += 1
     n = len(pytania)
-    return {'n': n, 'zlapane': zlapane}
+    return {'n': n, 'zlapane': kategorie['odmowa'] + kategorie['doprecyzowanie'],
+            'odmowa': kategorie['odmowa'], 'doprecyzowanie': kategorie['doprecyzowanie'],
+            'przepuszczone': kategorie['przepuszczone']}
 
 
 def sprawdz_bramki(macierz_r: dict, macierz_g: dict, testy: dict, ood_dzis: dict, ood_r9: dict) -> list[str]:
@@ -297,15 +318,18 @@ def sprawdz_bramki(macierz_r: dict, macierz_g: dict, testy: dict, ood_dzis: dict
             problemy.append(f'[bramka 5] odsetek_zbytych {nazwa} brak_r9: {odsetek:.4f} '
                              f'>= {BRAMKA_ODSETEK_ZBYTYCH}')
 
+    porownania_golden = [('brak', 'brak_r9', 'brak_markery_stron'),
+                         ('poprawna', 'r9_poprawna', 'r5_poprawna'),
+                         ('bledna', 'r9_bledna', 'r5_bledna')]
     for nazwa, ramiona in macierz_g.items():
-        for stan in ('poprawna', 'bledna'):
-            hit5_r9 = ramiona[f'r9_{stan}']['hit5']
-            hit5_r5 = ramiona[f'r5_{stan}']['hit5']
+        for stan, klucz_r9, klucz_r5 in porownania_golden:
+            hit5_r9 = ramiona[klucz_r9]['hit5']
+            hit5_r5 = ramiona[klucz_r5]['hit5']
             if hit5_r9 < hit5_r5 - 1e-9:
                 problemy.append(f'[bramka 6] golden {nazwa} {stan}: hit5 r9={hit5_r9:.4f} '
                                  f'< r5(dzis)={hit5_r5:.4f}')
-            zbyte_r9 = ramiona[f'r9_{stan}']['odsetek_zbytych']
-            zbyte_r5 = ramiona[f'r5_{stan}']['odsetek_zbytych']
+            zbyte_r9 = ramiona[klucz_r9]['odsetek_zbytych']
+            zbyte_r5 = ramiona[klucz_r5]['odsetek_zbytych']
             if zbyte_r9 > zbyte_r5 + 1e-9:
                 problemy.append(f'[bramka 6] golden {nazwa} {stan}: odsetek_zbytych r9={zbyte_r9:.4f} '
                                  f'> r5(dzis)={zbyte_r5:.4f}')
@@ -317,9 +341,9 @@ def sprawdz_bramki(macierz_r: dict, macierz_g: dict, testy: dict, ood_dzis: dict
                              f'< {BRAMKA_PRZEWAGA_NAD_RECZNA}')
 
     for lang in ('pl', 'en'):
-        if ood_r9[lang]['zlapane'] < ood_dzis[lang]['zlapane']:
-            problemy.append(f'[bramka 8] odmowy OOD {lang}: r9={ood_r9[lang]["zlapane"]} '
-                             f'< dzis(r5)={ood_dzis[lang]["zlapane"]}')
+        if ood_r9[lang]['odmowa'] < ood_dzis[lang]['odmowa']:
+            problemy.append(f'[bramka 8] odmowy OOD (prog_rerank) {lang}: '
+                             f'r9={ood_r9[lang]["odmowa"]} < dzis(r5)={ood_dzis[lang]["odmowa"]}')
 
     return problemy
 
@@ -348,14 +372,18 @@ def main() -> None:
     print('\n=== McNemar, stan brak (metryka decyzyjna) ===')
     testy = testy_statystyczne(macierz_r)
     for nazwa, w in testy.items():
-        print(f'  [{nazwa}] b={w["b"]} c={w["c"]} p={w["p"]} ({w["metoda"]})')
+        print(f'  [{nazwa}] b={w["b"]} c={w["c"]} p={w["p"]} ({w["metoda"]}) '
+              f'wykluczone_zapytal={w["wykluczone_zapytal"]}')
 
-    print('\n=== Odmowy OOD, r5(dzis) wobec r9 ===')
+    print('\n=== Odmowy OOD, r5(dzis) wobec r9, rozbicie P1: odmowa/doprecyzowanie/przepuszczone ===')
     ood_dzis = {'pl': przygotuj_ood(OOD, 'pl', 'r5'), 'en': przygotuj_ood(list(ood_en()), 'en', 'r5')}
     ood_r9 = {'pl': przygotuj_ood(OOD, 'pl', 'r9'), 'en': przygotuj_ood(list(ood_en()), 'en', 'r9')}
     for lang in ('pl', 'en'):
-        print(f'  [{lang}] dzis(r5)={ood_dzis[lang]["zlapane"]}/{ood_dzis[lang]["n"]} '
-              f'r9={ood_r9[lang]["zlapane"]}/{ood_r9[lang]["n"]}')
+        d, r = ood_dzis[lang], ood_r9[lang]
+        print(f'  [{lang}] dzis(r5): odmowa={d["odmowa"]} doprecyzowanie={d["doprecyzowanie"]} '
+              f'przepuszczone={d["przepuszczone"]} (zlapane={d["zlapane"]}/{d["n"]})')
+        print(f'  [{lang}] r9:       odmowa={r["odmowa"]} doprecyzowanie={r["doprecyzowanie"]} '
+              f'przepuszczone={r["przepuszczone"]} (zlapane={r["zlapane"]}/{r["n"]})')
 
     print('\n=== Bramki PLAN_WAGI_STRON.md / PLAN_POMIARY_GPU.md ===')
     problemy = sprawdz_bramki(macierz_r, macierz_g, testy, ood_dzis, ood_r9)
@@ -370,7 +398,7 @@ def main() -> None:
 
     for ramiona in list(macierz_r.values()) + list(macierz_g.values()):
         for w in ramiona.values():
-            w.pop('poprawne_lista', None)
+            w.pop('stany', None)
 
     OUT_DIR.mkdir(exist_ok=True)
     wynik = {
