@@ -54,7 +54,7 @@ export default function ChatMessage({
     );
   }
 
-  const { tekst: tresc, zrodla } = przygotujOdpowiedz(content, citations);
+  const { tekst: tresc, zrodla, zacytowano } = przygotujOdpowiedz(content, citations);
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -125,7 +125,9 @@ export default function ChatMessage({
         </ReactMarkdown>
       </div>
 
-      {zrodla.length > 0 && <SourceList zrodla={zrodla} label={t.sourcesLabel} />}
+      {zrodla.length > 0 && (
+        <SourceList zrodla={zrodla} label={zacytowano ? t.sourcesLabel : t.possibleSourcesLabel} />
+      )}
 
       {action && onAction && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginTop: 2 }}>

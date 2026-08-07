@@ -65,6 +65,7 @@ interface Teksty {
   recent: string;
   assistant: string;
   sourcesLabel: string;
+  possibleSourcesLabel: string;
   composerHint: string;
   hintBuying: string;
   hintSelling: string;
@@ -143,6 +144,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     recent: 'Ostatnie rozmowy',
     assistant: 'Asystent',
     sourcesLabel: 'Źródła z centrum pomocy',
+    possibleSourcesLabel: 'Powiązane strony centrum pomocy',
     composerHint: 'Enter wysyła · Shift + Enter nowa linia',
     hintBuying: 'Pytasz jako kupujący',
     hintSelling: 'Pytasz jako sprzedający',
@@ -217,6 +219,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     recent: 'Recent conversations',
     assistant: 'Assistant',
     sourcesLabel: 'Help center sources',
+    possibleSourcesLabel: 'Possibly related help center pages',
     composerHint: 'Enter sends · Shift + Enter for a new line',
     hintBuying: 'Asking as a buyer',
     hintSelling: 'Asking as a seller',
