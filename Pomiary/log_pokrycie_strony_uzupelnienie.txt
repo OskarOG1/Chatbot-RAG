@@ -1,18 +1,0 @@
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 4469.05it/s]
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 5444.27it/s]
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 5976.12it/s]
-Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|##########| 201/201 [00:00<00:00, 4612.68it/s]
-dlugosc B (deklaracja): 2
-{
-  "query": "jak korzystaæ z allegro kapita³",
-  "dlugosc_a": 3,
-  "dlugosc_b": 2,
-  "pokrycie_a_min": 0.7770557684026402,
-  "pokrycie_a": [
-    0.7770557684026402
-  ],
-  "pokrycie_b_min": 0.9028853411457523,
-  "pokrycie_b": [
-    0.9028853411457523
-  ]
-}

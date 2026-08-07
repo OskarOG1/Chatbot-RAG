@@ -1,80 +1,0 @@
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 5071.40it/s]
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 6062.15it/s]
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 4755.47it/s]
-PROG_POKRYCIA dzis = 0.2   tryb retrievalu: all
-
---- WIELOCZLONOWE z domeny (powinny PRZEJSC) (29 pytan x 1) ---
-Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights: 100%|##########| 201/201 [00:00<00:00, 4184.64it/s]
-  0.892  zapomnia³em has³a i loginu, co teraz zrobiæ
-  0.607  towar przyszed³ uszkodzony, czy dostanê zwrot pieniê
-  1.000  sprzedawca nie odpowiada na wiadomoœci, jak go zg³os
-  0.930  chcê zwróciæ towar kupiony na raty, jak to zrobiæ
-  0.907  p³atnoœæ siê nie powiod³a, a pieni¹dze zniknê³y z ko
-  0.771  kupi³em coœ przez pomy³kê, czy mogê anulowaæ zamówie
-  0.645  sprzedawca prosi o dop³atê poza allegro, czy to bezp
-  0.434  chcê zamkn¹æ konto, ale mam niedokoñczone zamówienie
-  0.286  nie mam ju¿ dostêpu do maila, jak odzyskaæ konto
-  0.480  zgubi³em kartê podarunkow¹, czy da siê j¹ odzyskaæ
-  0.670  chcê kupiæ na raty, ale nie wiem czy mnie na to staæ
-  0.492  dosta³em powiadomienie o naruszeniu zasad, co teraz 
-  0.685  paczka nie dotar³a na czas, a sprzedawca milczy, co 
-  0.669  chcê zmieniæ dane w allegro pay, ale konto jest zwer
-  0.205  mam dwa konta na allegro, czy to jest dozwolone
-  0.558  zapomnia³em has³a, nie mam dostêpu do maila i nie pa
-  0.622  towar przyszed³ uszkodzony, sprzedawca nie odpowiada
-  0.529  chcê zwróciæ produkt kupiony na raty przez allegro p
-  0.761  p³atnoœæ nie przesz³a, pieni¹dze zniknê³y, a zamówie
-  0.315  mam zweryfikowane konto firmowe, chcê dodaæ drugie k
-  0.776  sprzedawca proponuje p³atnoœæ poza allegro, a ja ju¿
-  0.812  kupi³em coœ na raty, potem chcia³em to zwróciæ, a te
-  0.490  moje konto zosta³o zawieszone, nie wiem dlaczego, a 
-  0.445  zamówi³em coœ z allegro smart, paczka nie przysz³a, 
-  0.268  chcê usun¹æ konto, mam na nim punkty i kupony, i zas
-  0.400  mam problem z logowaniem, dwuetapowa weryfikacja nie
-  0.524  zg³osi³em reklamacjê, sprzedawca j¹ odrzuci³, a ja n
-  0.822  co zrobiæ gdy sprzedawca nie wys³a³ towaru na czas
-  0.811  zamowilem na raty, chce zwrocic czesc, a druga czesc
-
---- OOD (powinny mie NISKIE pokrycie) (29 pytan x 1) ---
-  0.000  ile to jest dwa plus dwa <-- ODMOWA
-  0.075  jaka jest stolica Francji <-- ODMOWA
-  0.397  podaj przepis na pierogi
-  0.161  kto wygral mistrzostwa swiata w pilce noznej <-- ODMOWA
-  0.314  jak zmienic olej w samochodzie
-  0.111  napisz wiersz o jesieni <-- ODMOWA
-  0.000  jaka jest dzisiaj pogoda <-- ODMOWA
-  0.000  przetlumacz dzien dobry na angielski <-- ODMOWA
-  0.267  kto jest prezydentem Polski
-  0.241  opowiedz mi dowcip
-  0.332  jak schudnac dziesiec kilogramow
-  0.165  napisz kod w pythonie sortujacy liste <-- ODMOWA
-  0.413  jak sprzedawac na olx
-  0.048  ile kosztuje najnowszy iphone <-- ODMOWA
-  0.754  jak zalozyc wlasna firme
-  0.129  jaka jest najlepsza karta graficzna do gier <-- ODMOWA
-  0.276  jak ugotowac ryz zeby sie nie kleil
-  0.134  poradz mi cos na przeziebienie <-- ODMOWA
-  0.488  ile allegro bierze prowizji od sprzedawcy
-  0.824  jak wystawic przedmiot na sprzedaz
-  0.878  jaki jest numer telefonu do allegro
-  0.515  kiedy beda promocje na black friday
-  0.659  czy allegro ma sklepy stacjonarne
-  0.544  aplikacja allegro zawiesza sie na moim telefonie
-  1.000  kto jest wlascicielem allegro
-  0.481  czy moge kupic akcje allegro na gieldzie
-  0.371  czy amazon jest tanszy niz allegro
-  0.805  jak promowac swoja oferte zeby byla wyzej
-  0.105  ile zarabia kurier allegro <-- ODMOWA
-
---- rozklady ---
- legit  min 0.205  p5 0.268  mediana 0.622  max 1.000
-   OOD  min 0.000  p5 0.000  mediana 0.314  max 1.000
-
---- tabela decyzyjna ---
-  prog |  falsz. odmowy (legit) |  OOD zlapane
-  0.40 |    5/29                |   18/29     
-  0.35 |    4/29                |   16/29     
-  0.30 |    3/29                |   14/29     
-  0.25 |    1/29                |   12/29     
-  0.20 |    0/29                |   11/29       <- dzis
-  0.15 |    0/29                |    9/29     

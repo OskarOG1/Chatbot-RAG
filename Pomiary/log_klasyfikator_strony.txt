@@ -1,36 +1,0 @@
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 8345.83it/s]
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 37975.64it/s]
-=== trafnosc klasyfikatora (router_model domyslny) ===
-  [kupujacy_pl] pokrycie=0.240 precyzja=1.0 trafienia=12 zle=0 brak=38/50
-  [sprzedaz_pl] pokrycie=0.550 precyzja=0.8181818181818182 trafienia=9 zle=2 brak=9/20
-  [kupujacy_en] pokrycie=0.180 precyzja=1.0 trafienia=9 zle=0 brak=41/50
-  [sprzedaz_en] pokrycie=0.263 precyzja=1.0 trafienia=5 zle=0 brak=14/19
-  pokrycie srednie = 0.308
-
---- rozklad na OOD (poprawna odpowiedz: NIEPEWNE/UNSURE) ---
-  [pl] udzial_niepewne=0.862 niepewne=25/29 kupujacy=0 sprzedajacy=4
-  [en] udzial_niepewne=0.897 niepewne=26/29 kupujacy=0 sprzedajacy=3
-
---- porownanie modeli (alt=speakleash/Bielik-11B-v3.0-Instruct) ---
-  [kupujacy_pl][swiss-ai/apertus-v1.5-8b] pokrycie=0.240 precyzja=1.0
-  [kupujacy_pl][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.420 precyzja=1.0
-  [sprzedaz_pl][swiss-ai/apertus-v1.5-8b] pokrycie=0.550 precyzja=0.8181818181818182
-  [sprzedaz_pl][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.500 precyzja=0.9
-  [kupujacy_en][allenai/Olmo-3-7B-Instruct] pokrycie=0.180 precyzja=1.0
-  [kupujacy_en][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.420 precyzja=1.0
-  [sprzedaz_en][allenai/Olmo-3-7B-Instruct] pokrycie=0.263 precyzja=1.0
-  [sprzedaz_en][speakleash/Bielik-11B-v3.0-Instruct] pokrycie=0.632 precyzja=0.9166666666666666
-
---- latencja jednego wywolania ---
-  [pl] mediana=0.323s p95=0.324s
-  [en] mediana=0.299s p95=0.324s
-
-=== bramki etapu 1 ===
-BRAMKI NIE PRZESZLY:
-  - pokrycie kupujacy_pl: 0.240 < 0.35
-  - precyzja sprzedaz_pl: 0.8181818181818182 < 0.9
-  - pokrycie kupujacy_en: 0.180 < 0.35
-  - pokrycie sprzedaz_en: 0.263 < 0.35
-  - pokrycie srednie: 0.308 < 0.45
-
-zapisano: C:\Dev\allegro-rag-agents\outputs\measure_klasyfikator_strony.json
