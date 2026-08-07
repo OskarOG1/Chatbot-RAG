@@ -5,6 +5,7 @@ import faiss
 from sentence_transformers import SentenceTransformer, CrossEncoder
 import unicodedata
 import pickle
+import os
 from collections import Counter
 import simplemma
 from lang_config import LANG
@@ -12,6 +13,7 @@ from lang_config import LANG
 RERANKER_NAME = 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1'
 RERANKER = None
 MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
+RERANKER_BATCH = int(os.getenv('RERANKER_BATCH', '16'))
 
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
@@ -46,7 +48,7 @@ def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl')
         return []
 
     pary = [(query, chunk['tekst']) for chunk, _ in linki]
-    scores = get_reranker().predict(pary, batch_size=16)
+    scores = get_reranker().predict(pary, batch_size=RERANKER_BATCH)
 
     najlepszy = {}
     for (chunk, _), s in zip(linki, scores):
