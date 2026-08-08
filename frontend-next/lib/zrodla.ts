@@ -24,8 +24,11 @@ function zbudujZrodlo(url: string, tytul: string | null | undefined): Zrodlo {
   }
 }
 
-export function przygotujOdpowiedz(tekst: string, citations: Cytat[]): { tekst: string; zrodla: Zrodlo[] } {
-  if (citations.length === 0) return { tekst, zrodla: [] };
+export function przygotujOdpowiedz(
+  tekst: string,
+  citations: Cytat[]
+): { tekst: string; zrodla: Zrodlo[]; zacytowano: boolean } {
+  if (citations.length === 0) return { tekst, zrodla: [], zacytowano: false };
 
   const unikalneUrl: string[] = [];
   const tytulyUrl = new Map<string, string | null | undefined>();
@@ -38,13 +41,16 @@ export function przygotujOdpowiedz(tekst: string, citations: Cytat[]): { tekst: 
     }
   }
 
+  let zacytowano = false;
   const mapaN = new Map(citations.map((c) => [c.n, indeksUrl.get(c.url) as number]));
   const przepisany = tekst.replace(/\[(\d+)\]/g, (dopasowanie, n) => {
     const indeks = mapaN.get(Number(n));
-    return indeks === undefined ? dopasowanie : `[[${indeks + 1}]](${unikalneUrl[indeks]})`;
+    if (indeks === undefined) return dopasowanie;
+    zacytowano = true;
+    return `[[${indeks + 1}]](${unikalneUrl[indeks]})`;
   });
 
-  return { tekst: przepisany, zrodla: unikalneUrl.map((url) => zbudujZrodlo(url, tytulyUrl.get(url))) };
+  return { tekst: przepisany, zrodla: unikalneUrl.map((url) => zbudujZrodlo(url, tytulyUrl.get(url))), zacytowano };
 }
 
 const URL_REGEX = /https?:\/\/\S+|\bwww\.\S+/gi;
