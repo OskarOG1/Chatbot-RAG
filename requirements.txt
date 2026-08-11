@@ -3,14 +3,9 @@ huggingface_hub
 faiss-cpu==1.14.3
 rank-bm25==0.2.2
 simplemma==1.2.0
-tiktoken==0.13.0
 httpx==0.28.1
-beautifulsoup4==4.15.0
 numpy==2.5.1
-PyYAML==6.0.3
 fastapi==0.139.0
 uvicorn==0.51.0
 wordfreq==3.1.1
 python-dotenv
-pytest==9.1.1
-playwright==1.61.0

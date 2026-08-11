@@ -56,7 +56,7 @@ def przydzial_kandydatow(prior: str | None, sila: str | None) -> dict[str, int]:
 
 
 def rozstrzygnij(chunks: list[tuple[dict, float]], prior: str | None, sila: str | None,
-                  k: int = 5, kara: float = BONUS_PRIOR) -> tuple[str, list[tuple[dict, float]], bool]:
+                  k: int = 5, premia: float = BONUS_PRIOR) -> tuple[str, list[tuple[dict, float]], bool]:
     if not chunks:
         return 'kupujacy', [], False
 
@@ -65,7 +65,7 @@ def rozstrzygnij(chunks: list[tuple[dict, float]], prior: str | None, sila: str 
     for chunk, score in chunks:
         strona = strona_chunka(chunk)
         surowe_grupy[strona].append(score)
-        bonus_grupy[strona].append(score + (kara if strona == prior else 0.0))
+        bonus_grupy[strona].append(score + (premia if strona == prior else 0.0))
 
     for strona in STRONY:
         surowe_grupy[strona].sort(reverse=True)
@@ -89,11 +89,11 @@ def rozstrzygnij(chunks: list[tuple[dict, float]], prior: str | None, sila: str 
     else:
         inna_strona = next(s for s in STRONY if s != prior)
         przewaga_surowa = wynik_surowy[inna_strona] - wynik_surowy[prior]
-        czy_pytac = przewaga_surowa > kara + MARGINES_REMIS
+        czy_pytac = przewaga_surowa > premia + MARGINES_REMIS
 
-    def klucz_kary(para: tuple[dict, float]) -> float:
+    def klucz_premii(para: tuple[dict, float]) -> float:
         chunk, score = para
-        return score + (kara if strona_chunka(chunk) == prior else 0.0)
+        return score + (premia if strona_chunka(chunk) == prior else 0.0)
 
-    chunks_top = sorted(chunks, key=klucz_kary, reverse=True)[:k]
+    chunks_top = sorted(chunks, key=klucz_premii, reverse=True)[:k]
     return zwyciezca, chunks_top, czy_pytac

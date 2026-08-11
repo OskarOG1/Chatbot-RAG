@@ -1,7 +1,7 @@
 
 from huggingface_hub import InferenceClient
-from links import ARTYKUL_REGEX
-from lang_config import LANG, MODEL_11B
+from urls import ARTYKUL_REGEX
+from lang_config import LANG, MODEL_11B, MODEL_DOMYSLNY
 from pathlib import Path
 from dotenv import load_dotenv
 import re
@@ -10,7 +10,6 @@ import os
 load_dotenv(Path(__file__).resolve().parent / '.env')
 
 MODEL_7B_LOKALNY = 'SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M'
-MODEL_1_5B_LOKALNY = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
 MODEL_NAME = LANG['pl']['model']
 MODEL_FALLBACK = os.getenv('MODEL_FALLBACK', MODEL_7B_LOKALNY)
 SEDZIA_MODEL = LANG['pl']['sedzia_model']
@@ -22,6 +21,19 @@ klient = InferenceClient(
     api_key=os.getenv('LLM_API_KEY', 'ollama'),
     timeout=float(os.getenv('LLM_TIMEOUT', '150')),
 )
+
+
+def czat(nazwa: str, wiadomosci: list[dict], **kwargy):
+    try:
+        return klient.chat.completions.create(model=nazwa, messages=wiadomosci,
+                                              stream=False, **kwargy)
+    except Exception as e:
+        if nazwa == MODEL_DOMYSLNY:
+            raise
+        print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), '
+              f'fallback na {MODEL_DOMYSLNY}', flush=True)
+        return klient.chat.completions.create(model=MODEL_DOMYSLNY, messages=wiadomosci,
+                                              stream=False, **kwargy)
 
 PROMPTY = {
     'pl': {

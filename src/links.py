@@ -2,16 +2,12 @@ import json
 import time
 from bs4 import BeautifulSoup
 import httpx
-import re
 from pathlib import Path
+from urls import ARTYKUL_REGEX
+from links_wspolne import HEADER
 
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
-
-ARTYKUL_REGEX = re.compile(
-    r'^https://allegro\.pl/pomoc/dla-kupujacych/[^/]+/[^/]+-[A-Za-z0-9]{6,}$'
-    r'|^https://help\.allegro\.com/(?:pl|en)/sell/a/[^/]+-[A-Za-z0-9]{6,}$'
-)
 
 
 KATEGORIE = {
@@ -112,10 +108,6 @@ PODSLUG_DO_AGENTA = {
 }
 
 BASE_URL = 'https://allegro.pl'
-HEADER = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept-Language': 'pl-PL,pl;q=0.9,en;q=0.8',
-}
 
 def wyciagnij_podslug(url: str) -> str:
     czesci = url.split("/")

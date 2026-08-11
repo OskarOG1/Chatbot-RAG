@@ -1,6 +1,7 @@
 # Kroki 4 i 6 z PLAN_KLASYFIKATOR_FORUM.md: model liniowy rozpoznajacy sekcje forum,
 # kalibracja progow oferty, dwa punkty odniesienia, kontrola OOD i weto rozkladowe.
-# Generuje src/wagi_forum.py, jedyny plik produkcyjny z tej pracy.
+# Generuje Pomiary/wagi_forum.py. Zaden plik w src/ go nie importuje (patrz
+# PLAN_DLUG_SRC.md pozycja 9), czytaja go wylacznie skrypty pomiarowe w tym katalogu.
 #
 # ESTYMATOR. Ten sam co w PLAN_WAGI_STRON.md, rozszerzony na wiele klas przez jeden
 # przeciw reszcie. Dla klasy c i lematu t, na wycinku uczacym:
@@ -40,7 +41,7 @@ from pathlib import Path
 import dane_forum
 
 WYJSCIE = dane_forum.OUT_DIR / 'klasyfikator_forum.json'
-MODUL = dane_forum.ROOT / 'src' / 'wagi_forum.py'
+MODUL = dane_forum.ROOT / 'Pomiary' / 'wagi_forum.py'
 SKRYPT_CZASU = Path(__file__).resolve().parent / 'czas_klasyfikacji_forum.py'
 
 ALFA0 = 500

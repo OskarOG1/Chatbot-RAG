@@ -82,7 +82,7 @@ def wczytaj_pytania() -> list[tuple[str, str]]:
 
 
 def oblicz_wpis(query: str, lang: str, embedery: dict, reranker, top_n: int, wsad: int) -> dict:
-    """Jeden wpis tablicy: dla kazdego agenta top_n kandydatow w kolejnosci RRF (NO_dedup),
+    """Jeden wpis tablicy: dla kazdego agenta top_n kandydatow w kolejnosci RRF (kandydaci_rrf),
     kazdy z wlasnym wynikiem rerankera. Wydzielone z main(), zeby Pomiary/weryfikuj_tablice.py
     moglo policzyc te sama rzecz dla garstki pytan bez przechodzenia przez caly plik wejsciowy."""
     emb = embedery[lang].encode([LANG[lang]['query_prefix'] + query]).astype('float32')
@@ -90,7 +90,7 @@ def oblicz_wpis(query: str, lang: str, embedery: dict, reranker, top_n: int, wsa
 
     wpis = {}
     for agent in AGENCI:
-        kandydaci = rankings.NO_dedup(query, emb, agent, top_n, lang)
+        kandydaci = rankings.kandydaci_rrf(query, emb, agent, top_n, lang)
         if not kandydaci:
             wpis[agent] = []
             continue

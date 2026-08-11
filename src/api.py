@@ -21,7 +21,7 @@ import time
 import traceback
 import json
 
-AGENCI_ROZGRZEWKA_PL = ('kupujacy', 'sprzedaz', 'konto', 'zakupy', 'platnosci')
+AGENCI_ROZGRZEWKA_PL = ('kupujacy', 'sprzedaz')
 AGENCI_ROZGRZEWKA_EN = ('kupujacy', 'sprzedaz')
 
 _zamek = threading.Lock()
@@ -38,6 +38,7 @@ _zapytania_ip: 'OrderedDict[str, deque]' = OrderedDict()
 LIMIT_WYSYLKA_MIN = int(os.getenv('LIMIT_WYSYLKA_MIN', '5'))
 LIMIT_WYSYLKA_DZIEN = int(os.getenv('LIMIT_WYSYLKA_DZIEN', '40'))
 LIMIT_WYSYLKA_ADRES_S = int(os.getenv('LIMIT_WYSYLKA_ADRES_S', '600'))
+WYSYLKA_ADRES_MAX = int(os.getenv('WYSYLKA_ADRES_MAX', '500'))
 _wysylki = deque()
 _wysylki_adres: 'OrderedDict[str, float]' = OrderedDict()
 TICKET_MAX = int(os.getenv('TICKET_MAX', '5000'))
@@ -169,7 +170,7 @@ def w_limicie_adresu(email: str) -> bool:
             return False
         _wysylki_adres[klucz] = teraz
         _wysylki_adres.move_to_end(klucz)
-        if len(_wysylki_adres) > 500:
+        if len(_wysylki_adres) > WYSYLKA_ADRES_MAX:
             _wysylki_adres.popitem(last=False)
         return True
 
@@ -184,7 +185,7 @@ def rejestruj_adres(email: str) -> None:
     with _zamek:
         _wysylki_adres[klucz] = time.time()
         _wysylki_adres.move_to_end(klucz)
-        if len(_wysylki_adres) > 500:
+        if len(_wysylki_adres) > WYSYLKA_ADRES_MAX:
             _wysylki_adres.popitem(last=False)
 
 
