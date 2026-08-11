@@ -1,4 +1,8 @@
+from pathlib import Path
+from dotenv import load_dotenv
 import os
+
+load_dotenv(Path(__file__).resolve().parent / '.env')
 
 MODEL_11B = 'speakleash/Bielik-11B-v3.0-Instruct'
 MODEL_DOMYSLNY = 'swiss-ai/apertus-v1.5-8b'
@@ -44,6 +48,10 @@ LANG = {
             'sprzedajacy': 'sprzedający',
         },
         'strona_doprecyzuj': 'Pytasz jako kupujący czy jako sprzedający na Allegro?',
+        'nota_sekcji': {
+            'kupujacy': 'Ta odpowiedź pochodzi z sekcji dla kupujących, bo tam opisano ten temat.',
+            'sprzedajacy': 'Ta odpowiedź pochodzi z sekcji dla sprzedających, bo tam opisano ten temat.',
+        },
         'guardy': {
             'za_krotkie': 'Napisz proszę pełne pytanie.',
             'za_dlugie': 'Pytanie jest za długie, opisz jeden problem na raz.',
@@ -186,6 +194,10 @@ LANG = {
             'sprzedajacy': 'seller',
         },
         'strona_doprecyzuj': 'Are you asking as a buyer or as a seller on Allegro?',
+        'nota_sekcji': {
+            'kupujacy': 'This answer comes from the buyer section, that is where the topic is covered.',
+            'sprzedajacy': 'This answer comes from the seller section, that is where the topic is covered.',
+        },
         'guardy': {
             'za_krotkie': 'Please write a complete question.',
             'za_dlugie': 'The question is too long, please describe one issue at a time.',

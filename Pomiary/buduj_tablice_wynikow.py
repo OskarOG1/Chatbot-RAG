@@ -32,7 +32,7 @@ import faiss
 from sentence_transformers import SentenceTransformer
 
 import rankings
-from rankings import RERANKER_NAME, MODEL_NAME, get_reranker
+from rankings import RERANKER_NAME, get_reranker
 from lang_config import LANG
 from measure import GOLDEN, OOD
 from measure_en import golden_en, ood_en
@@ -105,7 +105,7 @@ def zapisz(sciezka: Path, wyniki: dict, sha_chunkow: dict, sha_faiss: dict, sha_
     dane = {
         'odcisk': {
             'reranker': RERANKER_NAME,
-            'embedder_pl': MODEL_NAME,
+            'embedder_pl': LANG['pl']['embedder'],
             'embedder_en': LANG['en']['embedder'],
             'sha256_chunkow': sha_chunkow,
             'sha256_faiss': sha_faiss,
@@ -149,7 +149,7 @@ def main() -> None:
     print(f'pytan do policzenia: {len(pytania)}')
 
     embedery = {
-        'pl': SentenceTransformer(MODEL_NAME, device=urzadzenie),
+        'pl': SentenceTransformer(LANG['pl']['embedder'], device=urzadzenie),
         'en': SentenceTransformer(LANG['en']['embedder'], device=urzadzenie),
     }
     reranker = get_reranker()

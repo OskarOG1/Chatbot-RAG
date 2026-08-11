@@ -32,7 +32,13 @@ def test_pytanie_z_lepkim_agentem_ma_prior_tylko_przy_followupie():
     assert sila == 'lepka'
 
 
-def test_pytanie_bez_followupu_ignoruje_lepki_agent():
+def test_pytanie_bez_wlasnego_sygnalu_dziedziczy_lepki_agent_bez_followupu():
     prior, sila = strony.prior_strony('ile to bedzie trwac', 'sprzedaz', 'pl', czy_followup=False)
+    assert prior == 'sprzedajacy'
+    assert sila == 'lepka'
+
+
+def test_pytanie_bez_agenta_poprzedniego_i_bez_sygnalu_nie_ma_priora():
+    prior, sila = strony.prior_strony('ile to bedzie trwac', None, 'pl', czy_followup=False)
     assert prior is None
     assert sila is None

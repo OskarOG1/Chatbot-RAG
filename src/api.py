@@ -302,6 +302,7 @@ class ChatResponse(BaseModel):
    sources: list[str]
    citations: list[Cytat]
    doprecyzowanie: str | None = None
+   nota_sekcji: str | None = None
    oferta: str | None = None
    oferta_kategoria: str | None = None
    kategoria: str | None = None

@@ -4,12 +4,14 @@ import { useTheme, DISPLAY, BODY } from '@/lib/theme';
 import { przygotujOdpowiedz } from '@/lib/zrodla';
 import { TEKSTY, type Cytat, type Lang } from '@/lib/chat';
 import SourceList from './SourceList';
+import InfoBanner from './InfoBanner';
 
 interface Props {
   role: 'user' | 'assistant';
   content: string;
   lang: Lang;
   citations?: Cytat[];
+  notaSekcji?: string | null;
   action?: string | null;
   onAction?: (tekst: string) => void;
   pytaStrona?: boolean;
@@ -22,6 +24,7 @@ export default function ChatMessage({
   content,
   lang,
   citations = [],
+  notaSekcji,
   action,
   onAction,
   pytaStrona,
@@ -124,6 +127,8 @@ export default function ChatMessage({
           {tresc}
         </ReactMarkdown>
       </div>
+
+      {notaSekcji && <InfoBanner tekst={notaSekcji} />}
 
       {zrodla.length > 0 && (
         <SourceList zrodla={zrodla} label={zacytowano ? t.sourcesLabel : t.possibleSourcesLabel} />

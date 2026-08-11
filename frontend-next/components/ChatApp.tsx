@@ -365,6 +365,7 @@ export default function ChatApp() {
               content: dane?.answer ?? bladTekst ?? t.noResponse,
               citations: dane?.citations ?? [],
               doprecyzowanie: powtorzonaDoprecyzacja ? null : dane?.doprecyzowanie ?? null,
+              notaSekcji: dane?.nota_sekcji ?? null,
               action: dane?.oferta ?? null,
               pytaStrona: dane?.pyta_strona ?? false,
               zapytanieDoStrony: dane?.pyta_strona ? wiadomosc : undefined,
@@ -604,6 +605,7 @@ export default function ChatApp() {
                     content={m.content}
                     lang={lang}
                     citations={m.citations}
+                    notaSekcji={m.notaSekcji}
                     action={m.action}
                     onAction={wyslij}
                     pytaStrona={m.pytaStrona}

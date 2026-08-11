@@ -1,5 +1,5 @@
-from lang_config import LANG
-from agents_core import PROMPTY, klient, context, KATEGORIE_MAIL, ETYKIETY_STRON, MODEL_DOMYSLNY
+from lang_config import LANG, MODEL_DOMYSLNY
+from agents_core import PROMPTY, klient, context, KATEGORIE_MAIL, ETYKIETY_STRON
 import re
 
 

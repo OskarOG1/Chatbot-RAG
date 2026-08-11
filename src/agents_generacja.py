@@ -14,8 +14,8 @@ def otworz_strumien(nazwa: str, wiadomosci: list[dict], stop: list[str]):
     )
 
 
-def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
-                  history:list[dict] | None=None, lang:str='pl'):
+def zbuduj_wiadomosci(query: str, agent: str, chunks: list[dict], bielik_model: str | None,
+                       history: list[dict] | None, lang: str) -> tuple[list[dict], list[str], str, dict]:
     p = PROMPTY[lang]
     system_prompt = p['system_prompty'][agent] + p['grounding'] + p['cytaty_instrukcja']
     teksty = [c for c, _ in chunks]
@@ -31,6 +31,19 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
     wiadomosci.append({'role': 'user', 'content': tresc})
 
     stop = [f"{p['pytanie_label']}:", '<|start_header_id|>']
+    return wiadomosci, stop, nazwa, p
+
+
+def sfinalizuj(pelna: str, chunks: list, p: dict) -> dict:
+    pelna = re.sub(r'<\|.*?\|>', '', pelna)
+    pelna = pelna.removeprefix(p['odpowiedz_prefix']).strip()
+    return verify_answer(pelna, chunks)
+
+
+def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
+                  history:list[dict] | None=None, lang:str='pl'):
+    wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang)
+
     try:
         strumien = otworz_strumien(nazwa, wiadomosci, stop)
         pierwszy = next(strumien)
@@ -52,28 +65,13 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
         pelna += token
         yield {'typ': 'token', 'tekst': token}
 
-    pelna = re.sub(r'<\|.*?\|>', '', pelna)
-    pelna = pelna.removeprefix(p['odpowiedz_prefix']).strip()
-    yield {'typ': 'koniec', 'dane': verify_answer(pelna, chunks)}
+    yield {'typ': 'koniec', 'dane': sfinalizuj(pelna, chunks, p)}
 
 
 def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
            history:list[dict] | None=None, lang:str='pl') -> dict:
-    p = PROMPTY[lang]
-    system_prompt = p['system_prompty'][agent] + p['grounding'] + p['cytaty_instrukcja']
-    teksty = [c for c, _ in chunks]
-    kontekst = context(teksty)
+    wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang)
 
-    tresc = f"{p['kontekst_label']}:\n{kontekst}\n\n{p['pytanie_label']}: {query}"
-    nazwa = bielik_model or LANG[lang]['model']
-
-    wiadomosci = [{'role': 'system', 'content': system_prompt}]
-    for w in (history or []):
-        if w.get('role') in ('user', 'assistant') and w.get('content'):
-            wiadomosci.append({'role': w['role'], 'content': w['content']})
-    wiadomosci.append({'role': 'user', 'content': tresc})
-
-    stop = [f"{p['pytanie_label']}:", '<|start_header_id|>']
     try:
         odp = klient.chat.completions.create(
             model=nazwa, messages=wiadomosci, stream=False, max_tokens=MAX_TOKENS, stop=stop,
@@ -86,9 +84,7 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
         )
 
     pelna = odp.choices[0].message.content
-    pelna = re.sub(r'<\|.*?\|>', '', pelna)
-    pelna = pelna.removeprefix(p['odpowiedz_prefix']).strip()
-    return verify_answer(pelna, chunks)
+    return sfinalizuj(pelna, chunks, p)
 
 
 def przepisz_zapytanie(query: str, history: list[dict] | None, bielik_model: str | None = None,

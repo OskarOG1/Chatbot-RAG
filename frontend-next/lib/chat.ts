@@ -21,6 +21,7 @@ export interface ChatResponse {
   sources: string[];
   citations: Cytat[];
   doprecyzowanie: string | null;
+  nota_sekcji: string | null;
   oferta: string | null;
   oferta_kategoria: string | null;
   kategoria: string | null;
