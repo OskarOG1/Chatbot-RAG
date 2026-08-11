@@ -11,7 +11,6 @@ from lang_config import LANG
 
 RERANKER_NAME = 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1'
 RERANKER = None
-MODEL_NAME = 'sdadas/mmlw-retrieval-roberta-base'
 RERANKER_BATCH = int(os.getenv('RERANKER_BATCH', '16'))
 
 ROOT = Path(__file__).resolve().parent.parent

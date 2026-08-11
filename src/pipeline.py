@@ -274,19 +274,21 @@ def run_stream(query:str, bielik_model:str | None=None,
     yield krok(cfg['kroki']['przeszukuje_baze'])
 
     if strona in strony.STRONY:
-        chunks = search_reranked_multi(zapytanie_ret, query_emb, [strony.STRONA_DO_AGENTA[strona]],
-                                        k=5, k_surowe=20, lang=lang)
-        strona_wybrana, czy_pytac = strona, False
+        prior, sila = strona, 'wybor'
     else:
         prior, sila = strony.prior_strony(zapytanie_ret, agent_poprzedni, lang, czy_followup)
         if prior is None and KLASYFIKATOR_ON:
             yield krok(cfg['kroki']['rozpoznaje_strone'])
             prior = strona_pytania(zapytanie_ret, history, lang)
             sila = 'llm' if prior else None
-        kwoty = strony.przydzial_kandydatow(prior, sila)
-        chunks_szerokie = search_reranked_multi(zapytanie_ret, query_emb, list(kwoty),
-                                                  k=10, k_surowe=kwoty, lang=lang)
-        strona_wybrana, chunks, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=5)
+
+    kwoty = strony.przydzial_kandydatow(prior, sila)
+    chunks_szerokie = search_reranked_multi(zapytanie_ret, query_emb, list(kwoty),
+                                              k=sum(kwoty.values()), k_surowe=kwoty, lang=lang)
+    kara = strony.KARA_WYBOR if sila == 'wybor' else strony.BONUS_PRIOR
+    strona_wybrana, chunks, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=5, kara=kara)
+    if sila == 'wybor':
+        strona_wybrana, czy_pytac = strona, False
 
     if czy_pytac:
         yield wynik({'agent': '', 'answer': cfg['strona_doprecyzuj'],
@@ -354,12 +356,17 @@ def run_stream(query:str, bielik_model:str | None=None,
             oferta = cfg['mail_kategorie'][kategoria]['oferta']
             oferta_kategoria = kategoria
 
+    nota_sekcji = None
+    if sila == 'wybor' and strony.strona_chunka(chunks[0][0]) != strona:
+        nota_sekcji = cfg['nota_sekcji'][strony.strona_chunka(chunks[0][0])]
+
     zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
     yield wynik({'agent': agent_odp,
                  'answer': odpowiedz['tekst'],
                  'sources': zrodla,
                  'citations': cytaty_lub_zrodla(odpowiedz['cytaty'], chunks),
                  'doprecyzowanie': doprecyzowanie,
+                 'nota_sekcji': nota_sekcji,
                  'oferta': oferta,
                  'oferta_kategoria': oferta_kategoria,
                  'tryb': 'rag'})

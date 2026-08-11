@@ -5,6 +5,7 @@ STRONY = ('kupujacy', 'sprzedajacy')
 STRONA_DO_AGENTA = {'kupujacy': 'kupujacy', 'sprzedajacy': 'sprzedaz'}
 
 BONUS_PRIOR = 3.5
+KARA_WYBOR = 7.0
 MARGINES_REMIS = 0.5
 TOP_N_DECYZJA = 3
 
@@ -15,10 +16,6 @@ def strona_chunka(chunk: dict) -> str:
 
 def prior_strony(query: str, agent_poprzedni: str | None, lang: str = 'pl',
                   czy_followup: bool = False) -> tuple[str | None, str | None]:
-    if agent_poprzedni and czy_followup:
-        strona = 'sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'
-        return strona, 'lepka'
-
     cfg = LANG[lang]
     low = query.lower()
     tokeny = set(tokenize_words(low))
@@ -29,6 +26,11 @@ def prior_strony(query: str, agent_poprzedni: str | None, lang: str = 'pl',
 
     if len(trafienia) == 1:
         return next(iter(trafienia)), 'leksykalna'
+
+    if agent_poprzedni and (czy_followup or not trafienia):
+        strona = 'sprzedajacy' if agent_poprzedni == 'sprzedaz' else 'kupujacy'
+        return strona, 'lepka'
+
     return None, None
 
 
@@ -36,7 +38,9 @@ def przydzial_kandydatow(prior: str | None, sila: str | None) -> dict[str, int]:
     if prior is None:
         return {'kupujacy': 13, 'sprzedaz': 13}
 
-    if sila == 'leksykalna':
+    if sila == 'wybor':
+        preferowana, inna = 22, 6
+    elif sila == 'leksykalna':
         preferowana, inna = 20, 8
     elif sila == 'lepka':
         preferowana, inna = 18, 10
@@ -52,7 +56,7 @@ def przydzial_kandydatow(prior: str | None, sila: str | None) -> dict[str, int]:
 
 
 def rozstrzygnij(chunks: list[tuple[dict, float]], prior: str | None, sila: str | None,
-                  k: int = 5) -> tuple[str, list[tuple[dict, float]], bool]:
+                  k: int = 5, kara: float = BONUS_PRIOR) -> tuple[str, list[tuple[dict, float]], bool]:
     if not chunks:
         return 'kupujacy', [], False
 
@@ -61,7 +65,7 @@ def rozstrzygnij(chunks: list[tuple[dict, float]], prior: str | None, sila: str 
     for chunk, score in chunks:
         strona = strona_chunka(chunk)
         surowe_grupy[strona].append(score)
-        bonus_grupy[strona].append(score + (BONUS_PRIOR if strona == prior else 0.0))
+        bonus_grupy[strona].append(score + (kara if strona == prior else 0.0))
 
     for strona in STRONY:
         surowe_grupy[strona].sort(reverse=True)
@@ -85,7 +89,11 @@ def rozstrzygnij(chunks: list[tuple[dict, float]], prior: str | None, sila: str 
     else:
         inna_strona = next(s for s in STRONY if s != prior)
         przewaga_surowa = wynik_surowy[inna_strona] - wynik_surowy[prior]
-        czy_pytac = przewaga_surowa > BONUS_PRIOR + MARGINES_REMIS
+        czy_pytac = przewaga_surowa > kara + MARGINES_REMIS
 
-    chunks_top = chunks[:k]
+    def klucz_kary(para: tuple[dict, float]) -> float:
+        chunk, score = para
+        return score + (kara if strona_chunka(chunk) == prior else 0.0)
+
+    chunks_top = sorted(chunks, key=klucz_kary, reverse=True)[:k]
     return zwyciezca, chunks_top, czy_pytac

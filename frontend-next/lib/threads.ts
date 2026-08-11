@@ -6,6 +6,7 @@ export interface WiadomoscUi {
   content: string;
   citations?: Cytat[];
   doprecyzowanie?: string | null;
+  notaSekcji?: string | null;
   action?: string | null;
   pytaStrona?: boolean;
   zapytanieDoStrony?: string;

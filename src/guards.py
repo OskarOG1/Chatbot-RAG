@@ -1,6 +1,7 @@
 
 import re
 import unicodedata
+from lang_config import LANG
 
 MIN_ZNAKI = 3
 MAX_ZNAKI = 500
@@ -52,13 +53,7 @@ def wykryj_injekcje(q: str) -> bool:
     return False
 
 def sprawdz(query: str, guardy: dict | None = None) -> tuple[str, str] | None:
-    g = guardy or {
-        'za_krotkie': 'Napisz proszę pełne pytanie.',
-        'za_dlugie': 'Pytanie jest za długie, opisz jeden problem na raz.',
-        'nie_rozumiem': 'Nie rozumiem pytania. Czy możesz napisać je inaczej?',
-        'zly_alfabet': 'Pomagam w sprawach Allegro po polsku, napisz proszę pytanie po polsku.',
-        'injekcja': 'Mogę pomóc tylko w sprawach zakupów, konta i płatności.',
-    }
+    g = guardy or LANG['pl']['guardy']
     q = query.strip()
 
     if len(q) < MIN_ZNAKI:

@@ -24,7 +24,7 @@ import rankings
 import strony
 import tablica_rerank
 from lang_config import LANG
-from rankings import MODEL_NAME, get_reranker
+from rankings import get_reranker
 from buduj_tablice_wynikow import oblicz_wpis
 from measure_routing_strony import wczytaj_realny
 from tablica_rerank import klucz
@@ -41,7 +41,7 @@ def main() -> None:
                  + wczytaj_realny('sprzedaz', args.n, args.seed))
     print(f'pytan do porownania: {len(zapytania)}')
 
-    embedery = {'pl': SentenceTransformer(MODEL_NAME)}
+    embedery = {'pl': SentenceTransformer(LANG['pl']['embedder'])}
     reranker = get_reranker()
 
     tablica_wyniki = {}
