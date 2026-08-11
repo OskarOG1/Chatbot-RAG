@@ -3,9 +3,9 @@
 # odtwarza dokladnie to, co dzisiaj liczy rankings.search_reranked_multi(), czytajac wyniki
 # rerankera z tablicy zamiast wolac model. Uzywane wylacznie w trybie pomiaru.
 #
-# Wlasnosc, na ktorej to sie opiera: NO_dedup() zwraca zagniezdzone prefiksy tego samego
+# Wlasnosc, na ktorej to sie opiera: kandydaci_rrf() zwraca zagniezdzone prefiksy tego samego
 # rankingu RRF niezaleznie od k_surowe, wiec branie pierwszych k_surowe wpisow z listy
-# top_n=30 zapisanej w tablicy jest tozsame z policzeniem NO_dedup od nowa z mniejszym k_surowe.
+# top_n=30 zapisanej w tablicy jest tozsame z policzeniem kandydaci_rrf od nowa z mniejszym k_surowe.
 #
 # search_reranked_multi_z_tablicy czyta wpis[agent] wprost, bez .get(agent, []): oblicz_wpis
 # (buduj_tablice_wynikow.py) zawsze zapisuje klucz dla kazdego agenta z AGENCI, wiec brak klucza

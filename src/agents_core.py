@@ -1,6 +1,6 @@
 
 from huggingface_hub import InferenceClient
-from links import ARTYKUL_REGEX
+from urls import ARTYKUL_REGEX
 from lang_config import LANG, MODEL_11B
 from pathlib import Path
 from dotenv import load_dotenv
@@ -10,7 +10,6 @@ import os
 load_dotenv(Path(__file__).resolve().parent / '.env')
 
 MODEL_7B_LOKALNY = 'SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M'
-MODEL_1_5B_LOKALNY = 'SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0'
 MODEL_NAME = LANG['pl']['model']
 MODEL_FALLBACK = os.getenv('MODEL_FALLBACK', MODEL_7B_LOKALNY)
 SEDZIA_MODEL = LANG['pl']['sedzia_model']

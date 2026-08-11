@@ -23,7 +23,7 @@ def get_reranker():
         RERANKER = CrossEncoder(RERANKER_NAME, max_length=512)
     return RERANKER
 
-def NO_dedup(query, query_emb, agent, k_surowe, lang='pl'):
+def kandydaci_rrf(query, query_emb, agent, k_surowe, lang='pl'):
 
     chunki = wczytaj_chunki(agent, lang)
     r_faiss = ranking_faiss(query_emb, agent, chunki, lang)
@@ -37,7 +37,7 @@ def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl')
     linki = []
     for agent in agenci:
         k_surowe_agenta = k_surowe[agent] if isinstance(k_surowe, dict) else k_surowe
-        linki.extend(NO_dedup(query, query_emb, agent, k_surowe_agenta, lang))
+        linki.extend(kandydaci_rrf(query, query_emb, agent, k_surowe_agenta, lang))
 
     if not linki:
         return []

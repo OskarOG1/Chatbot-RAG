@@ -3,14 +3,12 @@ import json
 import random
 import re
 from pathlib import Path
-import yaml
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+from links_wspolne import USER_AGENT, zapisz_md
 
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
-
-USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 PL_ZNAKI = set('ąćęłńóśźżĄĆĘŁŃÓŚŹŻ')
 
@@ -83,16 +81,6 @@ async def pobierz_tresc(context, url: str, agent: str) -> dict | str | None:
 
     podslug = url.split('/')[5]
     return {'url': url, 'tytul': tytul, 'tresc': tresc, 'agent': agent, 'podslug': podslug}
-
-
-def zapisz_md(artykul: dict, docs_dir: Path) -> None:
-    nazwa = artykul['url'].rstrip('/').split('/')[-1] + '.md'
-    sciezka = docs_dir / artykul['agent'] / nazwa
-    sciezka.parent.mkdir(parents=True, exist_ok=True)
-
-    meta = {k: artykul[k] for k in ('url', 'tytul', 'agent', 'podslug')}
-    frontmatter = '---\n' + yaml.safe_dump(meta, allow_unicode=True, sort_keys=False) + '---\n\n'
-    sciezka.write_text(frontmatter + artykul['tresc'], encoding='utf-8')
 
 
 async def pobierz_wszystkie(zadania: list[tuple[str, str]], docs_dir: Path) -> dict:

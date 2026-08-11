@@ -35,8 +35,6 @@ PII_WZORCE = (
     re.compile(r'\b(?=[^\W_]*\d)[^\W_]{4,}\b'),
     re.compile(r'\bhttps?://\S+'),
 )
-PROG_POKRYCIA = LANG['pl']['prog_pokrycia']
-PROG_RERANK = LANG['pl']['prog_rerank']
 
 
 def followup(query: str, lang: str = 'pl') -> bool:
@@ -285,8 +283,8 @@ def run_stream(query:str, bielik_model:str | None=None,
     kwoty = strony.przydzial_kandydatow(prior, sila)
     chunks_szerokie = search_reranked_multi(zapytanie_ret, query_emb, list(kwoty),
                                               k=sum(kwoty.values()), k_surowe=kwoty, lang=lang)
-    kara = strony.KARA_WYBOR if sila == 'wybor' else strony.BONUS_PRIOR
-    strona_wybrana, chunks, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=5, kara=kara)
+    premia = strony.KARA_WYBOR if sila == 'wybor' else strony.BONUS_PRIOR
+    strona_wybrana, chunks, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=5, premia=premia)
     if sila == 'wybor':
         strona_wybrana, czy_pytac = strona, False
 
