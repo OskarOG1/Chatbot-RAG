@@ -1,7 +1,7 @@
 
 from huggingface_hub import InferenceClient
 from urls import ARTYKUL_REGEX
-from lang_config import LANG, MODEL_11B
+from lang_config import LANG, MODEL_11B, MODEL_DOMYSLNY
 from pathlib import Path
 from dotenv import load_dotenv
 import re
@@ -21,6 +21,19 @@ klient = InferenceClient(
     api_key=os.getenv('LLM_API_KEY', 'ollama'),
     timeout=float(os.getenv('LLM_TIMEOUT', '150')),
 )
+
+
+def czat(nazwa: str, wiadomosci: list[dict], **kwargy):
+    try:
+        return klient.chat.completions.create(model=nazwa, messages=wiadomosci,
+                                              stream=False, **kwargy)
+    except Exception as e:
+        if nazwa == MODEL_DOMYSLNY:
+            raise
+        print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), '
+              f'fallback na {MODEL_DOMYSLNY}', flush=True)
+        return klient.chat.completions.create(model=MODEL_DOMYSLNY, messages=wiadomosci,
+                                              stream=False, **kwargy)
 
 PROMPTY = {
     'pl': {
