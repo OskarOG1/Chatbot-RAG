@@ -1,6 +1,6 @@
 export type Lang = 'pl' | 'en';
 
-export type Tryb = 'rag' | 'email';
+export type Tryb = 'rag' | 'email' | 'rozmowa';
 
 export type Strona = 'kupujacy' | 'sprzedajacy';
 

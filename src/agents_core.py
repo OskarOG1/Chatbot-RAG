@@ -222,6 +222,29 @@ PROMPTY = {
         ),
         'router_pytanie': 'Kategoria (REKLAMACJA/ZWROT/FAKTURA/ESKALACJA/NONE):',
         'rozmowa_label': 'ROZMOWA',
+        'styl_modyfikatory': {
+            'prosciej': (
+                ' Poniższe „Pytanie" nie jest nowym pytaniem o inny temat, tylko krótką prośbą '
+                'użytkownika o prostsze wytłumaczenie Twojej OSTATNIEJ odpowiedzi z tej rozmowy, '
+                'bo jej nie zrozumiał. Napisz tę odpowiedź od nowa, prostszym językiem, krótszymi '
+                'zdaniami, bez żargonu, zachowując te same fakty i numery cytatów. Nie odpowiadaj '
+                'dosłownie tym samym tekstem co poprzednio.'
+            ),
+            'rozwin': (
+                ' Poniższe „Pytanie" nie jest nowym pytaniem o inny temat, tylko krótką prośbą '
+                'użytkownika o rozwinięcie Twojej OSTATNIEJ odpowiedzi z tej rozmowy. Podaj więcej '
+                'szczegółów i kontekstu na ten sam temat, opierając się wyłącznie na dostarczonym '
+                'kontekście, zachowując numery cytatów.'
+            ),
+            'potwierdzenie': (
+                ' Poniższe „Pytanie" nie jest nowym pytaniem o inny temat, tylko krótkim '
+                'potwierdzeniem użytkownika (np. „tak") po Twojej OSTATNIEJ odpowiedzi z tej '
+                'rozmowy. Krótko zapytaj, czy potrzebuje czegoś jeszcze w tym temacie, albo podaj '
+                'następny praktyczny krok związany z tą odpowiedzią, trzymając się wyłącznie '
+                'dostarczonego kontekstu. Nie zaczynaj zdaniami stwierdzającymi fakt, jakby to było '
+                'nowe pytanie o procedurę.'
+            ),
+        },
     },
     'en': {
         'grounding': (
@@ -417,6 +440,29 @@ PROMPTY = {
         ),
         'router_pytanie': 'Category (REKLAMACJA/ZWROT/FAKTURA/ESKALACJA/NONE):',
         'rozmowa_label': 'CONVERSATION',
+        'styl_modyfikatory': {
+            'prosciej': (
+                ' The "Question" below is not a new question on a different topic, it is a short '
+                "request from the user for a simpler explanation of YOUR LAST answer in this "
+                "conversation, because they didn't understand it. Rewrite that answer from scratch "
+                'in simpler language, with shorter sentences, no jargon, keeping the same facts and '
+                'citation numbers. Do not answer with the exact same text as before.'
+            ),
+            'rozwin': (
+                ' The "Question" below is not a new question on a different topic, it is a short '
+                'request from the user to expand on YOUR LAST answer in this conversation. Give more '
+                'detail and context on the same topic, relying only on the provided context, keeping '
+                'the citation numbers.'
+            ),
+            'potwierdzenie': (
+                ' The "Question" below is not a new question on a different topic, it is a brief '
+                'confirmation from the user (e.g. "yes") after YOUR LAST answer in this conversation. '
+                'Briefly ask whether they need anything else on this topic, or give the next '
+                'practical step related to that answer, staying strictly within the provided '
+                'context. Do not open with a statement of fact as if this were a new question about '
+                'a procedure.'
+            ),
+        },
     },
 }
 

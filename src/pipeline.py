@@ -6,6 +6,7 @@ from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
 from lang_config import LANG
 import strony
+import rozmowa
 from pathlib import Path
 from datetime import datetime, timezone
 import json
@@ -200,7 +201,8 @@ def cytaty_lub_zrodla(cytaty: list[dict], chunks: list[tuple[dict, float]]) -> l
 
 
 def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, history: list[dict],
-                   bielik_model: str | None, sedzia: bool | None, lang: str, cfg: dict):
+                   bielik_model: str | None, sedzia: bool | None, lang: str, cfg: dict,
+                   styl: str | None = None):
     def krok(t):
         return {'typ': 'krok', 'tekst': t}
     def rezultat(d):
@@ -226,7 +228,7 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
     yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=etykieta_sekcji))
     odpowiedz = None
     tokeny_bufor = []
-    for ev in answer_stream(query, agent_odp, chunks, bielik_model, history, lang):
+    for ev in answer_stream(query, agent_odp, chunks, bielik_model, history, lang, styl=styl):
         if ev['typ'] == 'token':
             tokeny_bufor.append(ev)
         elif ev['typ'] == 'koniec':
@@ -283,6 +285,21 @@ def run_stream(query:str, bielik_model:str | None=None,
     def wynik(d):
         return {'typ': 'wynik', 'dane': d}
 
+    history = (history or [])[-OKNO_HISTORII:]
+    klasa, reszta = rozmowa.klasa_tury(query, history, agent_poprzedni, lang)
+    if klasa in ('powitanie', 'podziekowanie', 'meta'):
+        yield wynik({'agent': '', 'answer': cfg['rozmowa'][klasa], 'sources': [],
+                     'citations': [], 'doprecyzowanie': None, 'tryb': 'rozmowa'})
+        return
+    query = reszta
+
+    styl = None
+    poprzednie_pytanie = None
+    if klasa == 'sterowanie':
+        styl = rozmowa.podklasa_sterowania(query, lang)
+        poprzednie_pytanie = next((w['content'] for w in reversed(history)
+                                   if w.get('role') == 'user' and w.get('content')), None)
+
     yield krok(cfg['kroki']['sprawdzam_pytanie'])
     wynik_guardu = sprawdz(query, cfg['guardy'])
     if wynik_guardu:
@@ -290,7 +307,6 @@ def run_stream(query:str, bielik_model:str | None=None,
         yield wynik({'agent': '', 'answer': powod, 'sources': [], 'citations': [],
                      'doprecyzowanie': None, 'powod_odmowy': f'guard_{nazwa_guardu}'})
         return
-    history = (history or [])[-OKNO_HISTORII:]
     bez_korekty = bez_korekty or lang != 'pl'
     if bez_korekty:
 
@@ -335,12 +351,15 @@ def run_stream(query:str, bielik_model:str | None=None,
                      'kategoria': kategoria, 'naglowek_ui': kat_cfg['naglowek_ui']})
         return
 
-    czy_followup = bool(history) and followup(query, lang)
-    if (history and przepisz) or czy_followup:
-        yield krok(cfg['kroki']['przepisuje_pytanie'])
-        zapytanie_ret = przepisz_zapytanie(query, history, bielik_model, lang)
+    if klasa == 'sterowanie' and poprzednie_pytanie:
+        zapytanie_ret = poprzednie_pytanie
     else:
-        zapytanie_ret = query
+        czy_followup = bool(history) and followup(query, lang)
+        if (history and przepisz) or czy_followup:
+            yield krok(cfg['kroki']['przepisuje_pytanie'])
+            zapytanie_ret = przepisz_zapytanie(query, history, bielik_model, lang)
+        else:
+            zapytanie_ret = query
 
     yield krok(cfg['kroki']['zamieniam_na_wektor'])
     query_emb = embed_query(lang, zapytanie_ret)
@@ -351,7 +370,7 @@ def run_stream(query:str, bielik_model:str | None=None,
 
     wynik_etapu = None
     for ev in probuj_sekcje(zapytanie_ret, query_emb, strona, query, history,
-                             bielik_model, sedzia, lang, cfg):
+                             bielik_model, sedzia, lang, cfg, styl=styl):
         if ev['typ'] == 'rezultat':
             wynik_etapu = ev['dane']
         else:
@@ -363,7 +382,7 @@ def run_stream(query:str, bielik_model:str | None=None,
         druga = next(s for s in strony.STRONY if s != strona)
         wynik_drugi = None
         for ev in probuj_sekcje(zapytanie_ret, query_emb, druga, query, history,
-                                 bielik_model, sedzia, lang, cfg):
+                                 bielik_model, sedzia, lang, cfg, styl=styl):
             if ev['typ'] == 'rezultat':
                 wynik_drugi = ev['dane']
             else:

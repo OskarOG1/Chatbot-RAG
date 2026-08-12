@@ -12,7 +12,7 @@ def test_kaskada_odpowiada_z_drugiej_sekcji_z_nota(monkeypatch):
                  'tytul': 'Artykul dla sprzedających', 'tekst': 'tresc o sprzedazy', 'naglowek': None}
         return [(chunk, 0.0)]
 
-    def falszywy_answer_stream(query, agent, chunks, bielik_model, history, lang):
+    def falszywy_answer_stream(query, agent, chunks, bielik_model, history, lang, styl=None):
         yield {'typ': 'koniec', 'dane': {
             'tekst': 'Odpowiedz z sekcji sprzedających [1].',
             'cytaty': [{'n': 1, 'url': chunks[0][0]['url'], 'tytul': chunks[0][0]['tytul']}]}}

@@ -15,9 +15,13 @@ def otworz_strumien(nazwa: str, wiadomosci: list[dict], stop: list[str]):
 
 
 def zbuduj_wiadomosci(query: str, agent: str, chunks: list[dict], bielik_model: str | None,
-                       history: list[dict] | None, lang: str) -> tuple[list[dict], list[str], str, dict]:
+                       history: list[dict] | None, lang: str,
+                       styl: str | None = None) -> tuple[list[dict], list[str], str, dict]:
     p = PROMPTY[lang]
-    system_prompt = p['system_prompty'][agent] + p['grounding'] + p['cytaty_instrukcja']
+    system_prompt = p['system_prompty'][agent] + p['grounding']
+    if styl:
+        system_prompt += p['styl_modyfikatory'][styl]
+    system_prompt += p['cytaty_instrukcja']
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
 
@@ -41,8 +45,8 @@ def sfinalizuj(pelna: str, chunks: list, p: dict) -> dict:
 
 
 def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
-                  history:list[dict] | None=None, lang:str='pl'):
-    wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang)
+                  history:list[dict] | None=None, lang:str='pl', styl:str | None=None):
+    wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang, styl)
 
     try:
         strumien = otworz_strumien(nazwa, wiadomosci, stop)
@@ -69,8 +73,8 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
 
 
 def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
-           history:list[dict] | None=None, lang:str='pl') -> dict:
-    wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang)
+           history:list[dict] | None=None, lang:str='pl', styl:str | None=None) -> dict:
+    wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang, styl)
 
     try:
         odp = klient.chat.completions.create(
