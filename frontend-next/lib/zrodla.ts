@@ -42,15 +42,23 @@ export function przygotujOdpowiedz(
   }
 
   let zacytowano = false;
+  const uzyteIndeksy = new Set<number>();
   const mapaN = new Map(citations.map((c) => [c.n, indeksUrl.get(c.url) as number]));
   const przepisany = tekst.replace(/\[(\d+)\]/g, (dopasowanie, n) => {
     const indeks = mapaN.get(Number(n));
     if (indeks === undefined) return dopasowanie;
     zacytowano = true;
+    uzyteIndeksy.add(indeks);
     return `[[${indeks + 1}]](${unikalneUrl[indeks]})`;
   });
 
-  return { tekst: przepisany, zrodla: unikalneUrl.map((url) => zbudujZrodlo(url, tytulyUrl.get(url))), zacytowano };
+  const widoczneUrl = zacytowano ? unikalneUrl.filter((_, i) => uzyteIndeksy.has(i)) : unikalneUrl;
+
+  return {
+    tekst: przepisany,
+    zrodla: widoczneUrl.map((url) => zbudujZrodlo(url, tytulyUrl.get(url))),
+    zacytowano,
+  };
 }
 
 const URL_REGEX = /https?:\/\/\S+|\bwww\.\S+/gi;
