@@ -49,7 +49,7 @@ def test_idf_leniwe_nie_laduje_wszystkich_jezykow(monkeypatch):
 
     def falszywy_zaladuj_idf(lang):
         zaladowane.append(lang)
-        return ({}, 1.0)
+        return ({}, 1.0, True)
 
     monkeypatch.setattr(pipeline, 'zaladuj_idf', falszywy_zaladuj_idf)
     swiezy = pipeline.IdfLeniwe()
