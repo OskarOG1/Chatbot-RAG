@@ -31,7 +31,6 @@ LANG = {
             'przepisuje_pytanie': 'Przepisuję pytanie z kontekstu rozmowy',
             'zamieniam_na_wektor': 'Zamieniam pytanie na wektor',
             'przeszukuje_baze': 'Przeszukuję bazę wiedzy i porządkuję wyniki',
-            'rozpoznaje_strone': 'Rozpoznaję, czy pytasz jako kupujący, czy sprzedający',
             'wybieram_strone': 'Rozstrzygam stronę pytania: {strona}',
             'poza_zakresem': 'Poza zakresem bazy pomocy, odmawiam',
             'sprawdzam_kontekst': 'Sprawdzam, czy kontekst odpowiada na pytanie',
@@ -47,11 +46,17 @@ LANG = {
             'kupujacy': 'kupujący',
             'sprzedajacy': 'sprzedający',
         },
-        'strona_doprecyzuj': 'Pytasz jako kupujący czy jako sprzedający na Allegro?',
         'nota_sekcji': {
             'kupujacy': 'Ta odpowiedź pochodzi z sekcji dla kupujących, bo tam opisano ten temat.',
             'sprzedajacy': 'Ta odpowiedź pochodzi z sekcji dla sprzedających, bo tam opisano ten temat.',
         },
+        'nie_wiem_zwroty': (
+            'nie mam informacji',
+            'brak informacji w kontekście',
+            'nie znalazłem w materiałach',
+            'nie zawiera informacji',
+            'nie ma informacji',
+        ),
         'guardy': {
             'za_krotkie': 'Napisz proszę pełne pytanie.',
             'za_dlugie': 'Pytanie jest za długie, opisz jeden problem na raz.',
@@ -177,7 +182,6 @@ LANG = {
             'przepisuje_pytanie': 'Rewriting the question from the conversation context',
             'zamieniam_na_wektor': 'Turning the question into a vector',
             'przeszukuje_baze': 'Searching the knowledge base and ranking results',
-            'rozpoznaje_strone': "Recognizing whether you're asking as a buyer or a seller",
             'wybieram_strone': 'Deciding the side of the question: {strona}',
             'poza_zakresem': 'Outside the help base scope, declining',
             'sprawdzam_kontekst': 'Checking whether the context answers the question',
@@ -193,11 +197,15 @@ LANG = {
             'kupujacy': 'buyer',
             'sprzedajacy': 'seller',
         },
-        'strona_doprecyzuj': 'Are you asking as a buyer or as a seller on Allegro?',
         'nota_sekcji': {
             'kupujacy': 'This answer comes from the buyer section, that is where the topic is covered.',
             'sprzedajacy': 'This answer comes from the seller section, that is where the topic is covered.',
         },
+        'nie_wiem_zwroty': (
+            'i do not have information',
+            'no information in the context',
+            "i couldn't find this in the materials",
+        ),
         'guardy': {
             'za_krotkie': 'Please write a complete question.',
             'za_dlugie': 'The question is too long, please describe one issue at a time.',

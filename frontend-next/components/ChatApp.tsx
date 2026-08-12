@@ -73,7 +73,7 @@ function stanPoczatkowy(): { threads: Thread[]; activeId: string } {
 
 export default function ChatApp() {
   const [lang, setLangState] = useState<Lang>(() => wczytajJezyk() ?? 'pl');
-  const [strona, setStronaState] = useState<Strona>(() => wczytajStrone() ?? 'auto');
+  const [strona, setStronaState] = useState<Strona>(() => wczytajStrone() ?? 'kupujacy');
   const [themeName, setThemeName] = useState<ThemeName>('light');
   const [seed] = useState(stanPoczatkowy);
   const [threads, setThreads] = useState<Thread[]>(seed.threads);
@@ -367,21 +367,11 @@ export default function ChatApp() {
               doprecyzowanie: powtorzonaDoprecyzacja ? null : dane?.doprecyzowanie ?? null,
               notaSekcji: dane?.nota_sekcji ?? null,
               action: dane?.oferta ?? null,
-              pytaStrona: dane?.pyta_strona ?? false,
-              zapytanieDoStrony: dane?.pyta_strona ? wiadomosc : undefined,
             },
           ],
         };
       });
     }
-  }
-
-  function wybierzStroneWiadomosci(msgId: number, wybor: 'kupujacy' | 'sprzedajacy') {
-    updateThread(activeId, (x) => ({
-      ...x,
-      messages: x.messages.map((m) => (m.id === msgId ? { ...m, wybranaStrona: wybor } : m)),
-    }));
-    setStrona(wybor);
   }
 
   function setPanel(fn: (p: NonNullable<Thread['panel']>) => NonNullable<Thread['panel']>) {
@@ -608,12 +598,6 @@ export default function ChatApp() {
                     notaSekcji={m.notaSekcji}
                     action={m.action}
                     onAction={wyslij}
-                    pytaStrona={m.pytaStrona}
-                    wybranaStrona={m.wybranaStrona}
-                    onPickStrona={(s) => {
-                      wybierzStroneWiadomosci(m.id, s);
-                      wyslij(m.zapytanieDoStrony ?? '', s, true);
-                    }}
                   />
                   {m.doprecyzowanie && (
                     <div style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
@@ -653,11 +637,10 @@ export default function ChatApp() {
               <Composer
                 value={draft}
                 placeholder={t.placeholder}
-                hint={strona === 'kupujacy' ? t.hintBuying : strona === 'sprzedajacy' ? t.hintSelling : t.composerHint}
+                hint={strona === 'kupujacy' ? t.hintBuying : t.hintSelling}
                 sendLabel={t.sendShort}
                 disabled={pokazTyping}
                 strona={strona}
-                sideAutoLabel={t.sideAuto}
                 sideBuyingLabel={t.sideBuying}
                 sideSellingLabel={t.sideSelling}
                 onChange={setDraft}

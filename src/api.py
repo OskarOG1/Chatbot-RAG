@@ -279,7 +279,7 @@ class ChatRequest(BaseModel):
     bez_korekty: bool = False
     sedzia: bool | None = None
     lang: Literal['pl', 'en'] | None = None
-    strona: Literal['auto', 'kupujacy', 'sprzedajacy'] = 'auto'
+    strona: Literal['auto', 'kupujacy', 'sprzedajacy'] = 'kupujacy'
 
 class Cytat(BaseModel):
    n: int
@@ -309,7 +309,6 @@ class ChatResponse(BaseModel):
    kategoria: str | None = None
    naglowek_ui: str | None = None
    tryb: Literal['rag', 'email'] = 'rag'
-   pyta_strona: bool = False
    powod_odmowy: str | None = None
 
 app = FastAPI(lifespan=lifespan)

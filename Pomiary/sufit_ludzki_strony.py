@@ -1,3 +1,7 @@
+# PLAN_BEZ_AUTO.md: od P1 tryb auto zniknal z produkcji (pipeline.py uzywa kaskady, nie
+# routingu ponizej). Ten plik zostaje jako dokumentacja/narzedzie kalibracyjne projektu R9
+# (wagi_stron), niezalezne od zywego pipeline'u.
+#
 # P5 z PLAN_KALIBRACJA_R9.md: sufit ludzki dla trafnosci pierwszej tury, strona
 # kupujacy/sprzedajacy. Bramki 1 i 2 tamtego planu maja przyjac wartosc "nie nizej niz
 # odsetek trafnych czlowieka na tym samym zestawie, minus jeden blad standardowy" zamiast

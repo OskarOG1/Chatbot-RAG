@@ -1,7 +1,7 @@
 from sentence_transformers import SentenceTransformer
 import faiss
 from rankings import search_reranked_multi
-from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada, napisz_email, sedzia_kategoria_mail, strona_pytania
+from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada, napisz_email, sedzia_kategoria_mail
 from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
 from lang_config import LANG
@@ -27,7 +27,6 @@ class ModeleLeniwe(dict):
 MODELE = ModeleLeniwe()
 OKNO_HISTORII = 3
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
-KLASYFIKATOR_ON = os.getenv('KLASYFIKATOR_STRONY', '0') == '1'
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 PII_WZORCE = (
     re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+'),
@@ -160,6 +159,11 @@ def pokrycie_idf(tekst: str, chunks: list, lang: str = 'pl') -> float:
     return licznik / mianownik if mianownik else 0.0
 
 
+def model_nie_wie(tekst: str, lang: str = 'pl') -> bool:
+    low = tekst.lower()
+    return any(fraza in low for fraza in LANG[lang]['nie_wiem_zwroty'])
+
+
 def skazone_tokeny(query: str) -> set:
     trafienia = set()
     for wzorzec in PII_WZORCE:
@@ -193,6 +197,78 @@ def cytaty_lub_zrodla(cytaty: list[dict], chunks: list[tuple[dict, float]]) -> l
     zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
     tytuly = {c['url']: c['tytul'] for c, _ in chunks}
     return [{'n': i, 'url': url, 'tytul': tytuly[url]} for i, url in enumerate(zrodla, 1)]
+
+
+def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, history: list[dict],
+                   bielik_model: str | None, sedzia: bool | None, lang: str, cfg: dict):
+    def krok(t):
+        return {'typ': 'krok', 'tekst': t}
+    def rezultat(d):
+        return {'typ': 'rezultat', 'dane': {'powod_odmowy': None, **d}}
+
+    yield krok(cfg['kroki']['wybieram_strone'].format(strona=cfg['nazwy_stron'][strona]))
+    chunks = search_reranked_multi(zapytanie_ret, query_emb, [strony.STRONA_DO_AGENTA[strona]],
+                                    k=5, k_surowe=20, lang=lang)
+    agent_odp = chunks[0][0]['agent'] if chunks else ''
+
+    if not chunks or chunks[0][1] < cfg['prog_rerank']:
+        yield krok(cfg['kroki']['poza_zakresem'])
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'prog_rerank'}}
+        return
+
+    if SEDZIA_ON if sedzia is None else sedzia:
+        yield krok(cfg['kroki']['sprawdzam_kontekst'])
+        if not czy_kontekst_odpowiada(zapytanie_ret, chunks, lang=lang):
+            yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia'}}
+            return
+
+    etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
+    yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=etykieta_sekcji))
+    odpowiedz = None
+    tokeny_bufor = []
+    for ev in answer_stream(query, agent_odp, chunks, bielik_model, history, lang):
+        if ev['typ'] == 'token':
+            tokeny_bufor.append(ev)
+        elif ev['typ'] == 'koniec':
+            odpowiedz = ev['dane']
+
+    if odpowiedz is None:
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'pokrycie'}}
+        return
+
+    _, _, idf_ok = IDF_DANE[lang]
+    if not idf_ok:
+        if lang not in OSTRZEZONO_BRAK_IDF:
+            print(f'UWAGA: bramka pokrycia pominieta dla lang={lang}, IDF_DANE nie zaladowane')
+            OSTRZEZONO_BRAK_IDF.add(lang)
+    elif pokrycie_idf(odpowiedz['tekst'], chunks, lang) < cfg['prog_pokrycia']:
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'pokrycie'}}
+        return
+
+    if model_nie_wie(odpowiedz['tekst'], lang):
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'model_nie_wie'}}
+        return
+
+    oferta = None
+    oferta_kategoria = None
+    artykuly_maila = {kat['artykul'] for kat in cfg['mail_kategorie'].values()}
+    if sygnal_maila(query, lang) or (chunks and chunks[0][0]['url'] and
+                                      any(art in chunks[0][0]['url'] for art in artykuly_maila)):
+        kategoria = sedzia_kategoria_mail(history + [{'role': 'user', 'content': query}], chunks, lang)
+        if kategoria:
+            oferta = cfg['mail_kategorie'][kategoria]['oferta']
+            oferta_kategoria = kategoria
+
+    zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
+    yield rezultat({
+        'agent': agent_odp,
+        'answer': odpowiedz['tekst'],
+        'sources': zrodla,
+        'citations': cytaty_lub_zrodla(odpowiedz['cytaty'], chunks),
+        'oferta': oferta,
+        'oferta_kategoria': oferta_kategoria,
+        'tokeny_bufor': tokeny_bufor,
+    })
 
 
 def run_stream(query:str, bielik_model:str | None=None,
@@ -271,102 +347,50 @@ def run_stream(query:str, bielik_model:str | None=None,
 
     yield krok(cfg['kroki']['przeszukuje_baze'])
 
-    if strona in strony.STRONY:
-        prior, sila = strona, 'wybor'
-    else:
-        prior, sila = strony.prior_strony(zapytanie_ret, agent_poprzedni, lang, czy_followup)
-        if prior is None and KLASYFIKATOR_ON:
-            yield krok(cfg['kroki']['rozpoznaje_strone'])
-            prior = strona_pytania(zapytanie_ret, history, lang)
-            sila = 'llm' if prior else None
+    strona = strona if strona in strony.STRONY else 'kupujacy'
 
-    kwoty = strony.przydzial_kandydatow(prior, sila)
-    chunks_szerokie = search_reranked_multi(zapytanie_ret, query_emb, list(kwoty),
-                                              k=sum(kwoty.values()), k_surowe=kwoty, lang=lang)
-    premia = strony.KARA_WYBOR if sila == 'wybor' else strony.BONUS_PRIOR
-    strona_wybrana, chunks, czy_pytac = strony.rozstrzygnij(chunks_szerokie, prior, sila, k=5, premia=premia)
-    if sila == 'wybor':
-        strona_wybrana, czy_pytac = strona, False
+    wynik_etapu = None
+    for ev in probuj_sekcje(zapytanie_ret, query_emb, strona, query, history,
+                             bielik_model, sedzia, lang, cfg):
+        if ev['typ'] == 'rezultat':
+            wynik_etapu = ev['dane']
+        else:
+            yield ev
 
-    if czy_pytac:
-        yield wynik({'agent': '', 'answer': cfg['strona_doprecyzuj'],
-                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
-                     'pyta_strona': True, 'powod_odmowy': 'pytanie_o_strone'})
-        return
+    nota = None
+    if wynik_etapu['powod_odmowy']:
+        powod_etap1 = wynik_etapu['powod_odmowy']
+        druga = next(s for s in strony.STRONY if s != strona)
+        wynik_drugi = None
+        for ev in probuj_sekcje(zapytanie_ret, query_emb, druga, query, history,
+                                 bielik_model, sedzia, lang, cfg):
+            if ev['typ'] == 'rezultat':
+                wynik_drugi = ev['dane']
+            else:
+                yield ev
+        if wynik_drugi['powod_odmowy'] is None:
+            wynik_etapu = wynik_drugi
+            nota = cfg['nota_sekcji'][druga]
+        else:
+            wynik_etapu = {'powod_odmowy': powod_etap1}
 
-    if strona_wybrana:
-        yield krok(cfg['kroki']['wybieram_strone'].format(strona=cfg['nazwy_stron'][strona_wybrana]))
-
-    agent_odp = chunks[0][0]['agent'] if chunks else ''
-
-    if not chunks or chunks[0][1] < cfg['prog_rerank']:
-        yield krok(cfg['kroki']['poza_zakresem'])
+    if wynik_etapu['powod_odmowy']:
         yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
                      'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
-                     'powod_odmowy': 'prog_rerank'})
+                     'powod_odmowy': wynik_etapu['powod_odmowy']})
         return
 
-    if (SEDZIA_ON if sedzia is None else sedzia) and chunks:
-        yield krok(cfg['kroki']['sprawdzam_kontekst'])
-        if not czy_kontekst_odpowiada(zapytanie_ret, chunks, lang=lang):
-            yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
-                         'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
-                         'powod_odmowy': 'sedzia'})
-            return
-
-    etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
-    yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=etykieta_sekcji))
-    odpowiedz = None
-    tokeny_bufor = []
-    for ev in answer_stream(query, agent_odp, chunks, bielik_model, history, lang):
-        if ev['typ'] == 'token':
-            tokeny_bufor.append(ev)
-        elif ev['typ'] == 'koniec':
-            odpowiedz = ev['dane']
-
-    if odpowiedz is None:
-        yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
-                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
-                     'powod_odmowy': 'pokrycie'})
-        return
-
-    _, _, idf_ok = IDF_DANE[lang]
-    if not idf_ok:
-        if lang not in OSTRZEZONO_BRAK_IDF:
-            print(f'UWAGA: bramka pokrycia pominieta dla lang={lang}, IDF_DANE nie zaladowane')
-            OSTRZEZONO_BRAK_IDF.add(lang)
-    elif pokrycie_idf(odpowiedz['tekst'], chunks, lang) < cfg['prog_pokrycia']:
-        yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
-                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
-                     'powod_odmowy': 'pokrycie'})
-        return
-
-    for ev in tokeny_bufor:
+    for ev in wynik_etapu['tokeny_bufor']:
         yield ev
 
-    oferta = None
-    oferta_kategoria = None
-    artykuly_maila = {kat['artykul'] for kat in cfg['mail_kategorie'].values()}
-    if sygnal_maila(query, lang) or (chunks and chunks[0][0]['url'] and
-                                      any(art in chunks[0][0]['url'] for art in artykuly_maila)):
-        kategoria = sedzia_kategoria_mail(history + [{'role': 'user', 'content': query}], chunks, lang)
-        if kategoria:
-            oferta = cfg['mail_kategorie'][kategoria]['oferta']
-            oferta_kategoria = kategoria
-
-    nota_sekcji = None
-    if sila == 'wybor' and strony.strona_chunka(chunks[0][0]) != strona:
-        nota_sekcji = cfg['nota_sekcji'][strony.strona_chunka(chunks[0][0])]
-
-    zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
-    yield wynik({'agent': agent_odp,
-                 'answer': odpowiedz['tekst'],
-                 'sources': zrodla,
-                 'citations': cytaty_lub_zrodla(odpowiedz['cytaty'], chunks),
+    yield wynik({'agent': wynik_etapu['agent'],
+                 'answer': wynik_etapu['answer'],
+                 'sources': wynik_etapu['sources'],
+                 'citations': wynik_etapu['citations'],
                  'doprecyzowanie': doprecyzowanie,
-                 'nota_sekcji': nota_sekcji,
-                 'oferta': oferta,
-                 'oferta_kategoria': oferta_kategoria,
+                 'nota_sekcji': nota,
+                 'oferta': wynik_etapu['oferta'],
+                 'oferta_kategoria': wynik_etapu['oferta_kategoria'],
                  'tryb': 'rag'})
 
 

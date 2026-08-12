@@ -1,3 +1,7 @@
+# PLAN_BEZ_AUTO.md: od P1 tryb auto zniknal z produkcji (pipeline.py uzywa kaskady, nie
+# routingu ponizej). Ten plik zostaje jako dokumentacja/narzedzie kalibracyjne projektu R9
+# (wagi_stron), niezalezne od zywego pipeline'u.
+#
 # Krok 1 z PLAN_WAGI_STRON.md (Krok 4 kolejnosci z PLAN_POMIARY_GPU.md): audyt szumu etykiet
 # strony (kupujacy/sprzedajacy). P0.8 z PLAN_KALIBRACJA_R9.md: pierwsza wersja pokazywala
 # etykiete przed ocena i grupowala rekordy strona obok strony, wiec wynik 60/60 byl
