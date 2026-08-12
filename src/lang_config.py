@@ -57,6 +57,15 @@ LANG = {
             'nie zawiera informacji',
             'nie ma informacji',
         ),
+        'rozmowa': {
+            'powitanie': 'Cześć, w czym mogę pomóc? Odpowiadam na pytania o konto, zakupy, '
+                         'płatności i sprzedaż na Allegro.',
+            'podziekowanie': 'Cieszę się, że pomogło. Napisz, jeśli będziesz mieć kolejne pytanie.',
+            'meta': 'Jestem asystentem opartym na bazie pomocy Allegro. Odpowiadam na pytania '
+                    'o konto i bezpieczeństwo, zakupy i dostawę, płatności oraz sprzedaż, '
+                    'zawsze z linkiem do artykułu. Mogę też przygotować szkic wiadomości do '
+                    'sprzedawcy w sprawie reklamacji, zwrotu lub faktury.',
+        },
         'guardy': {
             'za_krotkie': 'Napisz proszę pełne pytanie.',
             'za_dlugie': 'Pytanie jest za długie, opisz jeden problem na raz.',
@@ -89,6 +98,24 @@ LANG = {
         },
         'zaimki': {'to', 'tego', 'tym', 'tam', 'ten', 'ta', 'te', 'nim', 'niej', 'nich'},
         'followup_prefiksy': ('a ',),
+        'rozmowa_listy': {
+            'powitania': ('cześć', 'hej', 'siema', 'witam', 'witaj', 'dzień dobry', 'dobry wieczór',
+                         'ok', 'okej'),
+            'podziekowania': ('dziękuję', 'dzięki', 'dziękuję bardzo', 'wielkie dzięki',
+                              'super dzięki', 'pomogło', 'to pomogło', 'bardzo pomogło'),
+            'meta': ('kim jesteś', 'kim ty jesteś', 'co potrafisz', 'w czym możesz pomóc',
+                     'w czym możesz mi pomóc', 'czym się zajmujesz', 'co robisz',
+                     'czy jesteś botem', 'czy jesteś człowiekiem', 'jesteś botem',
+                     'jesteś sztuczną inteligencją', 'do czego służysz'),
+            'sterowanie': {
+                'prosciej': ('nie rozumiem', 'nie zrozumiałem', 'nie zrozumiałam',
+                             'możesz prościej', 'prościej', 'wytłumacz prościej',
+                             'nie rozumiem tego', 'jak to inaczej', 'wyjaśnij prościej'),
+                'rozwin': ('rozwiń', 'rozwiń to', 'rozwiń temat', 'powiedz więcej',
+                          'opowiedz więcej', 'więcej szczegółów', 'rozszerz to'),
+                'potwierdzenie': ('tak', 'no tak', 'dobra', 'jasne', 'zgadza się', 'no dobra'),
+            },
+        },
         'mail_czasowniki': {'napisz', 'napiszesz', 'napisać', 'przygotuj', 'przygotować',
                             'pomóż', 'pomoz', 'pomożesz'},
         'mail_obiekty': {'mail', 'maila', 'maile', 'mailu', 'meila', 'wiadomość', 'wiadomosc',
@@ -206,6 +233,15 @@ LANG = {
             'no information in the context',
             "i couldn't find this in the materials",
         ),
+        'rozmowa': {
+            'powitanie': "Hi, how can I help? I answer questions about accounts, shopping, "
+                         'payments, and selling on Allegro.',
+            'podziekowanie': 'Glad that helped. Let me know if you have another question.',
+            'meta': "I'm an assistant built on Allegro's help base. I answer questions about "
+                    'accounts and security, shopping and delivery, payments, and selling, always '
+                    'with a link to the article. I can also prepare a draft message to a seller '
+                    'about a complaint, return, or invoice.',
+        },
         'guardy': {
             'za_krotkie': 'Please write a complete question.',
             'za_dlugie': 'The question is too long, please describe one issue at a time.',
@@ -238,6 +274,20 @@ LANG = {
         },
         'zaimki': {'it', 'that', 'this', 'those', 'them', 'one'},
         'followup_prefiksy': ('and ', 'what about', 'how about', 'what if'),
+        'rozmowa_listy': {
+            'powitania': ('hi', 'hello', 'hey', 'good morning', 'good evening', 'good afternoon',
+                         'ok', 'okay'),
+            'podziekowania': ('thanks', 'thank you', 'thanks a lot', 'thank you very much',
+                              'that helped', 'thanks that helped'),
+            'meta': ('who are you', 'what can you do', 'how can you help', 'what are you',
+                     'are you a bot', 'are you human', 'are you an ai'),
+            'sterowanie': {
+                'prosciej': ("i don't understand", 'i do not understand', 'simpler please',
+                             'can you simplify', 'explain simpler', "i didn't understand"),
+                'rozwin': ('expand', 'expand on that', 'tell me more', 'more details', 'go deeper'),
+                'potwierdzenie': ('yes', 'yeah', 'yep', 'sure', 'alright'),
+            },
+        },
         'mail_czasowniki': {'write', 'draft', 'prepare', 'help'},
         'mail_obiekty': {'email', 'e-mail', 'mail', 'message', 'complaint', 'return', 'invoice', 'receipt'},
         'router_model': os.getenv('ROUTER_MODEL_EN', os.getenv('SEDZIA_MODEL_EN', 'allenai/Olmo-3-7B-Instruct')),

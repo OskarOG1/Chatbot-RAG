@@ -308,7 +308,7 @@ class ChatResponse(BaseModel):
    oferta_kategoria: str | None = None
    kategoria: str | None = None
    naglowek_ui: str | None = None
-   tryb: Literal['rag', 'email'] = 'rag'
+   tryb: Literal['rag', 'email', 'rozmowa'] = 'rag'
    powod_odmowy: str | None = None
 
 app = FastAPI(lifespan=lifespan)
