@@ -17,4 +17,4 @@ jobs:
           key: hf-cache-${{ hashFiles('requirements.txt', 'requirements-test.txt') }}
       - run: pip install -r requirements-test.txt
       - run: ruff check src tests
-      - run: pytest tests -q
+      - run: pytest tests -q -rs

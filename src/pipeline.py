@@ -208,6 +208,8 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
     def rezultat(d):
         return {'typ': 'rezultat', 'dane': {'powod_odmowy': None, **d}}
 
+    bramki_pominiete = []
+
     yield krok(cfg['kroki']['wybieram_strone'].format(strona=cfg['nazwy_stron'][strona]))
     chunks = search_reranked_multi(zapytanie_ret, query_emb, [strony.STRONA_DO_AGENTA[strona]],
                                     k=5, k_surowe=20, lang=lang)
@@ -215,13 +217,17 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
 
     if not chunks or chunks[0][1] < cfg['prog_rerank']:
         yield krok(cfg['kroki']['poza_zakresem'])
-        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'prog_rerank'}}
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'prog_rerank', 'bramki_pominiete': bramki_pominiete}}
         return
 
     if SEDZIA_ON if sedzia is None else sedzia:
         yield krok(cfg['kroki']['sprawdzam_kontekst'])
-        if not czy_kontekst_odpowiada(zapytanie_ret, chunks, lang=lang):
-            yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia'}}
+        stan_sedziego = {}
+        pasuje = czy_kontekst_odpowiada(zapytanie_ret, chunks, lang=lang, stan=stan_sedziego)
+        if stan_sedziego.get('sedzia_pominiety'):
+            bramki_pominiete.append('sedzia')
+        if not pasuje:
+            yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia', 'bramki_pominiete': bramki_pominiete}}
             return
 
     etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
@@ -235,20 +241,21 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
             odpowiedz = ev['dane']
 
     if odpowiedz is None:
-        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'pokrycie'}}
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'brak_generacji', 'bramki_pominiete': bramki_pominiete}}
         return
 
     _, _, idf_ok = IDF_DANE[lang]
     if not idf_ok:
+        bramki_pominiete.append('pokrycie')
         if lang not in OSTRZEZONO_BRAK_IDF:
             print(f'UWAGA: bramka pokrycia pominieta dla lang={lang}, IDF_DANE nie zaladowane')
             OSTRZEZONO_BRAK_IDF.add(lang)
     elif pokrycie_idf(odpowiedz['tekst'], chunks, lang) < cfg['prog_pokrycia']:
-        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'pokrycie'}}
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'pokrycie', 'bramki_pominiete': bramki_pominiete}}
         return
 
     if model_nie_wie(odpowiedz['tekst'], lang):
-        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'model_nie_wie'}}
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'model_nie_wie', 'bramki_pominiete': bramki_pominiete}}
         return
 
     oferta = None
@@ -270,6 +277,7 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
         'oferta': oferta,
         'oferta_kategoria': oferta_kategoria,
         'tokeny_bufor': tokeny_bufor,
+        'bramki_pominiete': bramki_pominiete,
     })
 
 
@@ -377,6 +385,8 @@ def run_stream(query:str, bielik_model:str | None=None,
             yield ev
 
     nota = None
+    powod_etap2 = None
+    bramki_pominiete = list(wynik_etapu.get('bramki_pominiete') or [])
     if wynik_etapu['powod_odmowy']:
         powod_etap1 = wynik_etapu['powod_odmowy']
         druga = next(s for s in strony.STRONY if s != strona)
@@ -387,30 +397,42 @@ def run_stream(query:str, bielik_model:str | None=None,
                 wynik_drugi = ev['dane']
             else:
                 yield ev
+        for bramka in wynik_drugi.get('bramki_pominiete') or []:
+            if bramka not in bramki_pominiete:
+                bramki_pominiete.append(bramka)
         if wynik_drugi['powod_odmowy'] is None:
             wynik_etapu = wynik_drugi
             nota = cfg['nota_sekcji'][druga]
         else:
+            powod_etap2 = wynik_drugi['powod_odmowy']
             wynik_etapu = {'powod_odmowy': powod_etap1}
 
     if wynik_etapu['powod_odmowy']:
-        yield wynik({'agent': '', 'answer': cfg['brak_wiedzy'],
-                     'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
-                     'powod_odmowy': wynik_etapu['powod_odmowy']})
+        dane_odmowy = {'agent': '', 'answer': cfg['brak_wiedzy'],
+                       'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
+                       'powod_odmowy': wynik_etapu['powod_odmowy']}
+        if powod_etap2:
+            dane_odmowy['powod_etap2'] = powod_etap2
+        if bramki_pominiete:
+            dane_odmowy['bramki_pominiete'] = bramki_pominiete
+        yield wynik(dane_odmowy)
         return
 
     for ev in wynik_etapu['tokeny_bufor']:
         yield ev
 
-    yield wynik({'agent': wynik_etapu['agent'],
-                 'answer': wynik_etapu['answer'],
-                 'sources': wynik_etapu['sources'],
-                 'citations': wynik_etapu['citations'],
-                 'doprecyzowanie': doprecyzowanie,
-                 'nota_sekcji': nota,
-                 'oferta': wynik_etapu['oferta'],
-                 'oferta_kategoria': wynik_etapu['oferta_kategoria'],
-                 'tryb': 'rag'})
+    dane_sukcesu = {'agent': wynik_etapu['agent'],
+                    'answer': wynik_etapu['answer'],
+                    'sources': wynik_etapu['sources'],
+                    'citations': wynik_etapu['citations'],
+                    'doprecyzowanie': doprecyzowanie,
+                    'nota_sekcji': nota,
+                    'oferta': wynik_etapu['oferta'],
+                    'oferta_kategoria': wynik_etapu['oferta_kategoria'],
+                    'tryb': 'rag'}
+    if bramki_pominiete:
+        dane_sukcesu['bramki_pominiete'] = bramki_pominiete
+    yield wynik(dane_sukcesu)
 
 
 def run(query:str, bielik_model:str | None=None,

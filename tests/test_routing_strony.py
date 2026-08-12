@@ -2,23 +2,8 @@ import pipeline
 import strony
 
 
-def test_kaskada_odpowiada_z_drugiej_sekcji_z_nota(monkeypatch):
-    monkeypatch.setattr(pipeline, 'embed_query', lambda lang, tekst: None)
-
-    def falszywe_wyszukiwanie(zapytanie, emb, agenci, k, k_surowe, lang='pl'):
-        if agenci == ['kupujacy']:
-            return []
-        chunk = {'agent': 'sprzedaz', 'url': 'https://allegro.pl/pomoc/artykul-sprzedaz',
-                 'tytul': 'Artykul dla sprzedających', 'tekst': 'tresc o sprzedazy', 'naglowek': None}
-        return [(chunk, 0.0)]
-
-    def falszywy_answer_stream(query, agent, chunks, bielik_model, history, lang, styl=None):
-        yield {'typ': 'koniec', 'dane': {
-            'tekst': 'Odpowiedz z sekcji sprzedających [1].',
-            'cytaty': [{'n': 1, 'url': chunks[0][0]['url'], 'tytul': chunks[0][0]['tytul']}]}}
-
-    monkeypatch.setattr(pipeline, 'search_reranked_multi', falszywe_wyszukiwanie)
-    monkeypatch.setattr(pipeline, 'answer_stream', falszywy_answer_stream)
+def test_kaskada_odpowiada_z_drugiej_sekcji_z_nota(monkeypatch, atrapa_pipeline):
+    atrapa_pipeline.ustaw_etap('sprzedajacy', tekst='Odpowiedz z sekcji sprzedających [1].')
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
 
     wynik = pipeline.run('jakies pytanie o sprzedaz', strona='kupujacy',
@@ -28,10 +13,7 @@ def test_kaskada_odpowiada_z_drugiej_sekcji_z_nota(monkeypatch):
     assert wynik['nota_sekcji'] == pipeline.LANG['pl']['nota_sekcji']['sprzedajacy']
 
 
-def test_kaskada_odmawia_dla_pytania_poza_domena_mimo_dwoch_etapow(monkeypatch):
-    monkeypatch.setattr(pipeline, 'embed_query', lambda lang, tekst: None)
-    monkeypatch.setattr(pipeline, 'search_reranked_multi', lambda *a, **k: [])
-
+def test_kaskada_odmawia_dla_pytania_poza_domena_mimo_dwoch_etapow(monkeypatch, atrapa_pipeline):
     wynik = pipeline.run('jak ugotowac makaron', strona='kupujacy',
                          bez_korekty=True, sedzia=False, lang='pl')
     assert wynik['powod_odmowy'] == 'prog_rerank'

@@ -4,7 +4,7 @@ import re
 
 
 def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = None,
-                            lang: str = 'pl') -> bool:
+                            lang: str = 'pl', stan: dict | None = None) -> bool:
     p = PROMPTY[lang]
     teksty = [c for c, _ in chunks]
     kontekst = context(teksty)
@@ -21,6 +21,8 @@ def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = 
     except Exception as e:
         print(f'sedzia kontekstu niedostepny ({type(e).__name__}: {e}), przepuszczam dalej',
               flush=True)
+        if stan is not None:
+            stan['sedzia_pominiety'] = True
         return True
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip().upper()
     return tekst.startswith(p['tak_marker'])
