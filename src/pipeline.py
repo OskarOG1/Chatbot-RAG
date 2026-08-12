@@ -27,7 +27,6 @@ class ModeleLeniwe(dict):
 MODELE = ModeleLeniwe()
 OKNO_HISTORII = 3
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
-KLASYFIKATOR_ON = os.getenv('KLASYFIKATOR_STRONY', '0') == '1'
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 PII_WZORCE = (
     re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+'),
