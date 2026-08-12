@@ -123,6 +123,20 @@ def test_cache_zapisz_akceptuje_wynik_z_agentem():
     assert api.cache_pobierz(klucz) == {'agent': 'konto', 'answer': 'tak'}
 
 
+def test_cache_zapisz_akceptuje_odmowe_prog_rerank_o7():
+    klucz = ('pl', 'test', 0, 'kupujacy')
+    wynik = {'agent': '', 'powod_odmowy': 'prog_rerank'}
+    api.cache_zapisz(klucz, wynik)
+    assert api.cache_pobierz(klucz) == wynik
+
+
+@pytest.mark.parametrize('powod', ['sedzia', 'pokrycie', 'model_nie_wie', 'brak_generacji'])
+def test_cache_zapisz_odrzuca_odmowy_niedeterministyczne_o7(powod):
+    klucz = ('pl', f'test-{powod}', 0, 'kupujacy')
+    api.cache_zapisz(klucz, {'agent': '', 'powod_odmowy': powod})
+    assert api.cache_pobierz(klucz) is None
+
+
 # /chat/stream
 
 
