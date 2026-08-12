@@ -14,7 +14,6 @@ interface Props {
   sendLabel: string;
   disabled: boolean;
   strona: Strona;
-  sideAutoLabel: string;
   sideBuyingLabel: string;
   sideSellingLabel: string;
   onChange: (v: string) => void;
@@ -29,7 +28,6 @@ export default function Composer({
   sendLabel,
   disabled,
   strona,
-  sideAutoLabel,
   sideBuyingLabel,
   sideSellingLabel,
   onChange,
@@ -74,7 +72,6 @@ export default function Composer({
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
           <StronaPrzelacznik
             strona={strona}
-            sideAutoLabel={sideAutoLabel}
             sideBuyingLabel={sideBuyingLabel}
             sideSellingLabel={sideSellingLabel}
             onSetStrona={onSetStrona}
@@ -110,28 +107,25 @@ export default function Composer({
 
 interface PrzelacznikProps {
   strona: Strona;
-  sideAutoLabel: string;
   sideBuyingLabel: string;
   sideSellingLabel: string;
   onSetStrona: (strona: Strona) => void;
 }
 
-function StronaPrzelacznik({ strona, sideAutoLabel, sideBuyingLabel, sideSellingLabel, onSetStrona }: PrzelacznikProps) {
+function StronaPrzelacznik({ strona, sideBuyingLabel, sideSellingLabel, onSetStrona }: PrzelacznikProps) {
   const th = useTheme();
   const segmenty: Array<{ klucz: Strona; etykieta: string }> = [
     { klucz: 'kupujacy', etykieta: sideBuyingLabel },
-    { klucz: 'auto', etykieta: sideAutoLabel },
     { klucz: 'sprzedajacy', etykieta: sideSellingLabel },
   ];
   const aktywnyIndeks = segmenty.findIndex((s) => s.klucz === strona);
-  const wybranaStrona = strona !== 'auto';
 
   return (
     <div
       style={{
         position: 'relative',
         display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
+        gridTemplateColumns: 'repeat(2, 1fr)',
         padding: 3,
         borderRadius: 9,
         background: th.raised,
@@ -145,9 +139,9 @@ function StronaPrzelacznik({ strona, sideAutoLabel, sideBuyingLabel, sideSelling
           top: 3,
           bottom: 3,
           left: 3,
-          width: 'calc((100% - 6px) / 3)',
+          width: 'calc((100% - 6px) / 2)',
           borderRadius: 6,
-          background: wybranaStrona ? AKCENT_SEGMENT : th.surface,
+          background: AKCENT_SEGMENT,
           boxShadow: th.shadow,
           transform: `translateX(${aktywnyIndeks * 100}%)`,
           transition: 'transform 240ms cubic-bezier(0.4, 0, 0.2, 1), background 200ms ease',
@@ -158,7 +152,7 @@ function StronaPrzelacznik({ strona, sideAutoLabel, sideBuyingLabel, sideSelling
           key={s.klucz}
           type="button"
           onClick={() => onSetStrona(s.klucz)}
-          style={segBtn(th, strona === s.klucz, strona === s.klucz && wybranaStrona)}
+          style={segBtn(th, strona === s.klucz, strona === s.klucz)}
         >
           {s.etykieta}
         </button>

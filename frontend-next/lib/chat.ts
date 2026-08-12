@@ -2,7 +2,7 @@ export type Lang = 'pl' | 'en';
 
 export type Tryb = 'rag' | 'email';
 
-export type Strona = 'auto' | 'kupujacy' | 'sprzedajacy';
+export type Strona = 'kupujacy' | 'sprzedajacy';
 
 export interface Wiadomosc {
   role: 'user' | 'assistant';
@@ -27,7 +27,6 @@ export interface ChatResponse {
   kategoria: string | null;
   naglowek_ui: string | null;
   tryb: Tryb;
-  pyta_strona: boolean;
 }
 
 export interface WyslijZadanie {
@@ -67,7 +66,6 @@ interface Teksty {
   assistant: string;
   sourcesLabel: string;
   possibleSourcesLabel: string;
-  composerHint: string;
   hintBuying: string;
   hintSelling: string;
   newChatToast: string;
@@ -110,12 +108,8 @@ interface Teksty {
   placeholder: string;
   recipientSeller: string;
   sendShort: string;
-  sideAuto: string;
   sideBuying: string;
   sideSelling: string;
-  sideAskBuyer: string;
-  sideAskSeller: string;
-  sideChosenPrefix: string;
   discardDraft: string;
   confirmDiscardDraft: string;
   ticketBadge: (ticket: string, czas: string) => string;
@@ -146,7 +140,6 @@ export const TEKSTY: Record<Lang, Teksty> = {
     assistant: 'Asystent',
     sourcesLabel: 'Źródła z centrum pomocy',
     possibleSourcesLabel: 'Powiązane strony centrum pomocy',
-    composerHint: 'Enter wysyła · Shift + Enter nowa linia',
     hintBuying: 'Pytasz jako kupujący',
     hintSelling: 'Pytasz jako sprzedający',
     newChatToast: 'Rozpoczęto nową rozmowę',
@@ -195,12 +188,8 @@ export const TEKSTY: Record<Lang, Teksty> = {
     placeholder: 'Napisz wiadomość…',
     recipientSeller: 'Sprzedawca',
     sendShort: 'Wyślij',
-    sideAuto: 'Auto',
     sideBuying: 'Kupuję',
     sideSelling: 'Sprzedaję',
-    sideAskBuyer: 'Kupujący',
-    sideAskSeller: 'Sprzedający',
-    sideChosenPrefix: 'Pytasz jako',
     discardDraft: 'Porzuć szkic',
     confirmDiscardDraft: 'Na pewno porzucić szkic wiadomości?',
     ticketBadge: (ticket, czas) => `Zgłoszenie ${ticket}, wysłano ${czas}`,
@@ -221,7 +210,6 @@ export const TEKSTY: Record<Lang, Teksty> = {
     assistant: 'Assistant',
     sourcesLabel: 'Help center sources',
     possibleSourcesLabel: 'Possibly related help center pages',
-    composerHint: 'Enter sends · Shift + Enter for a new line',
     hintBuying: 'Asking as a buyer',
     hintSelling: 'Asking as a seller',
     newChatToast: 'Started a new conversation',
@@ -270,12 +258,8 @@ export const TEKSTY: Record<Lang, Teksty> = {
     placeholder: 'Type a message…',
     recipientSeller: 'Seller',
     sendShort: 'Send',
-    sideAuto: 'Auto',
     sideBuying: 'Buying',
     sideSelling: 'Selling',
-    sideAskBuyer: 'Buyer',
-    sideAskSeller: 'Seller',
-    sideChosenPrefix: 'Asking as',
     discardDraft: 'Discard draft',
     confirmDiscardDraft: 'Discard this draft message?',
     ticketBadge: (ticket, czas) => `Ticket ${ticket}, sent ${czas}`,

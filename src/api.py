@@ -279,7 +279,7 @@ class ChatRequest(BaseModel):
     bez_korekty: bool = False
     sedzia: bool | None = None
     lang: Literal['pl', 'en'] | None = None
-    strona: Literal['auto', 'kupujacy', 'sprzedajacy'] = 'auto'
+    strona: Literal['auto', 'kupujacy', 'sprzedajacy'] = 'kupujacy'
 
 class Cytat(BaseModel):
    n: int

@@ -8,9 +8,6 @@ export interface WiadomoscUi {
   doprecyzowanie?: string | null;
   notaSekcji?: string | null;
   action?: string | null;
-  pytaStrona?: boolean;
-  zapytanieDoStrony?: string;
-  wybranaStrona?: 'kupujacy' | 'sprzedajacy';
 }
 
 export interface PanelState {
@@ -72,7 +69,7 @@ export function zapiszJezyk(lang: Lang): void {
 export function wczytajStrone(): Strona | null {
   try {
     const zapis = localStorage.getItem(STRONA_KEY);
-    return zapis === 'auto' || zapis === 'kupujacy' || zapis === 'sprzedajacy' ? zapis : null;
+    return zapis === 'kupujacy' || zapis === 'sprzedajacy' ? zapis : null;
   } catch {
     return null;
   }

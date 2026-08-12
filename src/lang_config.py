@@ -52,6 +52,13 @@ LANG = {
             'kupujacy': 'Ta odpowiedź pochodzi z sekcji dla kupujących, bo tam opisano ten temat.',
             'sprzedajacy': 'Ta odpowiedź pochodzi z sekcji dla sprzedających, bo tam opisano ten temat.',
         },
+        'nie_wiem_zwroty': (
+            'nie mam informacji',
+            'brak informacji w kontekście',
+            'nie znalazłem w materiałach',
+            'nie zawiera informacji',
+            'nie ma informacji',
+        ),
         'guardy': {
             'za_krotkie': 'Napisz proszę pełne pytanie.',
             'za_dlugie': 'Pytanie jest za długie, opisz jeden problem na raz.',
@@ -198,6 +205,11 @@ LANG = {
             'kupujacy': 'This answer comes from the buyer section, that is where the topic is covered.',
             'sprzedajacy': 'This answer comes from the seller section, that is where the topic is covered.',
         },
+        'nie_wiem_zwroty': (
+            'i do not have information',
+            'no information in the context',
+            "i couldn't find this in the materials",
+        ),
         'guardy': {
             'za_krotkie': 'Please write a complete question.',
             'za_dlugie': 'The question is too long, please describe one issue at a time.',
