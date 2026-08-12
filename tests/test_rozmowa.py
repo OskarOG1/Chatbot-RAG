@@ -28,6 +28,12 @@ def test_klasa_tury_meta():
     assert klasa == 'meta'
 
 
+def test_klasa_tury_fraza_meta_zatopiona_w_dlugim_tekscie_nie_jest_meta():
+    query = 'słuchaj no dobra powiedz mi szczerze kim jesteś naprawdę proszę'
+    klasa, reszta = rozmowa.klasa_tury(query, [], None, 'pl')
+    assert klasa is None
+
+
 def test_klasa_tury_poza_domena_nie_jest_rozmowa():
     klasa, reszta = rozmowa.klasa_tury('jaka jest stolica Francji', [], None, 'pl')
     assert klasa is None
@@ -75,60 +81,26 @@ def test_pipeline_powitanie_daje_szablon_bez_wyszukiwania(monkeypatch):
     assert wynik['answer'] == pipeline.LANG['pl']['rozmowa']['powitanie']
 
 
-def test_pipeline_powitanie_z_pytaniem_idzie_do_rag(monkeypatch):
-    monkeypatch.setattr(pipeline, 'embed_query', lambda lang, tekst: None)
-
-    def falszywe_wyszukiwanie(zapytanie, emb, agenci, k, k_surowe, lang='pl'):
-        chunk = {'agent': 'konto', 'url': 'https://allegro.pl/pomoc/artykul-haslo',
-                 'tytul': 'Zmiana hasła', 'tekst': 'tresc o hasle', 'naglowek': None}
-        return [(chunk, 0.0)]
-
-    def falszywy_answer_stream(query, agent, chunks, bielik_model, history, lang, styl=None):
-        yield {'typ': 'koniec', 'dane': {
-            'tekst': 'Odpowiedz o hasle [1].',
-            'cytaty': [{'n': 1, 'url': chunks[0][0]['url'], 'tytul': chunks[0][0]['tytul']}]}}
-
-    monkeypatch.setattr(pipeline, 'search_reranked_multi', falszywe_wyszukiwanie)
-    monkeypatch.setattr(pipeline, 'answer_stream', falszywy_answer_stream)
+def test_pipeline_powitanie_z_pytaniem_idzie_do_rag(monkeypatch, atrapa_pipeline):
+    atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz o hasle [1].')
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
 
     wynik = pipeline.run('cześć, jak zmienić hasło', strona='kupujacy',
                          bez_korekty=True, sedzia=False, lang='pl')
     assert wynik.get('powod_odmowy') is None
-    assert wynik['agent'] == 'konto'
+    assert wynik['agent'] == 'kupujacy'
     assert wynik['tryb'] == 'rag'
 
 
-def test_pipeline_poza_domena_nadal_odmawia(monkeypatch):
-    monkeypatch.setattr(pipeline, 'embed_query', lambda lang, tekst: None)
-    monkeypatch.setattr(pipeline, 'search_reranked_multi', lambda *a, **k: [])
-
+def test_pipeline_poza_domena_nadal_odmawia(monkeypatch, atrapa_pipeline):
     for pytanie in ('jaka jest stolica Francji', 'napisz wiersz o jesieni'):
         wynik = pipeline.run(pytanie, strona='kupujacy', bez_korekty=True, sedzia=False, lang='pl')
         assert wynik['powod_odmowy'] == 'prog_rerank'
         assert wynik['agent'] == ''
 
 
-def test_pipeline_sterowanie_uzywa_poprzedniego_pytania_i_stylu(monkeypatch):
-    monkeypatch.setattr(pipeline, 'embed_query', lambda lang, tekst: None)
-
-    def falszywe_wyszukiwanie(zapytanie, emb, agenci, k, k_surowe, lang='pl'):
-        assert zapytanie == 'jak działa licytowanie'
-        chunk = {'agent': 'zakupy', 'url': 'https://allegro.pl/pomoc/artykul-licytacje',
-                 'tytul': 'Licytacje', 'tekst': 'tresc o licytacjach', 'naglowek': None}
-        return [(chunk, 0.0)]
-
-    przechwycony_styl = {}
-
-    def falszywy_answer_stream(query, agent, chunks, bielik_model, history, lang, styl=None):
-        przechwycony_styl['styl'] = styl
-        assert query == 'rozwiń to'
-        yield {'typ': 'koniec', 'dane': {
-            'tekst': 'Rozwiniete wyjasnienie licytacji [1].',
-            'cytaty': [{'n': 1, 'url': chunks[0][0]['url'], 'tytul': chunks[0][0]['tytul']}]}}
-
-    monkeypatch.setattr(pipeline, 'search_reranked_multi', falszywe_wyszukiwanie)
-    monkeypatch.setattr(pipeline, 'answer_stream', falszywy_answer_stream)
+def test_pipeline_sterowanie_uzywa_poprzedniego_pytania_i_stylu(monkeypatch, atrapa_pipeline):
+    atrapa_pipeline.ustaw_etap('kupujacy', tekst='Rozwiniete wyjasnienie licytacji [1].')
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
 
     historia = [{'role': 'user', 'content': 'jak działa licytowanie'},
@@ -136,8 +108,10 @@ def test_pipeline_sterowanie_uzywa_poprzedniego_pytania_i_stylu(monkeypatch):
     wynik = pipeline.run('rozwiń to', history=historia, agent_poprzedni='zakupy',
                          strona='kupujacy', bez_korekty=True, sedzia=False, lang='pl')
     assert wynik.get('powod_odmowy') is None
-    assert wynik['agent'] == 'zakupy'
-    assert przechwycony_styl['styl'] == 'rozwin'
+    assert wynik['agent'] == 'kupujacy'
+    assert atrapa_pipeline.wyszukiwania[0]['zapytanie'] == 'jak działa licytowanie'
+    assert atrapa_pipeline.generacje[0]['query'] == 'rozwiń to'
+    assert atrapa_pipeline.generacje[0]['styl'] == 'rozwin'
 
 
 def test_pipeline_hi_i_ok_daja_szablon_zamiast_guard_za_krotkie():

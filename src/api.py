@@ -81,6 +81,8 @@ def cache_zapisz(klucz: tuple, wynik: dict) -> None:
 def powod_wyniku(dane: dict) -> str:
     if not dane:
         return 'brak_wyniku'
+    if dane.get('tryb') == 'rozmowa':
+        return 'rozmowa'
     if dane.get('agent'):
         return 'odpowiedz'
     return dane.get('powod_odmowy') or 'odmowa'
@@ -88,14 +90,18 @@ def powod_wyniku(dane: dict) -> str:
 
 def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str) -> None:
     try:
-        agent = (dane or {}).get('agent') or ''
+        dane = dane or {}
+        agent = dane.get('agent') or ''
+        wynik = 'rozmowa' if dane.get('tryb') == 'rozmowa' else ('odpowiedz' if agent else 'odmowa')
         wpis = {
             'czas': datetime.now(timezone.utc).isoformat(),
             'lang': lang,
             'strona': strona,
             'sekcja': agent or None,
-            'wynik': 'odpowiedz' if agent else 'odmowa',
+            'wynik': wynik,
             'powod': powod_wyniku(dane),
+            'powod_etap2': dane.get('powod_etap2'),
+            'bramki_pominiete': dane.get('bramki_pominiete') or [],
             'latencja_s': round(latencja, 3),
             'cache_hit': cache_hit,
             'pytanie': redaguj(query),
