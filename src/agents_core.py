@@ -113,6 +113,7 @@ PROMPTY = {
         'sedzia_pytanie_label': 'PYTANIE',
         'sedzia_pytanie': 'Czy da się odpowiedzieć? (TAK/NIE):',
         'tak_marker': 'TAK',
+        'nie_marker': 'NIE',
         'email_system_reklamacja': (
             'Piszesz SZKIC maila reklamacyjnego do sprzedawcy w imieniu kupującego. '
             'Zacznij od zdania: „Szkic wiadomości do sprzedawcy (uzupełnij dane przed wysłaniem):", '
@@ -324,6 +325,7 @@ PROMPTY = {
         'sedzia_pytanie_label': 'QUESTION',
         'sedzia_pytanie': 'Can this be answered? (YES/NO):',
         'tak_marker': 'YES',
+        'nie_marker': 'NO',
         'email_system_reklamacja': (
             'You write a DRAFT complaint email to the seller on behalf of the buyer. '
             'Start with the sentence: "Draft message to the seller (fill in your details before sending):", '

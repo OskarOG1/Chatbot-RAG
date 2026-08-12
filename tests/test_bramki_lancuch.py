@@ -239,6 +239,55 @@ def test_sedzia_wyjatek_w_czacie_zwraca_true(monkeypatch):
     assert agents_sedzia.czy_kontekst_odpowiada('pytanie', kontekst) is True
 
 
+# O2 (Pomiary/PLAN_ODMOWY.md): parsowanie werdyktu sedziego jest fail open wszedzie oprocz
+# jawnego NIE/NO, wiec pusta odpowiedz albo preambula juz nie odmawiaja po cichu.
+
+
+def odpowiedz_modelu(tresc):
+    class Wiadomosc:
+        content = tresc
+    class Wybor:
+        message = Wiadomosc()
+    class Odpowiedz:
+        choices = [Wybor()]
+    return Odpowiedz()
+
+
+def test_sedzia_jawne_nie_odmawia(monkeypatch):
+    import agents_sedzia
+    monkeypatch.setattr(agents_sedzia, 'czat', lambda *a, **k: odpowiedz_modelu('NIE'))
+    kontekst = [({'tekst': 'kontekst', 'tytul': 'Artykul'}, 0.9)]
+    assert agents_sedzia.czy_kontekst_odpowiada('pytanie', kontekst) is False
+
+
+def test_sedzia_jawne_tak_przepuszcza(monkeypatch):
+    import agents_sedzia
+    monkeypatch.setattr(agents_sedzia, 'czat', lambda *a, **k: odpowiedz_modelu('TAK'))
+    kontekst = [({'tekst': 'kontekst', 'tytul': 'Artykul'}, 0.9)]
+    assert agents_sedzia.czy_kontekst_odpowiada('pytanie', kontekst) is True
+
+
+def test_sedzia_pusta_odpowiedz_przepuszcza(monkeypatch):
+    import agents_sedzia
+    monkeypatch.setattr(agents_sedzia, 'czat', lambda *a, **k: odpowiedz_modelu(''))
+    kontekst = [({'tekst': 'kontekst', 'tytul': 'Artykul'}, 0.9)]
+    assert agents_sedzia.czy_kontekst_odpowiada('pytanie', kontekst) is True
+
+
+def test_sedzia_preambula_przed_tak_przepuszcza(monkeypatch):
+    import agents_sedzia
+    monkeypatch.setattr(agents_sedzia, 'czat', lambda *a, **k: odpowiedz_modelu('Odpowiedź: TAK'))
+    kontekst = [({'tekst': 'kontekst', 'tytul': 'Artykul'}, 0.9)]
+    assert agents_sedzia.czy_kontekst_odpowiada('pytanie', kontekst) is True
+
+
+def test_sedzia_jawne_no_odmawia_en(monkeypatch):
+    import agents_sedzia
+    monkeypatch.setattr(agents_sedzia, 'czat', lambda *a, **k: odpowiedz_modelu('NO'))
+    kontekst = [({'tekst': 'context', 'tytul': 'Article'}, 0.9)]
+    assert agents_sedzia.czy_kontekst_odpowiada('question', kontekst, lang='en') is False
+
+
 def test_bramka_pokrycia_pomijana_gdy_idf_nie_zaladowane(monkeypatch, atrapa_pipeline):
     atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz o koncie.')
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 0.0)

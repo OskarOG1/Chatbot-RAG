@@ -17,7 +17,7 @@ def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = 
     ]
     try:
         odp = czat(bielik_model or LANG[lang]['sedzia_model'], wiadomosci,
-                   stop=['\n', f"{p['pytanie_label']}:"])
+                   stop=['\n', f"{p['pytanie_label']}:"], max_tokens=12)
     except Exception as e:
         print(f'sedzia kontekstu niedostepny ({type(e).__name__}: {e}), przepuszczam dalej',
               flush=True)
@@ -25,7 +25,7 @@ def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = 
             stan['sedzia_pominiety'] = True
         return True
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip().upper()
-    return tekst.startswith(p['tak_marker'])
+    return not tekst.startswith(p['nie_marker'])
 
 
 def sedzia_kategoria_mail(history: list[dict], chunks: list, lang: str = 'pl') -> str | None:
