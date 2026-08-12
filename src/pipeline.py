@@ -254,7 +254,7 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'pokrycie', 'bramki_pominiete': bramki_pominiete}}
         return
 
-    if model_nie_wie(odpowiedz['tekst'], lang):
+    if not odpowiedz['cytaty'] and model_nie_wie(odpowiedz['tekst'], lang):
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'model_nie_wie', 'bramki_pominiete': bramki_pominiete}}
         return
 

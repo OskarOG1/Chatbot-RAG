@@ -75,6 +75,20 @@ def test_model_nie_wie_gdy_odpowiedz_zawiera_zwrot(monkeypatch, atrapa_pipeline)
     assert wynik['powod_etap2'] == 'prog_rerank'
 
 
+def test_model_nie_wie_nie_odpala_gdy_odpowiedz_ma_cytaty(monkeypatch, atrapa_pipeline):
+    cytaty = [{'n': 1, 'url': 'https://allegro.pl/pomoc/artykul', 'tytul': 'Artykul'}]
+    atrapa_pipeline.ustaw_etap(
+        'kupujacy',
+        tekst='Nie mam informacji o Twoim konkretnym przypadku, ale standardowy termin to 14 dni.',
+        cytaty=cytaty,
+    )
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+    wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
+                         bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik.get('powod_odmowy') is None
+    assert wynik['agent'] == 'kupujacy'
+
+
 def test_zbior_wartosci_powod_odmowy_pokryty_kodem():
     zrodlo_pipeline = Path(pipeline.__file__).read_text(encoding='utf-8')
     bezposrednie = set(re.findall(r"'powod_odmowy':\s*'([a-z0-9_]+)'", zrodlo_pipeline))
