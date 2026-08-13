@@ -58,7 +58,7 @@ flowchart TD
     H --> RR["Reranker: cross-encoder na parach pytanie/fragment → top 5"]
     RR --> G1{"Bramka 1<br/>wynik rerankera poniżej progu?"}
     G1 -- tak --> D1["Odmowa, model nie jest wołany"]
-    G1 -- nie --> G2{"Bramka 2<br/>sędzia LLM: da się odpowiedzieć z kontekstu?"}
+    G1 -- nie --> G2{"Bramka 2<br/>sędzia LLM: kontekst i pytanie o tym samym temacie?"}
     G2 -- NIE --> D2["Odmowa"]
     G2 -- TAK --> GEN["Generacja: apertus v1.5 8B<br/>system prompt + historia rozmowy + kontekst"]
     GEN --> C["Mapowanie cytatów [n] → źródło, czyszczenie linków"]

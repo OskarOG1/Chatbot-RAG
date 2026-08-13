@@ -111,7 +111,7 @@ PROMPTY = {
         ),
         'sedzia_kontekst_label': 'KONTEKST',
         'sedzia_pytanie_label': 'PYTANIE',
-        'sedzia_pytanie': 'Czy da się odpowiedzieć? (TAK/NIE):',
+        'sedzia_pytanie': 'Czy KONTEKST i PYTANIE dotyczą tego samego ogólnego tematu? (TAK/NIE):',
         'tak_marker': 'TAK',
         'nie_marker': 'NIE',
         'email_system_reklamacja': (
@@ -323,7 +323,7 @@ PROMPTY = {
         ),
         'sedzia_kontekst_label': 'CONTEXT',
         'sedzia_pytanie_label': 'QUESTION',
-        'sedzia_pytanie': 'Can this be answered? (YES/NO):',
+        'sedzia_pytanie': 'Do the CONTEXT and QUESTION belong to the same general topic? (YES/NO):',
         'tak_marker': 'YES',
         'nie_marker': 'NO',
         'email_system_reklamacja': (

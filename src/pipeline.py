@@ -1,6 +1,6 @@
 from sentence_transformers import SentenceTransformer
 import faiss
-from rankings import search_reranked_multi
+from rankings import search_reranked_multi, normalizacja
 from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada, napisz_email, sedzia_kategoria_mail
 from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
@@ -27,6 +27,7 @@ class ModeleLeniwe(dict):
 
 MODELE = ModeleLeniwe()
 OKNO_HISTORII = 3
+OKNO_JAWNEJ_ODMOWY = 160
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 PII_WZORCE = (
@@ -165,6 +166,16 @@ def model_nie_wie(tekst: str, lang: str = 'pl') -> bool:
     return any(fraza in low for fraza in LANG[lang]['nie_wiem_zwroty'])
 
 
+@lru_cache(maxsize=None)
+def jawna_odmowa_frazy(lang: str) -> tuple:
+    return tuple(normalizacja(fraza) for fraza in LANG[lang]['jawna_odmowa_zwroty'])
+
+
+def jawna_odmowa_na_starcie(tekst: str, lang: str = 'pl') -> bool:
+    okno = normalizacja(tekst[:OKNO_JAWNEJ_ODMOWY].replace('’', "'"))
+    return any(fraza in okno for fraza in jawna_odmowa_frazy(lang))
+
+
 def skazone_tokeny(query: str) -> set:
     trafienia = set()
     for wzorzec in PII_WZORCE:
@@ -256,6 +267,10 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
 
     if not odpowiedz['cytaty'] and model_nie_wie(odpowiedz['tekst'], lang):
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'model_nie_wie', 'bramki_pominiete': bramki_pominiete}}
+        return
+
+    if jawna_odmowa_na_starcie(odpowiedz['tekst'], lang):
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'jawna_odmowa', 'bramki_pominiete': bramki_pominiete}}
         return
 
     oferta = None
