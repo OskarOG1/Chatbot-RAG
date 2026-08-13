@@ -318,6 +318,39 @@ def test_bramka_sedziego_pominieta_trafia_do_wyniku(monkeypatch, atrapa_pipeline
 # Grupa E: model_nie_wie w srodku zdania merytorycznego (N2)
 
 
+# O12 (Pomiary/PLAN_ODMOWY.md): jawna odmowa na starcie tekstu odrzucana niezaleznie od cytatow,
+# bo przypadkowy cytat dopiety do uzasadnienia odmowy nie moze jej zamienic w odpowiedz.
+
+
+def test_jawna_odmowa_na_starcie_odrzuca_mimo_cytatu(monkeypatch, atrapa_pipeline):
+    cytaty = [{'n': 4, 'url': 'https://allegro.pl/pomoc/dyskusje', 'tytul': 'Dyskusje'}]
+    atrapa_pipeline.ustaw_etap(
+        'kupujacy',
+        tekst='Nie mogę udzielić odpowiedzi na Twoje pytanie, ponieważ w dostępnym '
+              'kontekście nie ma informacji o zwrotach przez spółki. Sprawdź [4].',
+        cytaty=cytaty,
+    )
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+    wynik = pipeline.run('jakies pytanie o zwrot przez spolke', strona='kupujacy',
+                         bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik['powod_odmowy'] == 'model_nie_wie'
+    assert wynik['powod_etap2'] == 'prog_rerank'
+
+
+def test_zastrzezenie_na_starcie_z_cytatami_wciaz_przepuszczone(monkeypatch, atrapa_pipeline):
+    cytaty = [{'n': 1, 'url': 'https://allegro.pl/pomoc/artykul', 'tytul': 'Artykul'}]
+    atrapa_pipeline.ustaw_etap(
+        'kupujacy',
+        tekst='Nie mam informacji o Twoim konkretnym przypadku, ale standardowy termin to 14 dni.',
+        cytaty=cytaty,
+    )
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+    wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
+                         bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik.get('powod_odmowy') is None
+    assert wynik['agent'] == 'kupujacy'
+
+
 def test_model_nie_wie_odrzuca_fraze_w_srodku_zdania_merytorycznego(monkeypatch, atrapa_pipeline):
     tekst = ('Ten artykuł nie zawiera informacji o zwrotach po 30 dniach, opisuje natomiast '
              'standardowa procedure zwrotu w ciagu 14 dni.')

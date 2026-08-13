@@ -57,6 +57,10 @@ LANG = {
             'nie zawiera informacji',
             'nie ma informacji',
         ),
+        'jawna_odmowa_zwroty': (
+            'nie mogę udzielić odpowiedzi',
+            'nie mogę odpowiedzieć na to pytanie',
+        ),
         'rozmowa': {
             'powitanie': 'Cześć, w czym mogę pomóc? Odpowiadam na pytania o konto, zakupy, '
                          'płatności i sprzedaż na Allegro.',
@@ -232,6 +236,10 @@ LANG = {
             'i do not have information',
             'no information in the context',
             "i couldn't find this in the materials",
+        ),
+        'jawna_odmowa_zwroty': (
+            "i can't answer this question",
+            'i cannot answer this question',
         ),
         'rozmowa': {
             'powitanie': "Hi, how can I help? I answer questions about accounts, shopping, "

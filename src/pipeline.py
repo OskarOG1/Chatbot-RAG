@@ -165,6 +165,11 @@ def model_nie_wie(tekst: str, lang: str = 'pl') -> bool:
     return any(fraza in low for fraza in LANG[lang]['nie_wiem_zwroty'])
 
 
+def jawna_odmowa_na_starcie(tekst: str, lang: str = 'pl') -> bool:
+    pierwsze_zdanie = re.split(r'[.!?]', tekst, maxsplit=1)[0].lower()
+    return any(fraza in pierwsze_zdanie for fraza in LANG[lang]['jawna_odmowa_zwroty'])
+
+
 def skazone_tokeny(query: str) -> set:
     trafienia = set()
     for wzorzec in PII_WZORCE:
@@ -254,7 +259,8 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'pokrycie', 'bramki_pominiete': bramki_pominiete}}
         return
 
-    if not odpowiedz['cytaty'] and model_nie_wie(odpowiedz['tekst'], lang):
+    if ((not odpowiedz['cytaty'] and model_nie_wie(odpowiedz['tekst'], lang))
+            or jawna_odmowa_na_starcie(odpowiedz['tekst'], lang)):
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'model_nie_wie', 'bramki_pominiete': bramki_pominiete}}
         return
 
