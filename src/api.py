@@ -69,7 +69,7 @@ def cache_pobierz(klucz: tuple) -> dict | None:
 
 
 def cache_zapisz(klucz: tuple, wynik: dict) -> None:
-    if not wynik.get('agent'):
+    if not wynik.get('agent') and wynik.get('powod_odmowy') != 'prog_rerank':
         return
     with _zamek:
         _cache[klucz] = wynik
