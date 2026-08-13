@@ -50,21 +50,23 @@ flowchart TD
     Q["Pytanie użytkownika"] --> F["Filtry wejścia:<br/>puste / za krótkie / za długie / obcy alfabet / injection"]
     F --> K["Korektor literówek<br/>Damerau-Levenshtein + próg częstości słowa"]
     K --> E["Embedding mmlw<br/>prefiks 'zapytanie: '"]
-    E --> P{"Sygnał strony?<br/>deklaracja w UI, lepkość rozmowy, marker leksykalny"}
-    P -- "brak sygnału (większość ruchu)" --> S1["Szukaj: cały korpus, pula 'all'"]
-    P -- "jest sygnał" --> S2["Szukaj: pula strony + homogenizacja"]
-    S1 --> H["Wyszukiwanie hybrydowe<br/>BM25 (lematyzacja, trigramy) + FAISS, RRF → 20 kandydatów"]
-    S2 --> H
+    E --> S["Szukaj: pula sekcji wybranej przez użytkownika<br/>(przełącznik kupujący/sprzedający w UI, domyślnie kupujący)"]
+    S --> H["Wyszukiwanie hybrydowe<br/>BM25 (lematyzacja, trigramy) + FAISS, RRF → 20 kandydatów"]
     H --> RR["Reranker: cross-encoder na parach pytanie/fragment → top 5"]
     RR --> G1{"Bramka 1<br/>wynik rerankera poniżej progu?"}
-    G1 -- tak --> D1["Odmowa, model nie jest wołany"]
+    G1 -- tak --> D1["Odmowa etapu 1"]
     G1 -- nie --> G2{"Bramka 2<br/>sędzia LLM: kontekst i pytanie o tym samym temacie?"}
-    G2 -- NIE --> D2["Odmowa"]
+    G2 -- NIE --> D2["Odmowa etapu 1"]
     G2 -- TAK --> GEN["Generacja: apertus v1.5 8B<br/>system prompt + historia rozmowy + kontekst"]
     GEN --> C["Mapowanie cytatów [n] → źródło, czyszczenie linków"]
     C --> G3{"Bramka 3<br/>pokrycie odpowiedzi kontekstem poniżej progu?"}
-    G3 -- tak --> D3["Odmowa"]
-    G3 -- nie --> A["Odpowiedź + Źródła"]
+    G3 -- tak --> D3["Odmowa etapu 1"]
+    G3 -- nie --> A1["Odpowiedź + Źródła"]
+    D1 --> S2["Etap 2: ten sam łańcuch na drugiej sekcji"]
+    D2 --> S2
+    D3 --> S2
+    S2 -- trafiło --> A2["Odpowiedź + Źródła + nota o zamianie sekcji"]
+    S2 -- "znów odmowa" --> D4["Odmowa, powód z etapu 1"]
 ```
 
 ### Dobór technologii
@@ -341,6 +343,8 @@ Jedyna metryka, dla której ten eksperyment powstał (kupujący EN), spadła zam
 Backend: **FastAPI**. `POST /chat` zwraca JSON (odpowiedź, źródła, cytaty). `POST /chat/stream`, ten sam proces przez SSE, kolejne kroki i pojedyncze tokeny odpowiedzi na bieżąco, model główny z automatycznym fallbackiem na model zapasowy przy awarii.
 
 Frontend: **Next.js** (`frontend-next/`). Czat ze streamingiem odpowiedzi na żywo, klikalne cytaty i źródła, panel edycji maila z możliwością ponownego otwarcia po zamknięciu, porzucenia szkicu, 15-sekundowego okna na cofnięcie wysyłki i korekty po wysłaniu.
+
+**Podmiana korpusu wymaga restartu kontenera.** Cache odpowiedzi kluczuje się mtime plików `chunks_kupujacy.json` / `chunks_sprzedaz.json`, więc sam cache odświeża się automatycznie. Indeksy BM25 i FAISS w `rankings.py` (`BM25_CACHE`, `FAISS_CACHE`, `CHUNKI_CACHE`) wczytują się raz do pamięci procesu i nie mają żadnej inwalidacji: podmiana plików korpusu bez restartu zostawia proces API na starych indeksach, mimo że cache odpowiedzi już by wskazywał na nowy stan.
 
 ---
 

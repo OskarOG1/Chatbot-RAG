@@ -1,4 +1,5 @@
 import json
+import threading
 from collections import OrderedDict, deque
 
 import pytest
@@ -22,6 +23,8 @@ def reset_stan_api(monkeypatch, tmp_path):
     monkeypatch.setattr(api, '_cache', OrderedDict())
     monkeypatch.setattr(api, 'LOG_ANALYTICS', tmp_path / 'log_analytics_test.jsonl')
     monkeypatch.setattr(pipeline, 'LOG_TRUDNE', tmp_path / 'trudne_test.jsonl')
+    monkeypatch.setattr(api, '_bramki_pominiete_historia', deque(maxlen=api.SYGNAL_POMINIETE_OKNO))
+    monkeypatch.setattr(api, '_sygnal_bramki_pominiete_aktywny', False)
 
 
 @pytest.fixture
@@ -105,10 +108,57 @@ def test_cache_zdatny_prawda_dla_domyslnego_zadania():
     {'przepisz': True},
     {'bielik_model': 'jakis-model'},
     {'sedzia': False},
+    {'bez_korekty': True},
 ])
 def test_cache_zdatny_falszywe_dla_kazdego_warunku(pola):
     req = api.ChatRequest(message='jak zmienic haslo', **pola)
     assert api.cache_zdatny(req) is False
+
+
+def test_cache_pobierz_trzyma_zamek_do_konca_wiec_rownolegly_zapis_czeka(monkeypatch):
+    klucz = ('pl', 'test', 0, 'kupujacy')
+
+    wszedl_do_srodka = threading.Event()
+    moze_zwrocic = threading.Event()
+
+    class Powolny(OrderedDict):
+        def get(self, k, d=None):
+            wynik = OrderedDict.get(self, k, d)
+            wszedl_do_srodka.set()
+            moze_zwrocic.wait(timeout=2)
+            return wynik
+
+    cache = Powolny()
+    cache[klucz] = {'agent': 'konto', 'answer': 'a'}
+    monkeypatch.setattr(api, '_cache', cache)
+
+    wynik_pobierz = {}
+
+    def watek_pobierz():
+        wynik_pobierz['wynik'] = api.cache_pobierz(klucz)
+
+    watek1 = threading.Thread(target=watek_pobierz)
+    watek1.start()
+    assert wszedl_do_srodka.wait(timeout=2)
+
+    zapis_zakonczony = threading.Event()
+
+    def watek_zapis():
+        api.cache_zapisz(klucz, {'agent': 'konto', 'answer': 'b'})
+        zapis_zakonczony.set()
+
+    watek2 = threading.Thread(target=watek_zapis)
+    watek2.start()
+
+    zapis_gotowy_przedwczesnie = zapis_zakonczony.wait(timeout=0.2)
+    moze_zwrocic.set()
+
+    watek1.join(timeout=2)
+    watek2.join(timeout=2)
+
+    assert zapis_gotowy_przedwczesnie is False
+    assert wynik_pobierz['wynik'] == {'agent': 'konto', 'answer': 'a'}
+    assert cache[klucz]['answer'] == 'b'
 
 
 def test_cache_zapisz_odrzuca_wynik_bez_agenta_n9():
@@ -136,6 +186,35 @@ def test_cache_zapisz_odrzuca_odmowy_niedeterministyczne_o7(powod):
     klucz = ('pl', f'test-{powod}', 0, 'kupujacy')
     api.cache_zapisz(klucz, {'agent': '', 'powod_odmowy': powod})
     assert api.cache_pobierz(klucz) is None
+
+
+# sygnal bramki_pominiete (A7)
+
+
+def test_sygnal_bramki_pominiete_zapala_sie_i_gasnie(monkeypatch):
+    monkeypatch.setattr(api, 'SYGNAL_POMINIETE_OKNO', 5)
+    monkeypatch.setattr(api, '_bramki_pominiete_historia', deque(maxlen=5))
+    monkeypatch.setattr(api, '_sygnal_bramki_pominiete_aktywny', False)
+
+    for _ in range(5):
+        api.zglos_bramki_pominiete(['sedzia'])
+    assert api.sygnal_bramki_pominiete_aktywny() is True
+
+    for _ in range(5):
+        api.zglos_bramki_pominiete([])
+    assert api.sygnal_bramki_pominiete_aktywny() is False
+
+
+# guard_za_dlugie (A5)
+
+
+def test_guard_za_dlugie_osiagalny_zamiast_422(monkeypatch, client):
+    monkeypatch.setattr(api, 'corpus_stamp', lambda lang: 1)
+    odpowiedz = client.post('/chat', json={'message': 'a' * (api.MAX_ZNAKI + 1), 'lang': 'pl'})
+    assert odpowiedz.status_code == 200
+    dane = odpowiedz.json()
+    assert dane['powod_odmowy'] == 'guard_za_dlugie'
+    assert dane['answer'] == api.LANG['pl']['guardy']['za_dlugie']
 
 
 # /chat/stream

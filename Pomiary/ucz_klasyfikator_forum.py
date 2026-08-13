@@ -197,9 +197,11 @@ def zbuduj_punkty(rekordy, tablice, wyniki_sort, marginesy_sort) -> list[dict]:
 
 
 def odniesienie_strona(rekordy, klasy_uczenia, boardy_uczenia) -> list[dict]:
-    """Zawsze najliczniejsza klasa tej strony, ktora wybral dzisiejszy routing
-    (strony.prior_strony, czysto leksykalny). Brak prioru to globalna wiekszosc."""
+    """Zawsze najliczniejsza klasa tej strony, ktora wybieral dawny routing
+    (prior_strony, czysto leksykalny), zachowany tu jako historyczna linia
+    odniesienia. Brak prioru to globalna wiekszosc."""
     import strony
+    from prior_strony import prior_strony
 
     najliczniejsza_globalnie = Counter(klasy_uczenia).most_common(1)[0][0]
     po_stronie = defaultdict(Counter)
@@ -209,7 +211,7 @@ def odniesienie_strona(rekordy, klasy_uczenia, boardy_uczenia) -> list[dict]:
 
     punkty = []
     for r in rekordy:
-        prior, _sila = strony.prior_strony(r['pytanie'], None, 'pl', False)
+        prior, _sila = prior_strony(r['pytanie'], None, 'pl', False)
         agent = strony.STRONA_DO_AGENTA.get(prior) if prior else None
         punkty.append({
             'prawda': dane_forum.klasa(r['board']),

@@ -66,7 +66,7 @@ def klasa_tury(query: str, history: list[dict], agent_poprzedni: str | None,
     tokeny = fold_tokeny(query)
 
     if len(tokeny) <= MAX_TOKENOW_ROZMOWY:
-        if dopasuj_liste(tokeny, cfg['powitania']):
+        if not history and dopasuj_liste(tokeny, cfg['powitania']):
             return 'powitanie', query
         if dopasuj_liste(tokeny, cfg['podziekowania']):
             return 'podziekowanie', query

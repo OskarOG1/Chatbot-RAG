@@ -46,26 +46,43 @@ def test_gole_numery_na_koncu_wyciete():
 def test_naglowek_zrodlo_bez_listy_wyciety():
     chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
     wynik = verify_answer('Tresc odpowiedzi. [1]\n\nŹródło:', chunks)
-    assert wynik['tekst'] == 'Tresc odpowiedzi.'
+    assert wynik['tekst'] == 'Tresc odpowiedzi. [1]'
     assert wynik['cytaty'] == [{'n': 1, 'url': 'https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF', 'tytul': 't'}]
 
 
 def test_naglowek_zrodla_z_lista_w_tej_samej_linii_wyciety():
     chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
     wynik = verify_answer('Tresc odpowiedzi. [1]\nŹródła: [1],', chunks)
-    assert wynik['tekst'] == 'Tresc odpowiedzi.'
+    assert wynik['tekst'] == 'Tresc odpowiedzi. [1]'
 
 
 def test_naglowek_zrodla_wielu_numerow_wyciety():
     chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF'), chunk('https://allegro.pl/pomoc/y-GHIJKL')]
     wynik = verify_answer('Tresc odpowiedzi. [1][2]\nŹródła: [3], [2],', chunks)
-    assert wynik['tekst'] == 'Tresc odpowiedzi.'
+    assert wynik['tekst'] == 'Tresc odpowiedzi. [1][2]'
 
 
 def test_naglowek_zrodla_z_lista_ponizej_wycieta():
     chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
     wynik = verify_answer('Tresc odpowiedzi. [1]\n\nŹródła:\n[1] tytuł artykułu', chunks)
-    assert wynik['tekst'] == 'Tresc odpowiedzi.'
+    assert wynik['tekst'] == 'Tresc odpowiedzi. [1]'
+
+
+def test_cytat_powielony_na_koncu_wyciety_ale_jedyny_zostaje():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF'),
+              chunk('https://allegro.pl/pomoc/y-GHIJKL')]
+    wynik = verify_answer('Krok pierwszy [1]\nKrok drugi [2]', chunks)
+    assert wynik['tekst'] == 'Krok pierwszy [1]\nKrok drugi [2]'
+    assert wynik['cytaty'] == [
+        {'n': 1, 'url': 'https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF', 'tytul': 't'},
+        {'n': 2, 'url': 'https://allegro.pl/pomoc/y-GHIJKL', 'tytul': 't'},
+    ]
+
+
+def test_cytat_koncowy_powtorzony_wyzej_zostaje_obciety():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
+    wynik = verify_answer('Zrob to [1]. Podsumowanie [1]', chunks)
+    assert wynik['tekst'] == 'Zrob to [1]. Podsumowanie'
 
 
 def test_slowo_zrodla_w_srodku_zdania_nie_wyciete():
