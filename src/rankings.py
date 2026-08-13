@@ -52,7 +52,13 @@ def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl')
         if url not in najlepszy or s > najlepszy[url][0]:
             najlepszy[url] = (s, chunk)
 
-    posortowane = sorted(najlepszy.values(), key=lambda p: p[0], reverse=True)
+    najlepsza_tresc = {}
+    for s, chunk in najlepszy.values():
+        klucz_tresci = (chunk['tytul'], chunk['tekst'])
+        if klucz_tresci not in najlepsza_tresc or s > najlepsza_tresc[klucz_tresci][0]:
+            najlepsza_tresc[klucz_tresci] = (s, chunk)
+
+    posortowane = sorted(najlepsza_tresc.values(), key=lambda p: p[0], reverse=True)
 
     return [(chunk, score) for score, chunk in posortowane][:k]
     
