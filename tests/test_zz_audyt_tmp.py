@@ -43,7 +43,7 @@ def test_cache_ignoruje_bez_korekty(monkeypatch, atrapa_pipeline, client):
     print('B (bez_korekty=True)  doprecyzowanie =', repr(b.get('doprecyzowanie')))
     print('zapytanie retrievalowe A =', atrapa_pipeline.wyszukiwania[0]['zapytanie'])
     print('liczba wyszukiwan po A =', szukania_po_a, ', po B =', szukania_po_b)
-    wpisy = [json.loads(l) for l in api.LOG_ANALYTICS.read_text(encoding='utf-8').splitlines()]
+    wpisy = [json.loads(linia) for linia in api.LOG_ANALYTICS.read_text(encoding='utf-8').splitlines()]
     print('cache_hit w logu:', [w['cache_hit'] for w in wpisy])
 
 
@@ -92,6 +92,6 @@ def test_stream_vs_chat_pola(monkeypatch, atrapa_pipeline, client):
     a = client.post('/chat', json=baza).json()
     monkeypatch.setattr(api, '_cache', OrderedDict())
     tekst = client.post('/chat/stream', json=baza).text
-    ostatnie = [json.loads(l[6:]) for l in tekst.splitlines() if l.startswith('data: ')][-1]
+    ostatnie = [json.loads(linia[6:]) for linia in tekst.splitlines() if linia.startswith('data: ')][-1]
     print('/chat klucze       :', sorted(a.keys()))
     print('/chat/stream klucze:', sorted(ostatnie['dane'].keys()))
