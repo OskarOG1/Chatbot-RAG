@@ -100,7 +100,7 @@ def test_zbior_wartosci_powod_odmowy_pokryty_kodem():
     znalezione = bezposrednie | guardowe
     oczekiwane = {
         'prog_rerank', 'sedzia', 'brak_generacji', 'pokrycie', 'model_nie_wie',
-        'nie_zrozumialem', 'mail_doprecyzuj',
+        'jawna_odmowa', 'nie_zrozumialem', 'mail_doprecyzuj',
         'guard_za_krotkie', 'guard_za_dlugie', 'guard_nie_rozumiem',
         'guard_zly_alfabet', 'guard_injekcja',
     }
@@ -318,8 +318,20 @@ def test_bramka_sedziego_pominieta_trafia_do_wyniku(monkeypatch, atrapa_pipeline
 # Grupa E: model_nie_wie w srodku zdania merytorycznego (N2)
 
 
-# O12 (Pomiary/PLAN_ODMOWY.md): jawna odmowa na starcie tekstu odrzucana niezaleznie od cytatow,
-# bo przypadkowy cytat dopiety do uzasadnienia odmowy nie moze jej zamienic w odpowiedz.
+def test_model_nie_wie_odrzuca_fraze_w_srodku_zdania_merytorycznego(monkeypatch, atrapa_pipeline):
+    tekst = ('Ten artykuł nie zawiera informacji o zwrotach po 30 dniach, opisuje natomiast '
+             'standardowa procedure zwrotu w ciagu 14 dni.')
+    atrapa_pipeline.ustaw_etap('kupujacy', tekst=tekst)
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda t, chunks, lang: 1.0)
+
+    wynik = pipeline.run('jakies pytanie o zwrot', strona='kupujacy',
+                         bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik['powod_odmowy'] == 'model_nie_wie'
+
+
+# Grupa F: jawna odmowa na starcie tekstu (O12, Pomiary/PLAN_ODMOWY.md), odrzucana niezaleznie
+# od cytatow, bo przypadkowy cytat dopiety do uzasadnienia odmowy nie moze jej zamienic
+# w odpowiedz. Testy trzymaja obie strony kontraktu: czysta odmowa pada, zastrzezenie przechodzi.
 
 
 def test_jawna_odmowa_na_starcie_odrzuca_mimo_cytatu(monkeypatch, atrapa_pipeline):
@@ -333,7 +345,7 @@ def test_jawna_odmowa_na_starcie_odrzuca_mimo_cytatu(monkeypatch, atrapa_pipelin
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
     wynik = pipeline.run('jakies pytanie o zwrot przez spolke', strona='kupujacy',
                          bez_korekty=True, sedzia=False, lang='pl')
-    assert wynik['powod_odmowy'] == 'model_nie_wie'
+    assert wynik['powod_odmowy'] == 'jawna_odmowa'
     assert wynik['powod_etap2'] == 'prog_rerank'
 
 
@@ -351,12 +363,63 @@ def test_zastrzezenie_na_starcie_z_cytatami_wciaz_przepuszczone(monkeypatch, atr
     assert wynik['agent'] == 'kupujacy'
 
 
-def test_model_nie_wie_odrzuca_fraze_w_srodku_zdania_merytorycznego(monkeypatch, atrapa_pipeline):
-    tekst = ('Ten artykuł nie zawiera informacji o zwrotach po 30 dniach, opisuje natomiast '
-             'standardowa procedure zwrotu w ciagu 14 dni.')
-    atrapa_pipeline.ustaw_etap('kupujacy', tekst=tekst)
-    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda t, chunks, lang: 1.0)
+# Apostrof typograficzny U+2019: modele pisza "I can’t", a lista fraz w lang_config nosi apostrof
+# ASCII, wiec bez normalizacji angielska bramka przepuszczala czysta odmowe z cytatem.
 
-    wynik = pipeline.run('jakies pytanie o zwrot', strona='kupujacy',
-                         bez_korekty=True, sedzia=False, lang='pl')
-    assert wynik['powod_odmowy'] == 'model_nie_wie'
+
+def test_jawna_odmowa_en_lapie_oba_apostrofy():
+    for tekst in ("I can't answer this question based on the context. See [2].",
+                  'I can’t answer this question based on the context. See [2].',
+                  'I cannot answer this question based on the context.'):
+        assert pipeline.jawna_odmowa_na_starcie(tekst, 'en') is True
+
+
+def test_jawna_odmowa_en_nie_odpala_na_zastrzezeniu():
+    tekst = 'I do not have information about your specific order, but the standard term is 14 days.'
+    assert pipeline.jawna_odmowa_na_starcie(tekst, 'en') is False
+
+
+# Z1: okno liczone w znakach, nie w pierwszym zdaniu. Kropka polskiego skrotu ("art.", "np."),
+# numerowane otwarcie odpowiedzi i brak ogonkow po modelu zapasowym ucinaly stare okno.
+
+
+def test_jawna_odmowa_nie_zalezy_od_kropek_przed_fraza():
+    for tekst in ('Nie mogę udzielić odpowiedzi na to pytanie. Sprawdź [1].',
+                  'Zgodnie z art. 5 nie mogę udzielić odpowiedzi na to pytanie.',
+                  '1. Nie mogę udzielić odpowiedzi na to pytanie.',
+                  'Twoje pytanie dotyczy zwrotu. Nie mogę udzielić odpowiedzi, bo brak danych.'):
+        assert pipeline.jawna_odmowa_na_starcie(tekst, 'pl') is True, tekst
+
+
+def test_jawna_odmowa_lapie_tekst_bez_znakow_diakrytycznych():
+    assert pipeline.jawna_odmowa_na_starcie('Nie moge udzielic odpowiedzi na to pytanie.', 'pl') is True
+    assert pipeline.jawna_odmowa_na_starcie('NIE MOGE UDZIELIC ODPOWIEDZI.', 'pl') is True
+
+
+def test_jawna_odmowa_nie_lapie_frazy_za_oknem():
+    tresc = ('Zwrot towaru zgłaszasz w zakładce Moje zakupy, masz na to 14 dni od odbioru '
+             'przesyłki, a sprzedawca ma kolejne 14 dni na oddanie pieniędzy od chwili, '
+             'w której dostanie paczkę z powrotem [1]. ')
+    assert len(tresc) > pipeline.OKNO_JAWNEJ_ODMOWY
+    tekst = tresc + 'W pozostałym zakresie nie mogę udzielić odpowiedzi.'
+    assert pipeline.jawna_odmowa_na_starcie(tekst, 'pl') is False
+
+
+def test_okno_jawnej_odmowy_nie_obejmuje_calego_tekstu():
+    assert pipeline.OKNO_JAWNEJ_ODMOWY <= 200
+
+
+def test_jawna_odmowa_ma_wlasna_etykiete_odrebna_od_model_nie_wie(monkeypatch, atrapa_pipeline):
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+
+    atrapa_pipeline.ustaw_etap('kupujacy', tekst='Nie mam informacji na ten temat.')
+    atrapa_pipeline.ustaw_etap('sprzedajacy', tekst='Nie mam informacji na ten temat.')
+    wynik_stary = pipeline.run('jakies pytanie o konto', strona='kupujacy',
+                               bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik_stary['powod_odmowy'] == 'model_nie_wie'
+
+    atrapa_pipeline.ustaw_etap('kupujacy', tekst='Nie mogę udzielić odpowiedzi na to pytanie.')
+    atrapa_pipeline.ustaw_etap('sprzedajacy', tekst='Nie mogę udzielić odpowiedzi na to pytanie.')
+    wynik_nowy = pipeline.run('jakies pytanie o konto', strona='kupujacy',
+                              bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik_nowy['powod_odmowy'] == 'jawna_odmowa'
