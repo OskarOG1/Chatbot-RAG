@@ -37,7 +37,7 @@ from lang_config import LANG
 from measure import GOLDEN, OOD
 from measure_en import golden_en, ood_en
 from measure_sprzedaz import golden_sprzedaz
-from tablica_rerank import klucz
+from tablica_rerank import SCHEMAT, klucz, sha_tresci
 
 RAG_DIR = ROOT / 'RAG'
 OUT_DIR = ROOT / 'outputs'
@@ -96,7 +96,8 @@ def oblicz_wpis(query: str, lang: str, embedery: dict, reranker, top_n: int, wsa
             continue
         pary = [(query, chunk['tekst']) for chunk, _ in kandydaci]
         scores = reranker.predict(pary, batch_size=wsad)
-        wpis[agent] = [[chunk['url'], float(s)] for (chunk, _), s in zip(kandydaci, scores)]
+        wpis[agent] = [[chunk['url'], float(s), sha_tresci(chunk)]
+                       for (chunk, _), s in zip(kandydaci, scores)]
     return wpis
 
 
@@ -114,6 +115,7 @@ def zapisz(sciezka: Path, wyniki: dict, sha_chunkow: dict, sha_faiss: dict, sha_
             'torch': torch.__version__,
             'sentence_transformers': sentence_transformers.__version__,
             'top_n': top_n,
+            'schemat': SCHEMAT,
             'czas_utc': datetime.now(timezone.utc).isoformat(),
         },
         'wyniki': wyniki,
