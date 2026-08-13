@@ -33,6 +33,21 @@ def kandydaci_rrf(query, query_emb, agent, k_surowe, lang='pl'):
 
     return [(chunki[idx], punkty[idx]) for idx in posortowane][:k_surowe]
 
+def klucz_url(chunk):
+    return chunk['url']
+
+def klucz_tresci(chunk):
+    return (chunk['tytul'], chunk['tekst'])
+
+def dedup_najlepszy(wyniki, klucz):
+    najlepsze = {}
+    for chunk, score in wyniki:
+        k = klucz(chunk)
+        if k not in najlepsze or score > najlepsze[k][1]:
+            najlepsze[k] = (chunk, score)
+
+    return list(najlepsze.values())
+
 def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl'):
     linki = []
     for agent in agenci:
@@ -44,24 +59,14 @@ def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl')
 
     pary = [(query, chunk['tekst']) for chunk, _ in linki]
     scores = get_reranker().predict(pary, batch_size=RERANKER_BATCH)
+    ocenione = [(chunk, float(s)) for (chunk, _), s in zip(linki, scores)]
 
-    najlepszy = {}
-    for (chunk, _), s in zip(linki, scores):
-        url, s = chunk['url'], float(s)
+    unikalne = dedup_najlepszy(ocenione, klucz_url)
+    unikalne = dedup_najlepszy(unikalne, klucz_tresci)
 
-        if url not in najlepszy or s > najlepszy[url][0]:
-            najlepszy[url] = (s, chunk)
+    return sorted(unikalne, key=lambda p: p[1], reverse=True)[:k]
 
-    najlepsza_tresc = {}
-    for s, chunk in najlepszy.values():
-        klucz_tresci = (chunk['tytul'], chunk['tekst'])
-        if klucz_tresci not in najlepsza_tresc or s > najlepsza_tresc[klucz_tresci][0]:
-            najlepsza_tresc[klucz_tresci] = (s, chunk)
 
-    posortowane = sorted(najlepsza_tresc.values(), key=lambda p: p[0], reverse=True)
-
-    return [(chunk, score) for score, chunk in posortowane][:k]
-    
 BM25_CACHE = {}
 def get_bm25(agent:str, lang:str='pl'):
     klucz = (lang, agent)
@@ -140,21 +145,8 @@ def rrf(rankingi: list[list[int]]) -> dict[int, float]:
             
     return punkty
 
-def dedup(wyniki):
-    widziane = set()
-
-    unikalne = []
-    for chunk, score in wyniki:
-        
-        if chunk['url'] not in widziane:
-
-            widziane.add(chunk['url'])
-            unikalne.append((chunk,score))
-
-    return unikalne
-
-
-def search_hybrid(query: str, query_emb, agent: str, k:int= 5, lang:str='pl') -> list[tuple]:
+def search_hybrid(query: str, query_emb, agent: str, k:int= 5, lang:str='pl',
+                  dedup_tresci: bool = False) -> list[tuple]:
 
     chunki = wczytaj_chunki(agent, lang)
     r_faiss = ranking_faiss(query_emb, agent, chunki, lang)
@@ -163,5 +155,7 @@ def search_hybrid(query: str, query_emb, agent: str, k:int= 5, lang:str='pl') ->
 
     posortowane = sorted(punkty, key=punkty.get, reverse=True)
     wyniki = [(chunki[idx], punkty[idx]) for idx in posortowane]
-    wyniki = dedup(wyniki)
+    wyniki = dedup_najlepszy(wyniki, klucz_url)
+    if dedup_tresci:
+        wyniki = dedup_najlepszy(wyniki, klucz_tresci)
     return wyniki[:k]
