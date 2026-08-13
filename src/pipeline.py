@@ -97,11 +97,20 @@ def chunks_path(lang: str) -> Path:
     return Path(__file__).resolve().parent.parent / 'RAG' / f'chunks{suffix}.json'
 
 
+def sekcje_chunks_paths(lang: str) -> list[Path]:
+    suffix = LANG[lang]['suffix']
+    rag_dir = Path(__file__).resolve().parent.parent / 'RAG'
+    return [rag_dir / f'chunks_kupujacy{suffix}.json', rag_dir / f'chunks_sprzedaz{suffix}.json']
+
+
 def corpus_stamp(lang: str) -> int:
-    try:
-        return int(chunks_path(lang).stat().st_mtime)
-    except OSError:
-        return 0
+    znaczniki = []
+    for sciezka in sekcje_chunks_paths(lang):
+        try:
+            znaczniki.append(int(sciezka.stat().st_mtime))
+        except OSError:
+            pass
+    return max(znaczniki) if znaczniki else 0
 
 
 def zaladuj_idf(lang: str) -> tuple[dict, float, bool]:

@@ -62,6 +62,17 @@ def test_klasa_tury_sterowanie_potwierdzenie_wymaga_kontekstu():
     assert klasa == 'sterowanie'
 
 
+def test_klasa_tury_ok_bez_historii_jest_powitaniem():
+    klasa, reszta = rozmowa.klasa_tury('ok', [], None, 'pl')
+    assert klasa == 'powitanie'
+
+
+def test_klasa_tury_ok_z_historia_i_agentem_jest_sterowaniem():
+    klasa, reszta = rozmowa.klasa_tury('ok', HISTORIA, 'konto', 'pl')
+    assert klasa == 'sterowanie'
+    assert rozmowa.podklasa_sterowania('ok', 'pl') == 'potwierdzenie'
+
+
 def test_podklasa_sterowania():
     assert rozmowa.podklasa_sterowania('rozwiń to', 'pl') == 'rozwin'
     assert rozmowa.podklasa_sterowania('możesz prościej?', 'pl') == 'prosciej'

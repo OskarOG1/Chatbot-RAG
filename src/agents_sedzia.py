@@ -1,5 +1,5 @@
 from lang_config import LANG
-from agents_core import PROMPTY, czat, context, KATEGORIE_MAIL, ETYKIETY_STRON
+from agents_core import PROMPTY, czat, context, KATEGORIE_MAIL
 import re
 
 
@@ -50,24 +50,4 @@ def sedzia_kategoria_mail(history: list[dict], chunks: list, lang: str = 'pl') -
     for kategoria in KATEGORIE_MAIL:
         if tekst.startswith(kategoria.upper()):
             return kategoria
-    return None
-
-
-def strona_pytania(query: str, history: list[dict] | None = None, lang: str = 'pl') -> str | None:
-    p = PROMPTY[lang]
-    ostatnia = next((w['content'] for w in reversed(history or [])
-                     if w.get('role') == 'user' and w.get('content')), '')
-    tresc = f'{ostatnia} {query}'.strip()
-    wiadomosci = [
-        {'role': 'system', 'content': p['strona_system']},
-        {'role': 'user', 'content': f"{p['pytanie_label']}: {tresc}\n\n{p['strona_pytanie']}"},
-    ]
-    try:
-        odp = czat(LANG[lang]['router_model'], wiadomosci, stop=['\n'], max_tokens=12)
-    except Exception:
-        return None
-    tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip().upper()
-    for etykieta, strona in ETYKIETY_STRON[lang].items():
-        if tekst.startswith(etykieta):
-            return strona
     return None

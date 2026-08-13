@@ -51,10 +51,33 @@ LOG_ANALYTICS = Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.
 OSTRZEZONO_O_LOGU = False
 OSTRZEZONO_O_LOGU_WYSYLKI = False
 
+SYGNAL_POMINIETE_OKNO = int(os.getenv('SYGNAL_POMINIETE_OKNO', '50'))
+SYGNAL_POMINIETE_PROG = float(os.getenv('SYGNAL_POMINIETE_PROG', '0.2'))
+_bramki_pominiete_historia: deque = deque(maxlen=SYGNAL_POMINIETE_OKNO)
+_sygnal_bramki_pominiete_aktywny = False
+
+
+def zglos_bramki_pominiete(bramki_pominiete: list) -> None:
+    global _sygnal_bramki_pominiete_aktywny
+    _bramki_pominiete_historia.append(bool(bramki_pominiete))
+    if len(_bramki_pominiete_historia) < SYGNAL_POMINIETE_OKNO:
+        return
+    udzial = sum(_bramki_pominiete_historia) / len(_bramki_pominiete_historia)
+    aktywny = udzial > SYGNAL_POMINIETE_PROG
+    if aktywny and not _sygnal_bramki_pominiete_aktywny:
+        print(f'UWAGA: {udzial:.0%} z ostatnich {SYGNAL_POMINIETE_OKNO} zadan ma pominiete bramki',
+              file=sys.stderr, flush=True)
+    _sygnal_bramki_pominiete_aktywny = aktywny
+
+
+def sygnal_bramki_pominiete_aktywny() -> bool:
+    return _sygnal_bramki_pominiete_aktywny
+
 
 def cache_zdatny(request: 'ChatRequest') -> bool:
     return (not request.history and not request.agent_poprzedni and not request.przepisz
-            and request.bielik_model is None and request.sedzia is None)
+            and request.bielik_model is None and request.sedzia is None
+            and not request.bez_korekty)
 
 
 def cache_klucz(lang: str, message: str, strona: str) -> tuple:
@@ -62,10 +85,11 @@ def cache_klucz(lang: str, message: str, strona: str) -> tuple:
 
 
 def cache_pobierz(klucz: tuple) -> dict | None:
-    wynik = _cache.get(klucz)
-    if wynik is not None:
-        _cache.move_to_end(klucz)
-    return wynik
+    with _zamek:
+        wynik = _cache.get(klucz)
+        if wynik is not None:
+            _cache.move_to_end(klucz)
+        return wynik
 
 
 def cache_zapisz(klucz: tuple, wynik: dict) -> None:
@@ -89,8 +113,9 @@ def powod_wyniku(dane: dict) -> str:
 
 
 def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str) -> None:
+    dane = dane or {}
+    zglos_bramki_pominiete(dane.get('bramki_pominiete') or [])
     try:
-        dane = dane or {}
         agent = dane.get('agent') or ''
         wynik = 'rozmowa' if dane.get('tryb') == 'rozmowa' else ('odpowiedz' if agent else 'odmowa')
         wpis = {
@@ -277,7 +302,7 @@ class Wiadomosc(BaseModel):
    content: str = Field(min_length=1, max_length=MAX_ZNAKI_WPISU)
 
 class ChatRequest(BaseModel):
-    message: str = Field(min_length=1, max_length=MAX_ZNAKI)
+    message: str = Field(min_length=1, max_length=MAX_ZNAKI * 2)
     bielik_model: str |None = None
     history: list[Wiadomosc] = Field(default=[], max_length=MAX_WPISOW_HISTORII)
     agent_poprzedni: str | None = None
@@ -285,7 +310,7 @@ class ChatRequest(BaseModel):
     bez_korekty: bool = False
     sedzia: bool | None = None
     lang: Literal['pl', 'en'] | None = None
-    strona: Literal['auto', 'kupujacy', 'sprzedajacy'] = 'kupujacy'
+    strona: Literal['kupujacy', 'sprzedajacy'] = 'kupujacy'
 
 class Cytat(BaseModel):
    n: int
@@ -331,7 +356,7 @@ def chat(request: ChatRequest, http_request: Request):
     if not w_limicie():
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     start = time.perf_counter()
-    strona = None if request.strona == 'auto' else request.strona
+    strona = request.strona
     try:
         uzyj_cache = cache_zdatny(request)
         klucz = cache_klucz(lang, request.message, request.strona) if uzyj_cache else None
@@ -355,7 +380,7 @@ def chat(request: ChatRequest, http_request: Request):
 def chat_stream(request: ChatRequest, http_request: Request):
     lang = efektywny_jezyk(request.message, request.lang)
 
-    strona = None if request.strona == 'auto' else request.strona
+    strona = request.strona
 
     def gen():
         if not w_limicie_ip(adres_klienta(http_request)):
