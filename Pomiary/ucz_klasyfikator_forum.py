@@ -211,7 +211,7 @@ def odniesienie_strona(rekordy, klasy_uczenia, boardy_uczenia) -> list[dict]:
 
     punkty = []
     for r in rekordy:
-        prior, _sila = prior_strony(r['pytanie'], None, 'pl', False)
+        prior, _sila = prior_strony(r['pytanie'], None, False)
         agent = strony.STRONA_DO_AGENTA.get(prior) if prior else None
         punkty.append({
             'prawda': dane_forum.klasa(r['board']),

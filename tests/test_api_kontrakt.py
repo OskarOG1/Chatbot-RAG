@@ -205,6 +205,67 @@ def test_sygnal_bramki_pominiete_zapala_sie_i_gasnie(monkeypatch):
     assert api.sygnal_bramki_pominiete_aktywny() is False
 
 
+def test_sygnal_bramki_pominiete_ignoruje_trafienia_w_cache(monkeypatch):
+    monkeypatch.setattr(api, 'SYGNAL_POMINIETE_OKNO', 5)
+    monkeypatch.setattr(api, '_bramki_pominiete_historia', deque(maxlen=5))
+    monkeypatch.setattr(api, '_sygnal_bramki_pominiete_aktywny', False)
+
+    for _ in range(5):
+        api.zglos_bramki_pominiete(['sedzia'], cache_hit=True)
+    assert api.sygnal_bramki_pominiete_aktywny() is False
+    assert len(api._bramki_pominiete_historia) == 0
+
+    for _ in range(5):
+        api.zglos_bramki_pominiete(['sedzia'], cache_hit=False)
+    assert api.sygnal_bramki_pominiete_aktywny() is True
+
+
+def test_loguj_zapytanie_z_cache_hit_nie_karmi_sygnalu(monkeypatch):
+    monkeypatch.setattr(api, 'SYGNAL_POMINIETE_OKNO', 5)
+    monkeypatch.setattr(api, '_bramki_pominiete_historia', deque(maxlen=5))
+    monkeypatch.setattr(api, '_sygnal_bramki_pominiete_aktywny', False)
+
+    dane = {'agent': 'konto', 'answer': 'x', 'bramki_pominiete': ['sedzia']}
+    for _ in range(6):
+        api.loguj_zapytanie('pl', dane, 0.01, True, 'jakies pytanie', 'kupujacy')
+    assert api.sygnal_bramki_pominiete_aktywny() is False
+
+
+# limit wysylki: zly ticket nie moze zjadac globalnego budzetu dnia
+
+
+def test_zly_ticket_nie_zuzywa_globalnego_limitu_wysylki(monkeypatch, client):
+    monkeypatch.setattr(api, '_wysylki', deque())
+    monkeypatch.setattr(api, '_tickety', OrderedDict())
+    monkeypatch.setattr(api, 'LIMIT_WYSYLKA_DZIEN', 3)
+    monkeypatch.setattr(api, 'LIMIT_WYSYLKA_MIN', 100)
+    wyslane = []
+    monkeypatch.setattr(api, 'wyslij_potwierdzenie',
+                        lambda *a, **k: (wyslane.append(1), 'ABCD1234')[1])
+
+    for _ in range(3):
+        odrzucone = client.post('/send-email', json={'email': 'atakujacy@b.pl', 'temat': 't',
+                                                     'tresc': 'x', 'ticket': 'DEADBEEF'})
+        assert odrzucone.status_code == 429
+
+    assert len(api._wysylki) == 0
+    assert wyslane == []
+
+    prawdziwa = client.post('/send-email', json={'email': 'realny@b.pl', 'temat': 't', 'tresc': 'x'})
+    assert prawdziwa.status_code == 200
+    assert len(wyslane) == 1
+
+
+def test_odrzucenie_na_limicie_globalnym_zwalnia_limit_adresu(monkeypatch, client):
+    monkeypatch.setattr(api, '_wysylki', deque())
+    monkeypatch.setattr(api, '_wysylki_adres', OrderedDict())
+    monkeypatch.setattr(api, 'LIMIT_WYSYLKA_DZIEN', 0)
+
+    odrzucone = client.post('/send-email', json={'email': 'ktos@b.pl', 'temat': 't', 'tresc': 'x'})
+    assert odrzucone.status_code == 429
+    assert api.w_limicie_adresu('ktos@b.pl') is True
+
+
 # guard_za_dlugie (A5)
 
 

@@ -21,7 +21,7 @@ MARKERY_STRON = {
 }
 
 
-def prior_strony(query: str, agent_poprzedni: str | None, lang: str = 'pl',
+def prior_strony(query: str, agent_poprzedni: str | None,
                   czy_followup: bool = False) -> tuple[str | None, str | None]:
     low = query.lower()
     tokeny = set(tokenize_words(low))

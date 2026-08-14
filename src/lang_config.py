@@ -64,6 +64,7 @@ LANG = {
         'rozmowa': {
             'powitanie': 'Cześć, w czym mogę pomóc? Odpowiadam na pytania o konto, zakupy, '
                          'płatności i sprzedaż na Allegro.',
+            'powitanie_ponowne': 'Cześć! W czym mogę jeszcze pomóc?',
             'podziekowanie': 'Cieszę się, że pomogło. Napisz, jeśli będziesz mieć kolejne pytanie.',
             'meta': 'Jestem asystentem opartym na bazie pomocy Allegro. Odpowiadam na pytania '
                     'o konto i bezpieczeństwo, zakupy i dostawę, płatności oraz sprzedaż, '
@@ -226,6 +227,7 @@ LANG = {
         'rozmowa': {
             'powitanie': "Hi, how can I help? I answer questions about accounts, shopping, "
                          'payments, and selling on Allegro.',
+            'powitanie_ponowne': 'Hi! What else can I help with?',
             'podziekowanie': 'Glad that helped. Let me know if you have another question.',
             'meta': "I'm an assistant built on Allegro's help base. I answer questions about "
                     'accounts and security, shopping and delivery, payments, and selling, always '

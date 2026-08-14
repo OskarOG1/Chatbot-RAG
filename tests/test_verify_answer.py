@@ -89,3 +89,17 @@ def test_slowo_zrodla_w_srodku_zdania_nie_wyciete():
     chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
     wynik = verify_answer('Informacje znajdziesz w sekcji źródła centrum pomocy [1].', chunks)
     assert 'źródła' in wynik['tekst']
+
+
+def test_martwy_numer_na_koncu_nie_zostaje_gdy_jest_jedynym_markerem():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
+    wynik = verify_answer('Tresc odpowiedzi [5]', chunks)
+    assert '[5]' not in wynik['tekst']
+    assert wynik['cytaty'] == []
+
+
+def test_martwy_numer_obok_prawdziwego_znika_prawdziwy_zostaje():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
+    wynik = verify_answer('Tresc odpowiedzi [1][7]', chunks)
+    assert wynik['tekst'] == 'Tresc odpowiedzi [1]'
+    assert wynik['cytaty'] == [{'n': 1, 'url': 'https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF', 'tytul': 't'}]

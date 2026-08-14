@@ -57,21 +57,25 @@ _bramki_pominiete_historia: deque = deque(maxlen=SYGNAL_POMINIETE_OKNO)
 _sygnal_bramki_pominiete_aktywny = False
 
 
-def zglos_bramki_pominiete(bramki_pominiete: list) -> None:
+def zglos_bramki_pominiete(bramki_pominiete: list, cache_hit: bool = False) -> None:
     global _sygnal_bramki_pominiete_aktywny
-    _bramki_pominiete_historia.append(bool(bramki_pominiete))
-    if len(_bramki_pominiete_historia) < SYGNAL_POMINIETE_OKNO:
+    if cache_hit:
         return
-    udzial = sum(_bramki_pominiete_historia) / len(_bramki_pominiete_historia)
-    aktywny = udzial > SYGNAL_POMINIETE_PROG
-    if aktywny and not _sygnal_bramki_pominiete_aktywny:
-        print(f'UWAGA: {udzial:.0%} z ostatnich {SYGNAL_POMINIETE_OKNO} zadan ma pominiete bramki',
-              file=sys.stderr, flush=True)
-    _sygnal_bramki_pominiete_aktywny = aktywny
+    with _zamek:
+        _bramki_pominiete_historia.append(bool(bramki_pominiete))
+        if len(_bramki_pominiete_historia) < SYGNAL_POMINIETE_OKNO:
+            return
+        udzial = sum(_bramki_pominiete_historia) / len(_bramki_pominiete_historia)
+        aktywny = udzial > SYGNAL_POMINIETE_PROG
+        if aktywny and not _sygnal_bramki_pominiete_aktywny:
+            print(f'UWAGA: {udzial:.0%} z ostatnich {SYGNAL_POMINIETE_OKNO} zadan ma pominiete bramki',
+                  file=sys.stderr, flush=True)
+        _sygnal_bramki_pominiete_aktywny = aktywny
 
 
 def sygnal_bramki_pominiete_aktywny() -> bool:
-    return _sygnal_bramki_pominiete_aktywny
+    with _zamek:
+        return _sygnal_bramki_pominiete_aktywny
 
 
 def cache_zdatny(request: 'ChatRequest') -> bool:
@@ -114,7 +118,7 @@ def powod_wyniku(dane: dict) -> str:
 
 def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str) -> None:
     dane = dane or {}
-    zglos_bramki_pominiete(dane.get('bramki_pominiete') or [])
+    zglos_bramki_pominiete(dane.get('bramki_pominiete') or [], cache_hit)
     try:
         agent = dane.get('agent') or ''
         wynik = 'rozmowa' if dane.get('tryb') == 'rozmowa' else ('odpowiedz' if agent else 'odmowa')
@@ -421,8 +425,6 @@ def send_email(request: WyslijZadanie):
     email = request.email.strip()
     if not EMAIL_WZORZEC.fullmatch(email):
         raise HTTPException(status_code=422, detail=LANG[lang]['bledy']['zly_email'])
-    if not w_limicie_wysylki():
-        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
     korekta = request.ticket is not None
     if korekta:
         if not w_limicie_korekty(request.ticket, email):
@@ -435,6 +437,10 @@ def send_email(request: WyslijZadanie):
             zwolnij_limit_korekty(request.ticket)
         else:
             zwolnij_limit_adresu(email)
+
+    if not w_limicie_wysylki():
+        zwolnij_limity()
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
 
     try:
         ticket = wyslij_potwierdzenie(email, request.kategoria, request.temat, request.tresc, lang=lang,

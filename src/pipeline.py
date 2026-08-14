@@ -118,7 +118,7 @@ def zaladuj_idf(lang: str) -> tuple[dict, float, bool]:
     idf_cache = chunks_json.parent / f'idf{LANG[lang]["suffix"]}.pkl'
     idf, idf_max, powodzenie = {}, 1.0, True
     try:
-        stamp = int(chunks_json.stat().st_mtime)
+        stamp = corpus_stamp(lang)
         zapis = None
         if idf_cache.exists():
             with open(idf_cache, 'rb') as plik:
@@ -175,7 +175,6 @@ def model_nie_wie(tekst: str, lang: str = 'pl') -> bool:
     return any(fraza in low for fraza in LANG[lang]['nie_wiem_zwroty'])
 
 
-@lru_cache(maxsize=None)
 def jawna_odmowa_frazy(lang: str) -> tuple:
     return tuple(normalizacja(fraza) for fraza in LANG[lang]['jawna_odmowa_zwroty'])
 
@@ -319,7 +318,7 @@ def run_stream(query:str, bielik_model:str | None=None,
 
     history = (history or [])[-OKNO_HISTORII:]
     klasa, reszta = rozmowa.klasa_tury(query, history, agent_poprzedni, lang)
-    if klasa in ('powitanie', 'podziekowanie', 'meta'):
+    if klasa in ('powitanie', 'powitanie_ponowne', 'podziekowanie', 'meta'):
         yield wynik({'agent': '', 'answer': cfg['rozmowa'][klasa], 'sources': [],
                      'citations': [], 'doprecyzowanie': None, 'tryb': 'rozmowa'})
         return

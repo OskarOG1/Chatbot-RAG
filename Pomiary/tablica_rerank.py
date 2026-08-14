@@ -36,8 +36,6 @@ SRC = ROOT / 'src'
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-import rankings
-
 SCHEMAT = 2
 
 
@@ -96,6 +94,8 @@ def wczytaj_tablice(sciezka: Path | None = None) -> dict:
 
 def search_reranked_multi_z_tablicy(tablica: dict, query: str, agenci: list[str], k: int = 3,
                                      k_surowe: dict | int = 20, lang: str = 'pl') -> list[tuple[dict, float]]:
+    import rankings
+
     odcisk = tablica['odcisk']
     if odcisk.get('schemat') != SCHEMAT:
         raise NiezgodnyOdcisk(
