@@ -79,4 +79,7 @@ def klasa_tury(query: str, history: list[dict], agent_poprzedni: str | None,
             if dopasuj_liste(tokeny, cfg['sterowanie'][podklasa]):
                 return 'sterowanie', query
 
+    if history and len(tokeny) <= MAX_TOKENOW_ROZMOWY and dopasuj_liste(tokeny, cfg['powitania']):
+        return 'powitanie_ponowne', query
+
     return None, query

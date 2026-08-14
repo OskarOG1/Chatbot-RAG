@@ -503,10 +503,11 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     licznik = Counter(int(n) for n in re.findall(r'\[(\d+)\]', tekst))
 
     def usun_duplikat(dopasowanie):
-        return dopasowanie.group(0) if licznik[int(dopasowanie.group(1))] <= 1 else ''
+        odstep, numer = dopasowanie.group(1), int(dopasowanie.group(2))
+        return dopasowanie.group(0) if licznik[numer] <= 1 and numer in mapa else odstep
 
     tekst = re.sub(r'(?:[ \t]*\[\d+\])+[ \t]*$',
-                   lambda m: re.sub(r'[ \t]*\[(\d+)\]', usun_duplikat, m.group(0)),
+                   lambda m: re.sub(r'([ \t]*)\[(\d+)\]', usun_duplikat, m.group(0)),
                    tekst).rstrip()
     tekst = re.sub(r'[ \t]{2,}', ' ', tekst)
     tekst = re.sub(r'[ \t]+([,.;:!?])', r'\1', tekst).strip()

@@ -145,8 +145,7 @@ def rrf(rankingi: list[list[int]]) -> dict[int, float]:
             
     return punkty
 
-def search_hybrid(query: str, query_emb, agent: str, k:int= 5, lang:str='pl',
-                  dedup_tresci: bool = False) -> list[tuple]:
+def search_hybrid(query: str, query_emb, agent: str, k:int= 5, lang:str='pl') -> list[tuple]:
 
     chunki = wczytaj_chunki(agent, lang)
     r_faiss = ranking_faiss(query_emb, agent, chunki, lang)
@@ -156,6 +155,5 @@ def search_hybrid(query: str, query_emb, agent: str, k:int= 5, lang:str='pl',
     posortowane = sorted(punkty, key=punkty.get, reverse=True)
     wyniki = [(chunki[idx], punkty[idx]) for idx in posortowane]
     wyniki = dedup_najlepszy(wyniki, klucz_url)
-    if dedup_tresci:
-        wyniki = dedup_najlepszy(wyniki, klucz_tresci)
+    wyniki = dedup_najlepszy(wyniki, klucz_tresci)
     return wyniki[:k]

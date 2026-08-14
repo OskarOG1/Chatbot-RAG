@@ -73,6 +73,30 @@ def test_klasa_tury_ok_z_historia_i_agentem_jest_sterowaniem():
     assert rozmowa.podklasa_sterowania('ok', 'pl') == 'potwierdzenie'
 
 
+# B1 (Pomiary/PLAN_PRZEGLAD_PR44_PR45.md): powitanie w srodku rozmowy nie mialo zadnej galezi
+# i wpadalo w pelna kaskade RAG. cztery kombinacje z bramki przyjecia, zadna nie moze byc None.
+
+
+def test_klasa_tury_powitanie_bez_historii():
+    klasa, reszta = rozmowa.klasa_tury('cześć', [], None, 'pl')
+    assert klasa == 'powitanie'
+
+
+def test_klasa_tury_powitanie_z_historia_i_agentem_nie_jest_none():
+    klasa, reszta = rozmowa.klasa_tury('cześć', HISTORIA, 'konto', 'pl')
+    assert klasa == 'powitanie_ponowne'
+
+
+def test_klasa_tury_powitanie_z_historia_bez_agenta_nie_jest_none():
+    klasa, reszta = rozmowa.klasa_tury('cześć', HISTORIA, None, 'pl')
+    assert klasa == 'powitanie_ponowne'
+
+
+def test_klasa_tury_ok_z_historia_bez_agenta_nie_jest_none():
+    klasa, reszta = rozmowa.klasa_tury('ok', HISTORIA, None, 'pl')
+    assert klasa == 'powitanie_ponowne'
+
+
 def test_podklasa_sterowania():
     assert rozmowa.podklasa_sterowania('rozwiń to', 'pl') == 'rozwin'
     assert rozmowa.podklasa_sterowania('możesz prościej?', 'pl') == 'prosciej'
@@ -90,6 +114,18 @@ def test_pipeline_powitanie_daje_szablon_bez_wyszukiwania(monkeypatch):
     assert wynik['tryb'] == 'rozmowa'
     assert wynik['sources'] == []
     assert wynik['answer'] == pipeline.LANG['pl']['rozmowa']['powitanie']
+
+
+def test_pipeline_powitanie_z_historia_daje_szablon_bez_wyszukiwania(monkeypatch):
+    def wybuchnij(*a, **k):
+        raise AssertionError('wyszukiwanie nie powinno sie odbyc dla powitania w srodku rozmowy')
+    monkeypatch.setattr(pipeline, 'search_reranked_multi', wybuchnij)
+    monkeypatch.setattr(pipeline, 'embed_query', wybuchnij)
+
+    wynik = pipeline.run('cześć', history=HISTORIA, agent_poprzedni='konto', lang='pl')
+    assert wynik['agent'] == ''
+    assert wynik['tryb'] == 'rozmowa'
+    assert wynik['answer'] == pipeline.LANG['pl']['rozmowa']['powitanie_ponowne']
 
 
 def test_pipeline_powitanie_z_pytaniem_idzie_do_rag(monkeypatch, atrapa_pipeline):
