@@ -62,6 +62,11 @@ _sygnal_bramki_pominiete_aktywny = False
 STATYSTYKI_TTL = float(os.getenv('STATYSTYKI_TTL', '30'))
 _log_cache: dict = {'stempel': None, 'wpisy': [], 'czas': 0.0}
 
+LIMIT_OCEN_MIN = int(os.getenv('LIMIT_OCEN_MIN', '30'))
+LIMIT_OCEN_DZIEN = int(os.getenv('LIMIT_OCEN_DZIEN', '500'))
+_oceny = deque()
+OSTRZEZONO_O_LOGU_OCEN = False
+
 
 def zglos_bramki_pominiete(bramki_pominiete: list, cache_hit: bool = False) -> None:
     global _sygnal_bramki_pominiete_aktywny
@@ -275,6 +280,40 @@ def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: 
             OSTRZEZONO_O_LOGU_WYSYLKI = True
 
 
+def loguj_ocene(ocena: str, pytanie: str, odpowiedz: str, sekcja: str | None, lang: str,
+                 strona: str | None) -> None:
+    try:
+        wpis = {
+            'czas': datetime.now(timezone.utc).isoformat(),
+            'typ': 'ocena',
+            'ocena': ocena,
+            'lang': lang,
+            'strona': strona,
+            'sekcja': sekcja,
+            'pytanie': redaguj(pytanie),
+            'odpowiedz': redaguj(odpowiedz),
+        }
+        with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
+            w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
+    except OSError as e:
+        global OSTRZEZONO_O_LOGU_OCEN
+        if not OSTRZEZONO_O_LOGU_OCEN:
+            print(f'UWAGA: nie moge pisac do {LOG_ANALYTICS}: {e}', file=sys.stderr, flush=True)
+            OSTRZEZONO_O_LOGU_OCEN = True
+
+
+def w_limicie_ocen() -> bool:
+    teraz = time.time()
+    with _zamek:
+        while _oceny and _oceny[0] < teraz - 86400:
+            _oceny.popleft()
+        ostatnia_minuta = sum(1 for t in _oceny if t > teraz - 60)
+        if ostatnia_minuta >= LIMIT_OCEN_MIN or len(_oceny) >= LIMIT_OCEN_DZIEN:
+            return False
+        _oceny.append(teraz)
+        return True
+
+
 def wpisy_logu() -> list[dict]:
     try:
         stan = LOG_ANALYTICS.stat()
@@ -363,6 +402,14 @@ class WyslijZadanie(BaseModel):
 
 class WyslijOdpowiedz(BaseModel):
     ticket: str
+
+class OcenaZadanie(BaseModel):
+    ocena: Literal['gora', 'dol']
+    pytanie: str = Field(min_length=1, max_length=MAX_ZNAKI * 2)
+    odpowiedz: str = Field(default='', max_length=MAX_ZNAKI_WPISU)
+    sekcja: str | None = Field(default=None, max_length=40)
+    lang: Literal['pl', 'en'] | None = None
+    strona: Literal['kupujacy', 'sprzedajacy'] | None = None
 
 class ChatResponse(BaseModel):
    agent: str
@@ -495,6 +542,16 @@ def send_email(request: WyslijZadanie):
     loguj_wysylke(lang, request.kategoria, ticket, True)
     print(f'wysylka: ticket={ticket} kategoria={request.kategoria} sukces=True')
     return WyslijOdpowiedz(ticket=ticket)
+
+
+@app.post('/ocena')
+def ocena(request: OcenaZadanie):
+    lang = request.lang or DOMYSLNY_JEZYK
+    if not w_limicie_ocen():
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
+    loguj_ocene(request.ocena, request.pytanie, request.odpowiedz,
+                request.sekcja, lang, request.strona)
+    return {'status': 'ok'}
 
 
 @app.get('/admin/statystyki')
