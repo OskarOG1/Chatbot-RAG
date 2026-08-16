@@ -17,6 +17,7 @@ import httpx
 import io
 import os
 import re
+import koszty
 import statystyki
 import sys
 import threading
@@ -127,12 +128,14 @@ def powod_wyniku(dane: dict) -> str:
     return dane.get('powod_odmowy') or 'odmowa'
 
 
-def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str) -> None:
+def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str,
+                    zuzycie: dict | None = None) -> None:
     dane = dane or {}
     zglos_bramki_pominiete(dane.get('bramki_pominiete') or [], cache_hit)
     try:
         agent = dane.get('agent') or ''
         wynik = 'rozmowa' if dane.get('tryb') == 'rozmowa' else ('odpowiedz' if agent else 'odmowa')
+        zuzycie = zuzycie or {}
         wpis = {
             'czas': datetime.now(timezone.utc).isoformat(),
             'lang': lang,
@@ -143,6 +146,10 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
             'powod_etap2': dane.get('powod_etap2'),
             'bramki_pominiete': dane.get('bramki_pominiete') or [],
             'latencja_s': round(latencja, 3),
+            'tokeny_we': zuzycie.get('tokeny_we', 0),
+            'tokeny_wy': zuzycie.get('tokeny_wy', 0),
+            'koszt_usd': zuzycie.get('koszt_usd', 0.0),
+            'tokeny_szacowane': zuzycie.get('szacowane', False),
             'cache_hit': cache_hit,
             'pytanie': redaguj(query),
         }
@@ -445,14 +452,18 @@ def chat(request: ChatRequest, http_request: Request):
         klucz = cache_klucz(lang, request.message, request.strona) if uzyj_cache else None
         wynik = cache_pobierz(klucz) if klucz else None
         cache_hit = wynik is not None
+        zuzycie = None
         if wynik is None:
+            koszty.zacznij()
             wynik = run(request.message, bielik_model=request.bielik_model,
                         history=[w.model_dump() for w in request.history],
                         agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
                         bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang, strona=strona)
+            zuzycie = koszty.podsumowanie()
             if klucz:
                 cache_zapisz(klucz, wynik)
-        loguj_zapytanie(lang, wynik, time.perf_counter() - start, cache_hit, request.message, request.strona)
+        loguj_zapytanie(lang, wynik, time.perf_counter() - start, cache_hit, request.message, request.strona,
+                        zuzycie)
         return wynik
     except Exception as e:
         print(f'blad /chat: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
@@ -479,9 +490,11 @@ def chat_stream(request: ChatRequest, http_request: Request):
             cached = cache_pobierz(klucz) if klucz else None
             if cached is not None:
                 yield f"data: {json.dumps({'typ': 'wynik', 'dane': cached}, ensure_ascii=False)}\n\n"
-                loguj_zapytanie(lang, cached, time.perf_counter() - start, True, request.message, request.strona)
+                loguj_zapytanie(lang, cached, time.perf_counter() - start, True, request.message, request.strona,
+                                None)
                 return
             wynik = {}
+            koszty.zacznij()
             for ev in run_stream(request.message, bielik_model=request.bielik_model,
                                  history=[w.model_dump() for w in request.history],
                                  agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
@@ -491,7 +504,8 @@ def chat_stream(request: ChatRequest, http_request: Request):
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
             if klucz:
                 cache_zapisz(klucz, wynik)
-            loguj_zapytanie(lang, wynik, time.perf_counter() - start, False, request.message, request.strona)
+            loguj_zapytanie(lang, wynik, time.perf_counter() - start, False, request.message, request.strona,
+                            koszty.podsumowanie())
         except Exception as e:
             print(f'blad /chat/stream: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': LANG[lang]['bledy']['model_niedostepny']}, ensure_ascii=False)}\n\n"
