@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
@@ -12,9 +12,12 @@ from wysylka import wyslij_potwierdzenie, WysylkaCzesciowaError
 from collections import deque, OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
+import csv
 import httpx
+import io
 import os
 import re
+import statystyki
 import sys
 import threading
 import time
@@ -55,6 +58,9 @@ SYGNAL_POMINIETE_OKNO = int(os.getenv('SYGNAL_POMINIETE_OKNO', '50'))
 SYGNAL_POMINIETE_PROG = float(os.getenv('SYGNAL_POMINIETE_PROG', '0.2'))
 _bramki_pominiete_historia: deque = deque(maxlen=SYGNAL_POMINIETE_OKNO)
 _sygnal_bramki_pominiete_aktywny = False
+
+STATYSTYKI_TTL = float(os.getenv('STATYSTYKI_TTL', '30'))
+_log_cache: dict = {'stempel': None, 'wpisy': [], 'czas': 0.0}
 
 
 def zglos_bramki_pominiete(bramki_pominiete: list, cache_hit: bool = False) -> None:
@@ -269,6 +275,32 @@ def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: 
             OSTRZEZONO_O_LOGU_WYSYLKI = True
 
 
+def wpisy_logu() -> list[dict]:
+    try:
+        stan = LOG_ANALYTICS.stat()
+    except OSError:
+        return []
+    stempel = (stan.st_mtime_ns, stan.st_size)
+    teraz = time.time()
+    with _zamek:
+        if _log_cache['stempel'] == stempel and teraz - _log_cache['czas'] < STATYSTYKI_TTL:
+            return _log_cache['wpisy']
+    wpisy = statystyki.wczytaj(LOG_ANALYTICS)
+    with _zamek:
+        _log_cache['stempel'] = stempel
+        _log_cache['wpisy'] = wpisy
+        _log_cache['czas'] = teraz
+    return wpisy
+
+
+def kolumny_eksportu(kolumny: str | None) -> tuple:
+    if not kolumny:
+        return statystyki.KOLUMNY_DOMYSLNE
+    wybrane = {k.strip() for k in kolumny.split(',') if k.strip()}
+    zgodne = tuple(k for k in statystyki.KOLUMNY_EKSPORTU if k in wybrane)
+    return zgodne or statystyki.KOLUMNY_DOMYSLNE
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
@@ -463,3 +495,39 @@ def send_email(request: WyslijZadanie):
     loguj_wysylke(lang, request.kategoria, ticket, True)
     print(f'wysylka: ticket={ticket} kategoria={request.kategoria} sukces=True')
     return WyslijOdpowiedz(ticket=ticket)
+
+
+@app.get('/admin/statystyki')
+def admin_statystyki(dni: int | None = Query(default=None, ge=1, le=3650),
+                     lang: Literal['pl', 'en'] | None = None,
+                     strona: Literal['kupujacy', 'sprzedajacy'] | None = None):
+    wpisy = statystyki.filtruj(wpisy_logu(), dni=dni, lang=lang, strona=strona)
+    return statystyki.statystyki(wpisy)
+
+
+@app.get('/admin/eksport')
+def admin_eksport(format: Literal['csv', 'json'] = 'csv',
+                  kolumny: str | None = None,
+                  dni: int | None = Query(default=None, ge=1, le=3650),
+                  lang: Literal['pl', 'en'] | None = None,
+                  strona: Literal['kupujacy', 'sprzedajacy'] | None = None):
+    wybrane = kolumny_eksportu(kolumny)
+    wpisy = [w for w in statystyki.filtruj(wpisy_logu(), dni=dni, lang=lang, strona=strona)
+             if not w.get('typ')]
+    stempel = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')
+    if format == 'json':
+        tresc = json.dumps([{k: w.get(k) for k in wybrane} for w in wpisy],
+                           ensure_ascii=False, indent=2)
+        typ_tresci = 'application/json; charset=utf-8'
+        nazwa = f'statystyki_{stempel}.json'
+    else:
+        bufor = io.StringIO()
+        pisarz = csv.writer(bufor, delimiter=';', lineterminator='\n')
+        pisarz.writerow(wybrane)
+        for w in wpisy:
+            pisarz.writerow(['' if w.get(k) is None else w.get(k) for k in wybrane])
+        tresc = '﻿' + bufor.getvalue()
+        typ_tresci = 'text/csv; charset=utf-8'
+        nazwa = f'statystyki_{stempel}.csv'
+    return Response(content=tresc, media_type=typ_tresci,
+                    headers={'content-disposition': f'attachment; filename="{nazwa}"'})
