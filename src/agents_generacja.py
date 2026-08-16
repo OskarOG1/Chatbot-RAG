@@ -1,5 +1,6 @@
 from lang_config import LANG
 from agents_core import PROMPTY, klient, MAX_TOKENS, MODEL_FALLBACK, context, verify_answer
+import koszty
 import itertools
 import re
 
@@ -69,6 +70,7 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
         pelna += token
         yield {'typ': 'token', 'tekst': token}
 
+    koszty.dodaj_z_odpowiedzi(nazwa, None, wiadomosci, pelna)
     yield {'typ': 'koniec', 'dane': sfinalizuj(pelna, chunks, p)}
 
 
@@ -88,6 +90,7 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
         )
 
     pelna = odp.choices[0].message.content
+    koszty.dodaj_z_odpowiedzi(nazwa, odp, wiadomosci, pelna)
     return sfinalizuj(pelna, chunks, p)
 
 
@@ -98,14 +101,17 @@ def przepisz_zapytanie(query: str, history: list[dict] | None, bielik_model: str
     p = PROMPTY[lang]
     rozmowa = '\n'.join(f"{w['role']}: {w['content']}" for w in history
                         if w.get('role') in ('user', 'assistant') and w.get('content'))
+    nazwa = bielik_model or LANG[lang]['model']
+    wiadomosci = [
+        {'role': 'system', 'content': p['przepisz_system']},
+        {'role': 'user', 'content': f"{rozmowa}\nuser: {query}\n\n{p['przepisz_label']}:"},
+    ]
     odp = klient.chat.completions.create(
-        model=bielik_model or LANG[lang]['model'],
-        messages=[
-            {'role': 'system', 'content': p['przepisz_system']},
-            {'role': 'user', 'content': f"{rozmowa}\nuser: {query}\n\n{p['przepisz_label']}:"},
-        ],
+        model=nazwa,
+        messages=wiadomosci,
         stream=False,
         stop=['\n', f"{p['pytanie_label']}:"],
     )
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip()
+    koszty.dodaj_z_odpowiedzi(nazwa, odp, wiadomosci, tekst)
     return tekst or query
