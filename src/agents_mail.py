@@ -1,4 +1,5 @@
 from agents_core import PROMPTY, klient, MAX_TOKENS, EMAIL_MODEL, context
+import koszty
 import re
 
 DRUGI_TEMAT = re.compile(r'\n(?:Temat|Subject):\s')
@@ -27,6 +28,7 @@ def napisz_email(history: list[dict], chunks: list, lang: str = 'pl', kategoria:
         max_tokens=MAX_TOKENS,
     )
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip()
+    koszty.dodaj_z_odpowiedzi(EMAIL_MODEL, odp, wiadomosci, tekst)
     dopasowania = list(DRUGI_TEMAT.finditer(tekst))
     if len(dopasowania) > 1:
         tekst = tekst[:dopasowania[1].start()].rstrip()

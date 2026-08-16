@@ -5,6 +5,7 @@ import { przygotujOdpowiedz } from '@/lib/zrodla';
 import { TEKSTY, type Cytat, type Lang } from '@/lib/chat';
 import SourceList from './SourceList';
 import InfoBanner from './InfoBanner';
+import { IkonaKciukGora, IkonaKciukDol } from './Ikony';
 
 interface Props {
   role: 'user' | 'assistant';
@@ -14,6 +15,8 @@ interface Props {
   notaSekcji?: string | null;
   action?: string | null;
   onAction?: (tekst: string) => void;
+  ocena?: 'gora' | 'dol' | null;
+  onOcena?: (ocena: 'gora' | 'dol') => void;
 }
 
 export default function ChatMessage({
@@ -24,6 +27,8 @@ export default function ChatMessage({
   notaSekcji,
   action,
   onAction,
+  ocena = null,
+  onOcena,
 }: Props) {
   const th = useTheme();
   const t = TEKSTY[lang];
@@ -126,6 +131,44 @@ export default function ChatMessage({
 
       {zrodla.length > 0 && (
         <SourceList zrodla={zrodla} label={zacytowano ? t.sourcesLabel : t.possibleSourcesLabel} />
+      )}
+
+      {onOcena && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+          <span style={{ fontFamily: BODY, fontSize: 12, color: th.ink3 }}>
+            {ocena ? t.ocenaDzieki : t.ocenaPytanie}
+          </span>
+          {(['gora', 'dol'] as const).map((wybor) => {
+            const wybrany = ocena === wybor;
+            const Ikona = wybor === 'gora' ? IkonaKciukGora : IkonaKciukDol;
+            return (
+              <button
+                key={wybor}
+                type="button"
+                disabled={!!ocena}
+                onClick={() => onOcena(wybor)}
+                aria-label={wybor === 'gora' ? t.ocenaTak : t.ocenaNie}
+                aria-pressed={wybrany}
+                style={{
+                  width: 28,
+                  height: 28,
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 8,
+                  border: `1px solid ${wybrany ? th.accentLine : th.line}`,
+                  background: wybrany ? th.accentSoft : th.surface,
+                  color: wybrany ? th.accentInk : th.ink3,
+                  cursor: ocena ? 'default' : 'pointer',
+                  opacity: ocena && !wybrany ? 0.35 : 1,
+                }}
+              >
+                <Ikona />
+              </button>
+            );
+          })}
+        </div>
       )}
 
       {action && onAction && (

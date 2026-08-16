@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
@@ -12,9 +12,13 @@ from wysylka import wyslij_potwierdzenie, WysylkaCzesciowaError
 from collections import deque, OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
+import csv
 import httpx
+import io
 import os
 import re
+import koszty
+import statystyki
 import sys
 import threading
 import time
@@ -55,6 +59,14 @@ SYGNAL_POMINIETE_OKNO = int(os.getenv('SYGNAL_POMINIETE_OKNO', '50'))
 SYGNAL_POMINIETE_PROG = float(os.getenv('SYGNAL_POMINIETE_PROG', '0.2'))
 _bramki_pominiete_historia: deque = deque(maxlen=SYGNAL_POMINIETE_OKNO)
 _sygnal_bramki_pominiete_aktywny = False
+
+STATYSTYKI_TTL = float(os.getenv('STATYSTYKI_TTL', '30'))
+_log_cache: dict = {'stempel': None, 'wpisy': [], 'czas': 0.0}
+
+LIMIT_OCEN_MIN = int(os.getenv('LIMIT_OCEN_MIN', '30'))
+LIMIT_OCEN_DZIEN = int(os.getenv('LIMIT_OCEN_DZIEN', '500'))
+_oceny = deque()
+OSTRZEZONO_O_LOGU_OCEN = False
 
 
 def zglos_bramki_pominiete(bramki_pominiete: list, cache_hit: bool = False) -> None:
@@ -116,12 +128,14 @@ def powod_wyniku(dane: dict) -> str:
     return dane.get('powod_odmowy') or 'odmowa'
 
 
-def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str) -> None:
+def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str,
+                    zuzycie: dict | None = None) -> None:
     dane = dane or {}
     zglos_bramki_pominiete(dane.get('bramki_pominiete') or [], cache_hit)
     try:
         agent = dane.get('agent') or ''
         wynik = 'rozmowa' if dane.get('tryb') == 'rozmowa' else ('odpowiedz' if agent else 'odmowa')
+        zuzycie = zuzycie or {}
         wpis = {
             'czas': datetime.now(timezone.utc).isoformat(),
             'lang': lang,
@@ -132,6 +146,10 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
             'powod_etap2': dane.get('powod_etap2'),
             'bramki_pominiete': dane.get('bramki_pominiete') or [],
             'latencja_s': round(latencja, 3),
+            'tokeny_we': zuzycie.get('tokeny_we', 0),
+            'tokeny_wy': zuzycie.get('tokeny_wy', 0),
+            'koszt_usd': zuzycie.get('koszt_usd', 0.0),
+            'tokeny_szacowane': zuzycie.get('szacowane', False),
             'cache_hit': cache_hit,
             'pytanie': redaguj(query),
         }
@@ -269,6 +287,66 @@ def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: 
             OSTRZEZONO_O_LOGU_WYSYLKI = True
 
 
+def loguj_ocene(ocena: str, pytanie: str, odpowiedz: str, sekcja: str | None, lang: str,
+                 strona: str | None) -> None:
+    try:
+        wpis = {
+            'czas': datetime.now(timezone.utc).isoformat(),
+            'typ': 'ocena',
+            'ocena': ocena,
+            'lang': lang,
+            'strona': strona,
+            'sekcja': sekcja,
+            'pytanie': redaguj(pytanie),
+            'odpowiedz': redaguj(odpowiedz),
+        }
+        with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
+            w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
+    except OSError as e:
+        global OSTRZEZONO_O_LOGU_OCEN
+        if not OSTRZEZONO_O_LOGU_OCEN:
+            print(f'UWAGA: nie moge pisac do {LOG_ANALYTICS}: {e}', file=sys.stderr, flush=True)
+            OSTRZEZONO_O_LOGU_OCEN = True
+
+
+def w_limicie_ocen() -> bool:
+    teraz = time.time()
+    with _zamek:
+        while _oceny and _oceny[0] < teraz - 86400:
+            _oceny.popleft()
+        ostatnia_minuta = sum(1 for t in _oceny if t > teraz - 60)
+        if ostatnia_minuta >= LIMIT_OCEN_MIN or len(_oceny) >= LIMIT_OCEN_DZIEN:
+            return False
+        _oceny.append(teraz)
+        return True
+
+
+def wpisy_logu() -> list[dict]:
+    try:
+        stan = LOG_ANALYTICS.stat()
+    except OSError:
+        return []
+    stempel = (stan.st_mtime_ns, stan.st_size)
+    teraz = time.time()
+    with _zamek:
+        if _log_cache['stempel'] == stempel and teraz - _log_cache['czas'] < STATYSTYKI_TTL:
+            return _log_cache['wpisy']
+    wpisy = statystyki.wczytaj(LOG_ANALYTICS)
+    with _zamek:
+        _log_cache['stempel'] = stempel
+        _log_cache['wpisy'] = wpisy
+        _log_cache['czas'] = teraz
+    return wpisy
+
+
+def kolumny_eksportu(kolumny: str | None) -> tuple:
+    if not kolumny:
+        return statystyki.KOLUMNY_DOMYSLNE
+    wybrane = {k.strip() for k in kolumny.split(',') if k.strip()}
+    zgodne = tuple(k for k in statystyki.KOLUMNY_EKSPORTU if k in wybrane)
+    return zgodne or statystyki.KOLUMNY_DOMYSLNE
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
@@ -332,6 +410,14 @@ class WyslijZadanie(BaseModel):
 class WyslijOdpowiedz(BaseModel):
     ticket: str
 
+class OcenaZadanie(BaseModel):
+    ocena: Literal['gora', 'dol']
+    pytanie: str = Field(min_length=1, max_length=MAX_ZNAKI * 2)
+    odpowiedz: str = Field(default='', max_length=MAX_ZNAKI_WPISU)
+    sekcja: str | None = Field(default=None, max_length=40)
+    lang: Literal['pl', 'en'] | None = None
+    strona: Literal['kupujacy', 'sprzedajacy'] | None = None
+
 class ChatResponse(BaseModel):
    agent: str
    answer: str
@@ -366,14 +452,18 @@ def chat(request: ChatRequest, http_request: Request):
         klucz = cache_klucz(lang, request.message, request.strona) if uzyj_cache else None
         wynik = cache_pobierz(klucz) if klucz else None
         cache_hit = wynik is not None
+        zuzycie = None
         if wynik is None:
+            koszty.zacznij()
             wynik = run(request.message, bielik_model=request.bielik_model,
                         history=[w.model_dump() for w in request.history],
                         agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
                         bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang, strona=strona)
+            zuzycie = koszty.podsumowanie()
             if klucz:
                 cache_zapisz(klucz, wynik)
-        loguj_zapytanie(lang, wynik, time.perf_counter() - start, cache_hit, request.message, request.strona)
+        loguj_zapytanie(lang, wynik, time.perf_counter() - start, cache_hit, request.message, request.strona,
+                        zuzycie)
         return wynik
     except Exception as e:
         print(f'blad /chat: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
@@ -400,9 +490,11 @@ def chat_stream(request: ChatRequest, http_request: Request):
             cached = cache_pobierz(klucz) if klucz else None
             if cached is not None:
                 yield f"data: {json.dumps({'typ': 'wynik', 'dane': cached}, ensure_ascii=False)}\n\n"
-                loguj_zapytanie(lang, cached, time.perf_counter() - start, True, request.message, request.strona)
+                loguj_zapytanie(lang, cached, time.perf_counter() - start, True, request.message, request.strona,
+                                None)
                 return
             wynik = {}
+            koszty.zacznij()
             for ev in run_stream(request.message, bielik_model=request.bielik_model,
                                  history=[w.model_dump() for w in request.history],
                                  agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
@@ -412,7 +504,8 @@ def chat_stream(request: ChatRequest, http_request: Request):
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
             if klucz:
                 cache_zapisz(klucz, wynik)
-            loguj_zapytanie(lang, wynik, time.perf_counter() - start, False, request.message, request.strona)
+            loguj_zapytanie(lang, wynik, time.perf_counter() - start, False, request.message, request.strona,
+                            koszty.podsumowanie())
         except Exception as e:
             print(f'blad /chat/stream: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': LANG[lang]['bledy']['model_niedostepny']}, ensure_ascii=False)}\n\n"
@@ -463,3 +556,49 @@ def send_email(request: WyslijZadanie):
     loguj_wysylke(lang, request.kategoria, ticket, True)
     print(f'wysylka: ticket={ticket} kategoria={request.kategoria} sukces=True')
     return WyslijOdpowiedz(ticket=ticket)
+
+
+@app.post('/ocena')
+def ocena(request: OcenaZadanie):
+    lang = request.lang or DOMYSLNY_JEZYK
+    if not w_limicie_ocen():
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
+    loguj_ocene(request.ocena, request.pytanie, request.odpowiedz,
+                request.sekcja, lang, request.strona)
+    return {'status': 'ok'}
+
+
+@app.get('/admin/statystyki')
+def admin_statystyki(dni: int | None = Query(default=None, ge=1, le=3650),
+                     lang: Literal['pl', 'en'] | None = None,
+                     strona: Literal['kupujacy', 'sprzedajacy'] | None = None):
+    wpisy = statystyki.filtruj(wpisy_logu(), dni=dni, lang=lang, strona=strona)
+    return statystyki.statystyki(wpisy)
+
+
+@app.get('/admin/eksport')
+def admin_eksport(format: Literal['csv', 'json'] = 'csv',
+                  kolumny: str | None = None,
+                  dni: int | None = Query(default=None, ge=1, le=3650),
+                  lang: Literal['pl', 'en'] | None = None,
+                  strona: Literal['kupujacy', 'sprzedajacy'] | None = None):
+    wybrane = kolumny_eksportu(kolumny)
+    wpisy = [w for w in statystyki.filtruj(wpisy_logu(), dni=dni, lang=lang, strona=strona)
+             if not w.get('typ')]
+    stempel = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')
+    if format == 'json':
+        tresc = json.dumps([{k: w.get(k) for k in wybrane} for w in wpisy],
+                           ensure_ascii=False, indent=2)
+        typ_tresci = 'application/json; charset=utf-8'
+        nazwa = f'statystyki_{stempel}.json'
+    else:
+        bufor = io.StringIO()
+        pisarz = csv.writer(bufor, delimiter=';', lineterminator='\n')
+        pisarz.writerow(wybrane)
+        for w in wpisy:
+            pisarz.writerow(['' if w.get(k) is None else w.get(k) for k in wybrane])
+        tresc = '﻿' + bufor.getvalue()
+        typ_tresci = 'text/csv; charset=utf-8'
+        nazwa = f'statystyki_{stempel}.csv'
+    return Response(content=tresc, media_type=typ_tresci,
+                    headers={'content-disposition': f'attachment; filename="{nazwa}"'})

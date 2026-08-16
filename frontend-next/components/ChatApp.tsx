@@ -367,10 +367,49 @@ export default function ChatApp() {
               doprecyzowanie: powtorzonaDoprecyzacja ? null : dane?.doprecyzowanie ?? null,
               notaSekcji: dane?.nota_sekcji ?? null,
               action: dane?.oferta ?? null,
+              pytanie: wiadomosc,
+              sekcja: dane?.agent && dane.agent !== 'email' ? dane.agent : null,
+              ocena: null,
             },
           ],
         };
       });
+    }
+  }
+
+  async function ocenOdpowiedz(tid: string, msgId: number, ocena: 'gora' | 'dol') {
+    const thread = threadsRef.current.find((x) => x.id === tid);
+    const msg = thread?.messages.find((x) => x.id === msgId);
+    if (!msg || msg.ocena || !msg.pytanie) return;
+
+    function ustaw(wartosc: 'gora' | 'dol' | null) {
+      updateThread(tid, (x) => ({
+        ...x,
+        messages: x.messages.map((mm) => (mm.id === msgId ? { ...mm, ocena: wartosc } : mm)),
+      }));
+    }
+
+    ustaw(ocena);
+    try {
+      const res = await fetch('/api/ocena', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          ocena,
+          pytanie: msg.pytanie,
+          odpowiedz: msg.content,
+          sekcja: msg.sekcja ?? null,
+          lang,
+          strona,
+        }),
+      });
+      if (!res.ok) {
+        ustaw(null);
+        pokazToast(t.ocenaBlad);
+      }
+    } catch {
+      ustaw(null);
+      pokazToast(t.ocenaBlad);
     }
   }
 
@@ -598,6 +637,12 @@ export default function ChatApp() {
                     notaSekcji={m.notaSekcji}
                     action={m.action}
                     onAction={wyslij}
+                    ocena={m.ocena}
+                    onOcena={
+                      m.role === 'assistant' && m.sekcja && m.pytanie
+                        ? (wybor) => ocenOdpowiedz(activeId, m.id, wybor)
+                        : undefined
+                    }
                   />
                   {m.doprecyzowanie && (
                     <div style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}>

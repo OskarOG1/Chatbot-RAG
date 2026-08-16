@@ -84,3 +84,45 @@ export function IkonaWyslij({ color = 'currentColor' }: { color?: string }) {
     </svg>
   );
 }
+
+export function IkonaKciukGora({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width={16} height={16} viewBox="0 0 16 16" fill="none" aria-hidden focusable="false">
+      <path
+        d="M5.4 14.1V6.9l3-4.5a1.25 1.25 0 0 1 2.22.98l-.66 2.77h3.16a1.25 1.25 0 0 1 1.22 1.53l-1 4.4a1.55 1.55 0 0 1-1.51 1.2H5.4Z"
+        stroke={color}
+        strokeWidth={1.4}
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5.4 6.9H2.95a.85.85 0 0 0-.85.85v4.5c0 .47.38.85.85.85H5.4"
+        stroke={color}
+        strokeWidth={1.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function IkonaKciukDol({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width={16} height={16} viewBox="0 0 16 16" fill="none" aria-hidden focusable="false">
+      <g transform="rotate(180 8 8)">
+        <path
+          d="M5.4 14.1V6.9l3-4.5a1.25 1.25 0 0 1 2.22.98l-.66 2.77h3.16a1.25 1.25 0 0 1 1.22 1.53l-1 4.4a1.55 1.55 0 0 1-1.51 1.2H5.4Z"
+          stroke={color}
+          strokeWidth={1.4}
+          strokeLinejoin="round"
+        />
+        <path
+          d="M5.4 6.9H2.95a.85.85 0 0 0-.85.85v4.5c0 .47.38.85.85.85H5.4"
+          stroke={color}
+          strokeWidth={1.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </g>
+    </svg>
+  );
+}

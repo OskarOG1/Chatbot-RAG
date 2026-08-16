@@ -5,6 +5,7 @@ from lang_config import LANG, MODEL_11B, MODEL_DOMYSLNY
 from pathlib import Path
 from dotenv import load_dotenv
 from collections import Counter
+import koszty
 import re
 import os
 
@@ -26,15 +27,21 @@ klient = InferenceClient(
 
 def czat(nazwa: str, wiadomosci: list[dict], **kwargy):
     try:
-        return klient.chat.completions.create(model=nazwa, messages=wiadomosci,
+        odp = klient.chat.completions.create(model=nazwa, messages=wiadomosci,
                                               stream=False, **kwargy)
+        tekst = odp.choices[0].message.content if odp.choices else ''
+        koszty.dodaj_z_odpowiedzi(nazwa, odp, wiadomosci, tekst)
+        return odp
     except Exception as e:
         if nazwa == MODEL_DOMYSLNY:
             raise
         print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), '
               f'fallback na {MODEL_DOMYSLNY}', flush=True)
-        return klient.chat.completions.create(model=MODEL_DOMYSLNY, messages=wiadomosci,
+        odp = klient.chat.completions.create(model=MODEL_DOMYSLNY, messages=wiadomosci,
                                               stream=False, **kwargy)
+        tekst = odp.choices[0].message.content if odp.choices else ''
+        koszty.dodaj_z_odpowiedzi(MODEL_DOMYSLNY, odp, wiadomosci, tekst)
+        return odp
 
 PROMPTY = {
     'pl': {

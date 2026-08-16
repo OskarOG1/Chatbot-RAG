@@ -8,6 +8,9 @@ export interface WiadomoscUi {
   doprecyzowanie?: string | null;
   notaSekcji?: string | null;
   action?: string | null;
+  pytanie?: string;
+  sekcja?: string | null;
+  ocena?: 'gora' | 'dol' | null;
 }
 
 export interface PanelState {
