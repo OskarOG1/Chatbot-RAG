@@ -151,6 +151,37 @@ export function WykresStron({ dane }: { dane: { strona: string; ile: number }[] 
   );
 }
 
+export function WykresKosztu({ dane }: { dane: PozycjaDzienna[] }) {
+  const th = useTheme();
+  const os = osie(th);
+
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={dane}>
+        <CartesianGrid stroke={th.lineSoft} vertical={false} />
+        <XAxis dataKey="dzien" minTickGap={24} tick={os.tick} axisLine={os.axisLine} tickLine={os.tickLine} />
+        <YAxis
+          allowDecimals
+          tickFormatter={(wartosc: number) => wartosc.toFixed(4)}
+          tick={os.tick}
+          axisLine={os.axisLine}
+          tickLine={os.tickLine}
+        />
+        <Tooltip contentStyle={stylTooltipa(th)} cursor={{ stroke: th.line }} />
+        <Legend wrapperStyle={{ fontFamily: BODY, fontSize: 12, color: th.ink2 }} />
+        <Line
+          type="monotone"
+          dataKey="koszt_usd"
+          name="Koszt (USD)"
+          stroke={th.accent}
+          strokeWidth={2}
+          dot={false}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}
+
 export function WykresLatencji({ dane }: { dane: Latencja['histogram'] }) {
   const th = useTheme();
   const os = osie(th);

@@ -13,7 +13,14 @@ import {
 import { ThemeContext, THEMES, BODY, DISPLAY, type ThemeName } from '@/lib/theme';
 import { IkonaSlonce, IkonaKsiezyc } from '@/components/Ikony';
 import Karta from '@/components/admin/Karta';
-import { Ramka, WykresDzienny, WykresPoziomy, WykresStron, WykresLatencji } from '@/components/admin/Wykresy';
+import {
+  Ramka,
+  WykresDzienny,
+  WykresPoziomy,
+  WykresStron,
+  WykresLatencji,
+  WykresKosztu,
+} from '@/components/admin/Wykresy';
 import PanelEksportu from '@/components/admin/PanelEksportu';
 
 const OKRESY: { etykieta: string; dni: number | null }[] = [
@@ -218,7 +225,8 @@ export default function PanelAdmina() {
                 podpis={
                   dane.koszty.pokrycie === 0
                     ? 'pomiar dołączony w kolejnym etapie'
-                    : `${dane.koszty.tokeny_we + dane.koszty.tokeny_wy} tokenów, pokrycie ${procent(dane.koszty.pokrycie)}`
+                    : `${dane.koszty.tokeny_we + dane.koszty.tokeny_wy} tokenów, pokrycie ${procent(dane.koszty.pokrycie)}` +
+                      (dane.koszty.pokrycie < 1 ? ', wartości szacowane' : '')
                 }
               />
               <Karta
@@ -252,6 +260,11 @@ export default function PanelAdmina() {
               <Ramka tytul="Rozkład latencji">
                 <WykresLatencji dane={dane.latencja.histogram} />
               </Ramka>
+              {dane.koszty.pokrycie > 0 ? (
+                <Ramka tytul="Koszt dzienny">
+                  <WykresKosztu dane={dane.dzienne} />
+                </Ramka>
+              ) : null}
             </div>
           ) : null}
 
