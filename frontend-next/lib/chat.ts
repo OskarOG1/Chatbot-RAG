@@ -120,6 +120,11 @@ interface Teksty {
   sendingCountdown: (n: number) => string;
   pendingSendOtherThread: (tytul: string) => string;
   mailHistoriaSkrot: (naglowek: string) => string;
+  ocenaPytanie: string;
+  ocenaDzieki: string;
+  ocenaBlad: string;
+  ocenaTak: string;
+  ocenaNie: string;
 }
 
 function odmianaRozmow(n: number): string {
@@ -200,6 +205,11 @@ export const TEKSTY: Record<Lang, Teksty> = {
     sendingCountdown: (n) => `Wysyłam za ${n} s`,
     pendingSendOtherThread: (tytul) => `Trwa odliczanie wysyłki w wątku „${tytul}"`,
     mailHistoriaSkrot: (naglowek) => `Przygotowano wiadomość do sprzedawcy: ${naglowek}.`,
+    ocenaPytanie: 'Czy ta odpowiedź pomogła?',
+    ocenaDzieki: 'Dzięki za ocenę',
+    ocenaBlad: 'Nie udało się zapisać oceny',
+    ocenaTak: 'Odpowiedź pomogła',
+    ocenaNie: 'Odpowiedź nie pomogła',
   },
   en: {
     title: 'Allegro Assistant',
@@ -270,6 +280,11 @@ export const TEKSTY: Record<Lang, Teksty> = {
     sendingCountdown: (n) => `Sending in ${n}s`,
     pendingSendOtherThread: (tytul) => `A send is counting down in the "${tytul}" chat`,
     mailHistoriaSkrot: (naglowek) => `Prepared a message to the seller: ${naglowek}.`,
+    ocenaPytanie: 'Was this answer helpful?',
+    ocenaDzieki: 'Thanks for the feedback',
+    ocenaBlad: 'Could not save the rating',
+    ocenaTak: 'The answer helped',
+    ocenaNie: 'The answer did not help',
   },
 };
 
