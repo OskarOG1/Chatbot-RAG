@@ -62,10 +62,18 @@ _sygnal_bramki_pominiete_aktywny = False
 
 STATYSTYKI_TTL = float(os.getenv('STATYSTYKI_TTL', '30'))
 _log_cache: dict = {'stempel': None, 'wpisy': [], 'czas': 0.0}
+_statystyki_cache: dict = {'stempel': None, 'czas': 0.0, 'wyniki': {}}
+STATYSTYKI_CACHE_MAX = 64
 
 LIMIT_OCEN_MIN = int(os.getenv('LIMIT_OCEN_MIN', '30'))
 LIMIT_OCEN_DZIEN = int(os.getenv('LIMIT_OCEN_DZIEN', '500'))
+LIMIT_OCEN_IP_MIN = int(os.getenv('LIMIT_OCEN_IP_MIN', '10'))
+LIMIT_OCEN_IP_DZIEN = int(os.getenv('LIMIT_OCEN_IP_DZIEN', '60'))
+LIMIT_ADMIN_IP_MIN = int(os.getenv('LIMIT_ADMIN_IP_MIN', '60'))
+LIMIT_ADMIN_IP_DZIEN = int(os.getenv('LIMIT_ADMIN_IP_DZIEN', '2000'))
 _oceny = deque()
+_oceny_ip: OrderedDict = OrderedDict()
+_admin_ip: OrderedDict = OrderedDict()
 OSTRZEZONO_O_LOGU_OCEN = False
 
 
@@ -181,20 +189,24 @@ def adres_klienta(request: Request) -> str:
     return request.client.host if request.client else ''
 
 
-def w_limicie_ip(ip: str) -> bool:
+def w_limicie_kolejki(slownik: OrderedDict, ip: str, limit_min: int, limit_dzien: int) -> bool:
     teraz = time.time()
     with _zamek:
-        kolejka = _zapytania_ip.setdefault(ip, deque())
+        kolejka = slownik.setdefault(ip, deque())
         while kolejka and kolejka[0] < teraz - 86400:
             kolejka.popleft()
         ostatnia_minuta = sum(1 for t in kolejka if t > teraz - 60)
-        if ostatnia_minuta >= LIMIT_IP_MIN or len(kolejka) >= LIMIT_IP_DZIEN:
+        if ostatnia_minuta >= limit_min or len(kolejka) >= limit_dzien:
             return False
         kolejka.append(teraz)
-        _zapytania_ip.move_to_end(ip)
-        if len(_zapytania_ip) > IP_SLOWNIK_MAX:
-            _zapytania_ip.popitem(last=False)
+        slownik.move_to_end(ip)
+        if len(slownik) > IP_SLOWNIK_MAX:
+            slownik.popitem(last=False)
         return True
+
+
+def w_limicie_ip(ip: str) -> bool:
+    return w_limicie_kolejki(_zapytania_ip, ip, LIMIT_IP_MIN, LIMIT_IP_DZIEN)
 
 
 def efektywny_jezyk(message: str, podpowiedz: str | None) -> str:
@@ -347,6 +359,27 @@ def kolumny_eksportu(kolumny: str | None) -> tuple:
     return zgodne or statystyki.KOLUMNY_DOMYSLNE
 
 
+def statystyki_z_cache(dni: int | None, lang: str | None, strona: str | None) -> dict:
+    wpisy = wpisy_logu()
+    klucz = (dni, lang, strona)
+    stempel = _log_cache['stempel']
+    teraz = time.time()
+    with _zamek:
+        swiezy = (_statystyki_cache['stempel'] == stempel
+                  and teraz - _statystyki_cache['czas'] < STATYSTYKI_TTL)
+        if swiezy and klucz in _statystyki_cache['wyniki']:
+            return _statystyki_cache['wyniki'][klucz]
+    wynik = statystyki.statystyki(statystyki.filtruj(wpisy, dni=dni, lang=lang, strona=strona))
+    with _zamek:
+        if _statystyki_cache['stempel'] != stempel or not swiezy:
+            _statystyki_cache['stempel'] = stempel
+            _statystyki_cache['czas'] = teraz
+            _statystyki_cache['wyniki'] = {}
+        if len(_statystyki_cache['wyniki']) < STATYSTYKI_CACHE_MAX:
+            _statystyki_cache['wyniki'][klucz] = wynik
+    return wynik
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
@@ -432,7 +465,18 @@ class ChatResponse(BaseModel):
    tryb: Literal['rag', 'email', 'rozmowa'] = 'rag'
    powod_odmowy: str | None = None
 
+class LicznikKosztow:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope['type'] == 'http':
+            koszty.zacznij()
+        await self.app(scope, receive, send)
+
+
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(LicznikKosztow)
 
 @app.get('/health')
 def health():
@@ -454,7 +498,6 @@ def chat(request: ChatRequest, http_request: Request):
         cache_hit = wynik is not None
         zuzycie = None
         if wynik is None:
-            koszty.zacznij()
             wynik = run(request.message, bielik_model=request.bielik_model,
                         history=[w.model_dump() for w in request.history],
                         agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
@@ -494,7 +537,6 @@ def chat_stream(request: ChatRequest, http_request: Request):
                                 None)
                 return
             wynik = {}
-            koszty.zacznij()
             for ev in run_stream(request.message, bielik_model=request.bielik_model,
                                  history=[w.model_dump() for w in request.history],
                                  agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
@@ -559,8 +601,11 @@ def send_email(request: WyslijZadanie):
 
 
 @app.post('/ocena')
-def ocena(request: OcenaZadanie):
+def ocena(request: OcenaZadanie, http_request: Request):
     lang = request.lang or DOMYSLNY_JEZYK
+    if not w_limicie_kolejki(_oceny_ip, adres_klienta(http_request),
+                             LIMIT_OCEN_IP_MIN, LIMIT_OCEN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     if not w_limicie_ocen():
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     loguj_ocene(request.ocena, request.pytanie, request.odpowiedz,
@@ -569,19 +614,24 @@ def ocena(request: OcenaZadanie):
 
 
 @app.get('/admin/statystyki')
-def admin_statystyki(dni: int | None = Query(default=None, ge=1, le=3650),
+def admin_statystyki(http_request: Request, dni: int | None = Query(default=None, ge=1, le=3650),
                      lang: Literal['pl', 'en'] | None = None,
                      strona: Literal['kupujacy', 'sprzedajacy'] | None = None):
-    wpisy = statystyki.filtruj(wpisy_logu(), dni=dni, lang=lang, strona=strona)
-    return statystyki.statystyki(wpisy)
+    if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
+                             LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
+    return statystyki_z_cache(dni, lang, strona)
 
 
 @app.get('/admin/eksport')
-def admin_eksport(format: Literal['csv', 'json'] = 'csv',
+def admin_eksport(http_request: Request, format: Literal['csv', 'json'] = 'csv',
                   kolumny: str | None = None,
                   dni: int | None = Query(default=None, ge=1, le=3650),
                   lang: Literal['pl', 'en'] | None = None,
                   strona: Literal['kupujacy', 'sprzedajacy'] | None = None):
+    if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
+                             LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
     wybrane = kolumny_eksportu(kolumny)
     wpisy = [w for w in statystyki.filtruj(wpisy_logu(), dni=dni, lang=lang, strona=strona)
              if not w.get('typ')]
@@ -596,7 +646,7 @@ def admin_eksport(format: Literal['csv', 'json'] = 'csv',
         pisarz = csv.writer(bufor, delimiter=';', lineterminator='\n')
         pisarz.writerow(wybrane)
         for w in wpisy:
-            pisarz.writerow(['' if w.get(k) is None else w.get(k) for k in wybrane])
+            pisarz.writerow([statystyki.bezpieczna_komorka(w.get(k)) for k in wybrane])
         tresc = '﻿' + bufor.getvalue()
         typ_tresci = 'text/csv; charset=utf-8'
         nazwa = f'statystyki_{stempel}.csv'
