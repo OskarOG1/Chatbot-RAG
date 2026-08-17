@@ -9,7 +9,8 @@ import EmailPanel from '@/components/EmailPanel';
 import Rail, { type RailItem } from '@/components/Rail';
 import Toast from '@/components/Toast';
 import InfoBanner from '@/components/InfoBanner';
-import { IkonaKosz } from '@/components/Ikony';
+import Link from 'next/link';
+import { IkonaWykres } from '@/components/Ikony';
 import { czytajSse } from '@/lib/sse';
 import { ThemeContext, THEMES, BODY, DISPLAY, MONO, type ThemeName } from '@/lib/theme';
 import {
@@ -48,19 +49,20 @@ function formatCzas(ts: number): string {
   return `${gg}:${mm}`;
 }
 
-function deleteCurrentBtn(th: { line: string; surface: string; ink2: string }) {
+function panelLink(th: { line: string; surface: string; ink2: string }) {
   return {
-    width: 30,
-    height: 30,
-    padding: 0,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 7,
+    padding: '6px 12px',
     borderRadius: 100,
     border: `1px solid ${th.line}`,
     background: th.surface,
     color: th.ink2,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
+    fontSize: 11.5,
+    fontWeight: 500,
+    textDecoration: 'none',
+    whiteSpace: 'nowrap',
   } as const;
 }
 
@@ -602,9 +604,10 @@ export default function ChatApp() {
               <span style={{ fontFamily: MONO, fontSize: 11, color: th.ink3 }}>{t.subtitle}</span>
             </div>
             <div style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <button type="button" aria-label={t.deleteCurrent} onClick={() => usunThread(activeId)} style={deleteCurrentBtn(th)}>
-                <IkonaKosz color={th.ink2} />
-              </button>
+              <Link href="/admin" style={panelLink(th)}>
+                <IkonaWykres color={th.ink2} />
+                {t.panel}
+              </Link>
               <div
                 style={{
                   display: 'inline-flex',

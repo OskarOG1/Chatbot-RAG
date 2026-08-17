@@ -49,6 +49,20 @@ export function IkonaKosz({ color = 'currentColor' }: { color?: string }) {
   );
 }
 
+export function IkonaWykres({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width={16} height={16} viewBox="0 0 16 16" fill="none" aria-hidden focusable="false">
+      <path
+        d="M2.2 13.4h11.6M4.8 13.4V8.6M8 13.4V3.6M11.2 13.4v-3.2"
+        stroke={color}
+        strokeWidth={1.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function IkonaSlonce({ color = 'currentColor' }: { color?: string }) {
   return (
     <svg width={16} height={16} viewBox="0 0 16 16" fill="none" aria-hidden focusable="false">

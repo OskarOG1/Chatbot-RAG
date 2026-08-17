@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   pobierzStatystyki,
   procent,
@@ -107,25 +108,48 @@ export default function PanelAdmina() {
                   : 'Brak danych w wybranym zakresie'}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setThemeName(themeName === 'light' ? 'dark' : 'light')}
-              aria-label="Zmień motyw"
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                border: `1px solid ${th.line}`,
-                background: th.surface,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                color: th.ink2,
-              }}
-            >
-              {themeName === 'light' ? <IkonaKsiezyc /> : <IkonaSlonce />}
-            </button>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
+              <Link
+                href="/"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  height: 36,
+                  padding: '0 14px',
+                  borderRadius: 100,
+                  border: `1px solid ${th.line}`,
+                  background: th.surface,
+                  color: th.ink2,
+                  fontFamily: BODY,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Wróć do czatu
+              </Link>
+              <button
+                type="button"
+                onClick={() => setThemeName(themeName === 'light' ? 'dark' : 'light')}
+                aria-label="Zmień motyw"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  border: `1px solid ${th.line}`,
+                  background: th.surface,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: th.ink2,
+                  flex: '0 0 auto',
+                }}
+              >
+                {themeName === 'light' ? <IkonaKsiezyc /> : <IkonaSlonce />}
+              </button>
+            </div>
           </header>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
