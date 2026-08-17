@@ -2,6 +2,7 @@ export interface Zakres {
   od: string | null;
   do: string | null;
   dni: number;
+  obciete: boolean;
 }
 
 export interface Ogolem {
@@ -82,6 +83,13 @@ export interface Koszty {
   koszt_usd: number;
   koszt_na_zapytanie: number;
   pokrycie: number;
+  szacowane: number;
+  udzial_szacowanych: number;
+}
+
+export interface Kolumny {
+  wszystkie: string[];
+  domyslne: string[];
 }
 
 export interface Statystyki {
@@ -96,6 +104,7 @@ export interface Statystyki {
   top_pytania: TopPytanie[];
   oceny: Oceny;
   koszty: Koszty;
+  kolumny: Kolumny;
 }
 
 export interface Filtry {
@@ -127,15 +136,6 @@ export async function pobierzStatystyki(filtry: Filtry): Promise<Statystyki> {
   }
   return res.json() as Promise<Statystyki>;
 }
-
-export const KOLUMNY_EKSPORTU = [
-  'czas', 'lang', 'strona', 'sekcja', 'wynik', 'powod', 'powod_etap2',
-  'latencja_s', 'cache_hit', 'pytanie', 'tokeny_we', 'tokeny_wy', 'koszt_usd',
-] as const;
-
-export const KOLUMNY_DOMYSLNE: string[] = [
-  'czas', 'lang', 'strona', 'sekcja', 'wynik', 'powod', 'latencja_s', 'cache_hit',
-];
 
 export const ETYKIETY_KOLUMN: Record<string, string> = {
   czas: 'Czas',
