@@ -1,7 +1,8 @@
 from collections import Counter
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 import json
+import os
 
 LOG_ANALYTICS = Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.jsonl'
 
@@ -12,6 +13,16 @@ PROGI_LATENCJI = (2.0, 5.0, 10.0, 20.0)
 ETYKIETY_LATENCJI = ('0 do 2 s', '2 do 5 s', '5 do 10 s', '10 do 20 s', 'ponad 20 s')
 STRONY = ('kupujacy', 'sprzedajacy')
 TOP_PYTAN = 15
+MAX_DNI_SERII = int(os.getenv('MAX_DNI_SERII', '400'))
+ZNAKI_FORMULY = ('=', '+', '-', '@', '\t', '\r')
+
+
+def bezpieczna_komorka(wartosc):
+    if wartosc is None:
+        return ''
+    if isinstance(wartosc, str) and wartosc.startswith(ZNAKI_FORMULY):
+        return "'" + wartosc
+    return wartosc
 
 
 def wczytaj(sciezka=None) -> list[dict]:
@@ -35,9 +46,19 @@ def wczytaj(sciezka=None) -> list[dict]:
 def czas_wpisu(wpis: dict):
     try:
         czas = datetime.fromisoformat(wpis.get('czas') or '')
-    except ValueError:
+    except (TypeError, ValueError):
         return None
     return czas if czas.tzinfo else czas.replace(tzinfo=timezone.utc)
+
+
+def dzien_wpisu(wpis: dict) -> str | None:
+    surowy = wpis.get('czas')
+    if not isinstance(surowy, str):
+        return None
+    try:
+        return date.fromisoformat(surowy[:10]).isoformat()
+    except ValueError:
+        return None
 
 
 def normalizuj_strone(wartosc) -> str:
@@ -51,7 +72,7 @@ def filtruj(wpisy: list[dict], dni: int | None = None, lang: str | None = None,
     for w in wpisy:
         if lang and w.get('lang') != lang:
             continue
-        if strona and normalizuj_strone(w.get('strona')) != strona:
+        if strona and w.get('typ') != 'wysylka' and normalizuj_strone(w.get('strona')) != strona:
             continue
         if granica is not None:
             czas = czas_wpisu(w)
@@ -92,12 +113,14 @@ def histogram_latencji(wartosci: list[float]) -> list[dict]:
             for etykieta, ile in zip(ETYKIETY_LATENCJI, kubelki)]
 
 
-def dni_zakresu(pierwszy: str, ostatni: str) -> list[str]:
-    start = datetime.strptime(pierwszy, '%Y-%m-%d')
-    koniec = datetime.strptime(ostatni, '%Y-%m-%d')
+def dni_zakresu(pierwszy: str, ostatni: str, limit: int = MAX_DNI_SERII) -> list[str]:
+    start = date.fromisoformat(pierwszy)
+    koniec = date.fromisoformat(ostatni)
+    if (koniec - start).days >= limit:
+        start = koniec - timedelta(days=limit - 1)
     dni = []
     while start <= koniec:
-        dni.append(start.strftime('%Y-%m-%d'))
+        dni.append(start.isoformat())
         start += timedelta(days=1)
     return dni
 
@@ -134,8 +157,8 @@ def statystyki(wpisy: list[dict]) -> dict:
 
     dni = {}
     for w in zapytania:
-        dzien = (w.get('czas') or '')[:10]
-        if len(dzien) != 10:
+        dzien = dzien_wpisu(w)
+        if dzien is None:
             continue
         pozycja = dni.setdefault(dzien, {'zapytan': 0, 'odmowy': 0, 'latencje': [], 'koszt_usd': 0.0})
         pozycja['zapytan'] += 1
@@ -146,8 +169,11 @@ def statystyki(wpisy: list[dict]) -> dict:
         pozycja['koszt_usd'] += float(w.get('koszt_usd') or 0.0)
 
     seria = []
+    obciete = False
     if dni:
-        for dzien in dni_zakresu(min(dni), max(dni)):
+        okno = dni_zakresu(min(dni), max(dni))
+        obciete = (date.fromisoformat(max(dni)) - date.fromisoformat(min(dni))).days + 1 > len(okno)
+        for dzien in okno:
             pozycja = dni.get(dzien)
             if pozycja is None:
                 seria.append({'dzien': dzien, 'zapytan': 0, 'odmowy': 0,
@@ -162,14 +188,17 @@ def statystyki(wpisy: list[dict]) -> dict:
     dol = sum(1 for w in oceny if w.get('ocena') == 'dol')
     razem_ocen = gora + dol
 
-    z_tokenami = [w for w in zapytania if w.get('tokeny_we') is not None]
+    bez_cache = [w for w in zapytania if not w.get('cache_hit')]
+    z_tokenami = [w for w in bez_cache if w.get('tokeny_we') is not None]
+    szacowane = sum(1 for w in z_tokenami if w.get('tokeny_szacowane'))
     koszt = sum(float(w.get('koszt_usd') or 0.0) for w in z_tokenami)
-    czasy = [w['czas'] for w in wpisy if w.get('czas')]
+    czasy = [w['czas'] for w in wpisy if isinstance(w.get('czas'), str)]
 
     return {
         'zakres': {'od': min(czasy) if czasy else None,
                    'do': max(czasy) if czasy else None,
-                   'dni': len(seria)},
+                   'dni': len(seria),
+                   'obciete': obciete},
         'ogolem': {
             'zapytan': n,
             'odpowiedzi': len(odpowiedzi),
@@ -199,6 +228,7 @@ def statystyki(wpisy: list[dict]) -> dict:
         'jezyki': rozklad(Counter(w.get('lang') or 'nieznany' for w in zapytania), 'lang', n),
         'dzienne': seria,
         'top_pytania': top,
+        'kolumny': {'wszystkie': list(KOLUMNY_EKSPORTU), 'domyslne': list(KOLUMNY_DOMYSLNE)},
         'oceny': {
             'gora': gora,
             'dol': dol,
@@ -211,6 +241,8 @@ def statystyki(wpisy: list[dict]) -> dict:
             'tokeny_wy': sum(int(w.get('tokeny_wy') or 0) for w in z_tokenami),
             'koszt_usd': round(koszt, 6),
             'koszt_na_zapytanie': round(koszt / len(z_tokenami), 6) if z_tokenami else 0.0,
-            'pokrycie': round(len(z_tokenami) / n, 4) if n else 0.0,
+            'pokrycie': round(len(z_tokenami) / len(bez_cache), 4) if bez_cache else 0.0,
+            'szacowane': szacowane,
+            'udzial_szacowanych': round(szacowane / len(z_tokenami), 4) if z_tokenami else 0.0,
         },
     }
