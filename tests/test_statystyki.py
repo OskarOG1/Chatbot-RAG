@@ -126,3 +126,78 @@ def test_liczba_odrzuca_bool():
     assert statystyki.liczba(True) is False
     assert statystyki.liczba(False) is False
     assert statystyki.liczba(1.5) is True
+
+
+def test_dzien_wpisu_odporny_na_zle_dane():
+    assert statystyki.dzien_wpisu({'czas': 123}) is None
+    assert statystyki.dzien_wpisu({'czas': 'zepsute-xx'}) is None
+    assert statystyki.dzien_wpisu({}) is None
+    assert statystyki.dzien_wpisu({'czas': '2026-08-17T10:00:00+00:00'}) == '2026-08-17'
+
+
+def test_czas_wpisu_nie_wywala_typeerror():
+    assert statystyki.czas_wpisu({'czas': 123}) is None
+
+
+def test_statystyki_wpis_z_niepoprawna_data_nie_wywala_wyjatku():
+    wpisy = [wpis(czas='2026-13-45T00:00:00'), wpis(), wpis()]
+    wynik = statystyki.statystyki(wpisy)
+    assert wynik['ogolem']['zapytan'] == 3
+    assert sum(d['zapytan'] for d in wynik['dzienne']) == 2
+
+
+def test_statystyki_dlugi_zakres_obcina_do_max_dni_serii():
+    poczatek = datetime.now(timezone.utc) - timedelta(days=999)
+    koniec = datetime.now(timezone.utc)
+    wpisy = [wpis(czas=poczatek.isoformat()), wpis(czas=koniec.isoformat())]
+    wynik = statystyki.statystyki(wpisy)
+    assert len(wynik['dzienne']) == statystyki.MAX_DNI_SERII
+    assert wynik['zakres']['obciete'] is True
+
+
+def test_statystyki_krotki_zakres_nie_jest_obciety():
+    teraz = datetime.now(timezone.utc)
+    wpisy = [wpis(czas=(teraz - timedelta(days=3)).isoformat()), wpis(czas=teraz.isoformat())]
+    wynik = statystyki.statystyki(wpisy)
+    assert wynik['zakres']['obciete'] is False
+
+
+def test_filtruj_strona_zostawia_wysylki():
+    wysylka = {'typ': 'wysylka', 'lang': 'pl'}
+    zapytanie_bez_strony = wpis()
+    wynik = statystyki.filtruj([wysylka, zapytanie_bez_strony], strona='kupujacy')
+    assert wynik == [wysylka]
+
+
+def test_ogolem_wysylki_nie_spada_do_zera_po_filtrze_strony():
+    wpisy = ([wpis(strona='kupujacy')]
+             + [{'typ': 'wysylka', 'lang': 'pl'} for _ in range(3)])
+    wynik = statystyki.statystyki(statystyki.filtruj(wpisy, strona='kupujacy'))
+    assert wynik['ogolem']['wysylki'] == 3
+
+
+def test_koszty_pokrycie_nie_liczy_trafien_cache():
+    z_cache = wpis(cache_hit=True, tokeny_we=0, tokeny_wy=0, koszt_usd=0.0)
+    bez_cache = wpis(cache_hit=False, tokeny_we=100, tokeny_wy=50, koszt_usd=0.5)
+    wynik = statystyki.statystyki([z_cache, bez_cache])
+    assert wynik['koszty']['pokrycie'] == 1.0
+
+
+def test_koszty_koszt_na_zapytanie_dzieli_tylko_bez_cache():
+    z_cache = wpis(cache_hit=True, tokeny_we=0, tokeny_wy=0, koszt_usd=0.0)
+    bez_cache = wpis(cache_hit=False, tokeny_we=100, tokeny_wy=50, koszt_usd=0.5)
+    wynik = statystyki.statystyki([z_cache, bez_cache])
+    assert wynik['koszty']['koszt_na_zapytanie'] == 0.5
+
+
+def test_koszty_udzial_szacowanych():
+    szacowany = wpis(cache_hit=False, tokeny_we=100, tokeny_wy=50, koszt_usd=0.5, tokeny_szacowane=True)
+    dokladny = wpis(cache_hit=False, tokeny_we=100, tokeny_wy=50, koszt_usd=0.5, tokeny_szacowane=False)
+    wynik = statystyki.statystyki([szacowany, dokladny])
+    assert wynik['koszty']['udzial_szacowanych'] == 0.5
+
+
+def test_zakres_nie_wywala_sie_na_nietekstowym_czasie():
+    wpisy = [wpis(czas=123), wpis()]
+    wynik = statystyki.statystyki(wpisy)
+    assert wynik['zakres']['od'] is not None

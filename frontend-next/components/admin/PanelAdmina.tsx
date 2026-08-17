@@ -226,7 +226,9 @@ export default function PanelAdmina() {
                   dane.koszty.pokrycie === 0
                     ? 'pomiar dołączony w kolejnym etapie'
                     : `${dane.koszty.tokeny_we + dane.koszty.tokeny_wy} tokenów, pokrycie ${procent(dane.koszty.pokrycie)}` +
-                      (dane.koszty.pokrycie < 1 ? ', wartości szacowane' : '')
+                      (dane.koszty.udzial_szacowanych > 0
+                        ? `, szacowane w ${procent(dane.koszty.udzial_szacowanych, 0)}`
+                        : '')
                 }
               />
               <Karta
@@ -304,7 +306,7 @@ export default function PanelAdmina() {
             </section>
           ) : null}
 
-          {dane && dane.ogolem.zapytan > 0 ? <PanelEksportu filtry={filtry} /> : null}
+          {dane && dane.ogolem.zapytan > 0 ? <PanelEksportu filtry={filtry} kolumny={dane.kolumny} /> : null}
         </div>
       </div>
     </ThemeContext.Provider>

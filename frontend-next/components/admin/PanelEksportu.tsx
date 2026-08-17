@@ -2,17 +2,16 @@
 
 import { useState } from 'react';
 import {
-  KOLUMNY_EKSPORTU,
-  KOLUMNY_DOMYSLNE,
   ETYKIETY_KOLUMN,
   parametryFiltrow,
   type Filtry,
+  type Kolumny,
 } from '@/lib/admin';
 import { useTheme, BODY, DISPLAY } from '@/lib/theme';
 
-export default function PanelEksportu({ filtry }: { filtry: Filtry }) {
+export default function PanelEksportu({ filtry, kolumny }: { filtry: Filtry; kolumny: Kolumny }) {
   const th = useTheme();
-  const [wybrane, setWybrane] = useState<string[]>(KOLUMNY_DOMYSLNE);
+  const [wybrane, setWybrane] = useState<string[]>(kolumny.domyslne);
   const [format, setFormat] = useState<'csv' | 'json'>('csv');
 
   const przelacz = (kolumna: string) => {
@@ -59,7 +58,7 @@ export default function PanelEksportu({ filtry }: { filtry: Filtry }) {
         Zaznacz kolumny, które mają trafić do pliku. Filtry z góry strony obowiązują także tutaj.
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {KOLUMNY_EKSPORTU.map((kolumna) => (
+        {kolumny.wszystkie.map((kolumna) => (
           <label key={kolumna} style={pigulka(wybrane.includes(kolumna))}>
             <input
               type="checkbox"
