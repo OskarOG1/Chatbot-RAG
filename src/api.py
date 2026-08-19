@@ -308,12 +308,13 @@ def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: 
 
 
 def loguj_ocene(ocena: str, pytanie: str, odpowiedz: str, sekcja: str | None, lang: str,
-                 strona: str | None) -> None:
+                 strona: str | None, id_zapytania: str | None = None) -> None:
     try:
         wpis = {
             'czas': datetime.now(timezone.utc).isoformat(),
             'typ': 'ocena',
             'ocena': ocena,
+            'id_zapytania': id_zapytania,
             'lang': lang,
             'strona': strona,
             'sekcja': sekcja,
@@ -452,6 +453,7 @@ class WyslijOdpowiedz(BaseModel):
 
 class OcenaZadanie(BaseModel):
     ocena: Literal['gora', 'dol']
+    id_zapytania: str | None = Field(default=None, pattern=r'^[0-9a-f]{16}$')
     pytanie: str = Field(min_length=1, max_length=MAX_ZNAKI * 2)
     odpowiedz: str = Field(default='', max_length=MAX_ZNAKI_WPISU)
     sekcja: str | None = Field(default=None, max_length=40)
@@ -624,7 +626,7 @@ def ocena(request: OcenaZadanie, http_request: Request):
     if not w_limicie_ocen():
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     loguj_ocene(request.ocena, request.pytanie, request.odpowiedz,
-                request.sekcja, lang, request.strona)
+                request.sekcja, lang, request.strona, request.id_zapytania)
     return {'status': 'ok'}
 
 
