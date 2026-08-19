@@ -640,6 +640,15 @@ def admin_statystyki(http_request: Request, dni: int | None = Query(default=None
     return statystyki_z_cache(dni, lang, strona)
 
 
+@app.get('/admin/oceny')
+def admin_oceny(http_request: Request, dni: int | None = Query(default=None, ge=1, le=3650)):
+    if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
+                             LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
+    przypadki = statystyki.przypadki_ocen(wpisy_logu(), dni=dni)
+    return {'razem': len(przypadki), 'przypadki': przypadki}
+
+
 @app.post('/admin/resetuj-statystyki')
 def admin_resetuj_statystyki(http_request: Request):
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
