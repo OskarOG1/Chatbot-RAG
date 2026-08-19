@@ -216,3 +216,74 @@ export async function resetujStatystyki(token: string): Promise<string | null> {
   const wynik = (await res.json()) as { archiwum: string | null };
   return wynik.archiwum;
 }
+
+export interface CechyPrzypadku {
+  rerank_top1: number | null;
+  chunkow: number;
+  zrodlo_top1: string | null;
+  sedzia_ok: boolean | null;
+  pokrycie: number | null;
+  etap: number;
+}
+
+export interface Przypadek {
+  czas: string | null;
+  ocena: 'gora' | 'dol';
+  lang: string | null;
+  strona: string;
+  sekcja: string | null;
+  pytanie: string | null;
+  odpowiedz: string | null;
+  id_zapytania: string | null;
+  wynik: string | null;
+  powod: string | null;
+  powod_etap2: string | null;
+  latencja_s: number | null;
+  cache_hit: boolean | null;
+  cechy: CechyPrzypadku | null;
+  diagnoza: string;
+}
+
+export interface Przypadki {
+  razem: number;
+  przypadki: Przypadek[];
+}
+
+export const ETYKIETY_DIAGNOZ: Record<string, string> = {
+  ok: 'Dobra odpowiedź',
+  tresc: 'Zła treść przy dobrym kontekście',
+  retrieval: 'Brak trafienia w wyszukiwaniu',
+  sedzia: 'Sędzia odrzucił kontekst',
+  pokrycie: 'Za niskie pokrycie odpowiedzi',
+  generacja: 'Model nie odpowiedział',
+  guard: 'Zatrzymane przez guard',
+  literowki: 'Nierozpoznane słowa',
+  doprecyzowanie: 'Pytanie o stronę',
+  rozmowa: 'Tura rozmowy',
+  inna: 'Inna przyczyna',
+  brak_sladu: 'Brak śladu zapytania',
+};
+
+export const LEKARSTWA_DIAGNOZ: Record<string, string> = {
+  tresc: 'prompt generacji',
+  retrieval: 'korpus, chunking, aliasy',
+  sedzia: 'próg sędziego',
+  pokrycie: 'próg pokrycia',
+  generacja: 'prompt generacji',
+  guard: 'reguły guardów',
+  literowki: 'słownik korektora',
+  doprecyzowanie: 'treść doprecyzowania',
+  brak_sladu: 'ocena sprzed wdrożenia identyfikatorów',
+};
+
+export async function pobierzPrzypadki(dni: number | null): Promise<Przypadki> {
+  const params = new URLSearchParams();
+  if (dni !== null) {
+    params.set('dni', String(dni));
+  }
+  const res = await fetch(`/api/admin/oceny?${params.toString()}`, { cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(`Błąd pobierania ocen: ${res.status}`);
+  }
+  return res.json() as Promise<Przypadki>;
+}

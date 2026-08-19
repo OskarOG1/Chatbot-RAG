@@ -10,8 +10,12 @@ import {
   NAZWY_SEKCJI,
   NAZWY_POWODOW,
   resetujStatystyki,
+  pobierzPrzypadki,
+  ETYKIETY_DIAGNOZ,
+  LEKARSTWA_DIAGNOZ,
   type Filtry,
   type Statystyki,
+  type Przypadki,
 } from '@/lib/admin';
 import { ThemeContext, THEMES, BODY, DISPLAY, type ThemeName } from '@/lib/theme';
 import { IkonaSlonce, IkonaKsiezyc } from '@/components/Ikony';
@@ -46,7 +50,7 @@ const STRONY: { etykieta: string; strona: 'kupujacy' | 'sprzedajacy' | null }[] 
   { etykieta: 'Sprzedający', strona: 'sprzedajacy' },
 ];
 
-const ZAKLADKI = ['Przegląd', 'Jakość i odmowy', 'Pytania', 'Eksport'] as const;
+const ZAKLADKI = ['Przegląd', 'Jakość i odmowy', 'Pytania', 'Oceny', 'Eksport'] as const;
 type Zakladka = (typeof ZAKLADKI)[number];
 
 const PYTANIA_WIDOCZNE = 6;
@@ -70,6 +74,8 @@ export default function PanelAdmina() {
   const [resetowanie, setResetowanie] = useState(false);
   const [komunikatResetu, setKomunikatResetu] = useState<string | null>(null);
   const [tokenResetu, setTokenResetu] = useState('');
+  const [przypadki, setPrzypadki] = useState<Przypadki | null>(null);
+  const [bladPrzypadkow, setBladPrzypadkow] = useState<string | null>(null);
   const th = THEMES[themeName];
 
   const potwierdzResetStatystyk = async () => {
@@ -119,6 +125,28 @@ export default function PanelAdmina() {
       aktywny = false;
     };
   }, [filtry, odswiez]);
+
+  useEffect(() => {
+    if (zakladka !== 'Oceny') {
+      return;
+    }
+    let aktywny = true;
+    setBladPrzypadkow(null);
+    pobierzPrzypadki(filtry.dni)
+      .then((wynik) => {
+        if (aktywny) {
+          setPrzypadki(wynik);
+        }
+      })
+      .catch(() => {
+        if (aktywny) {
+          setBladPrzypadkow('Nie udało się pobrać ocen');
+        }
+      });
+    return () => {
+      aktywny = false;
+    };
+  }, [zakladka, filtry.dni, odswiez]);
 
   const pigulka = (aktywna: boolean) => ({
     height: 34,
@@ -523,6 +551,95 @@ export default function PanelAdmina() {
                 >
                   {wszystkiePytania ? 'Pokaż tylko najczęstsze ▴' : `Pokaż ${dane.top_pytania.length} najczęstszych ▾`}
                 </button>
+              ) : null}
+            </section>
+          ) : null}
+
+          {zakladka === 'Oceny' ? (
+            <section
+              style={{
+                background: th.surface,
+                border: `1px solid ${th.line}`,
+                borderRadius: 14,
+                boxShadow: th.shadow,
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px 12px' }}>
+                <h2 style={{ margin: 0, fontFamily: DISPLAY, fontSize: 15, fontWeight: 700, color: th.ink }}>
+                  Ocenione odpowiedzi
+                </h2>
+                {przypadki ? (
+                  <span style={{ fontFamily: BODY, fontSize: 12.5, color: th.ink2 }}>
+                    {przypadki.razem} razem · {przypadki.przypadki.filter((p) => p.ocena === 'dol').length} negatywnych
+                  </span>
+                ) : null}
+              </div>
+
+              {bladPrzypadkow ? (
+                <p style={{ padding: '0 18px 16px', color: th.ink2, fontSize: 13 }}>{bladPrzypadkow}</p>
+              ) : null}
+
+              {!bladPrzypadkow && przypadki === null ? (
+                <p style={{ padding: '0 18px 16px', color: th.ink2, fontSize: 13 }}>Ładuję oceny</p>
+              ) : null}
+
+              {!bladPrzypadkow && przypadki && przypadki.razem === 0 ? (
+                <p style={{ padding: '0 18px 16px', color: th.ink2, fontSize: 13 }}>
+                  Brak ocen w wybranym okresie. Kciuk pod odpowiedzią zapisuje przypadek do tej tabeli.
+                </p>
+              ) : null}
+
+              {przypadki && przypadki.razem > 0 ? (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: BODY, fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ borderTop: `1px solid ${th.lineSoft}` }}>
+                        {['Czas', 'Ocena', 'Diagnoza', 'Do poprawy', 'Sekcja', 'Pytanie', 'Rerank top1', 'Pokrycie', 'Etap'].map((naglowek) => (
+                          <th
+                            key={naglowek}
+                            style={{ padding: '10px 18px', textAlign: 'left', color: th.ink3, fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase' as const, whiteSpace: 'nowrap' }}
+                          >
+                            {naglowek}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {przypadki.przypadki.map((p, i) => (
+                        <tr key={`${p.czas ?? ''}-${i}`} style={{ borderTop: `1px solid ${th.lineSoft}` }}>
+                          <td style={{ padding: '10px 18px', color: th.ink2, whiteSpace: 'nowrap' }}>
+                            {p.czas ? p.czas.slice(0, 16).replace('T', ' ') : '—'}
+                          </td>
+                          <td style={{ padding: '10px 18px', color: th.ink2, whiteSpace: 'nowrap' }}>
+                            {p.ocena === 'gora' ? 'w górę' : 'w dół'}
+                          </td>
+                          <td style={{ padding: '10px 18px', color: th.ink }}>
+                            {ETYKIETY_DIAGNOZ[p.diagnoza] ?? p.diagnoza}
+                          </td>
+                          <td style={{ padding: '10px 18px', color: th.ink2 }}>
+                            {LEKARSTWA_DIAGNOZ[p.diagnoza] ?? ''}
+                          </td>
+                          <td style={{ padding: '10px 18px', color: th.ink2, whiteSpace: 'nowrap' }}>
+                            {p.sekcja ? (NAZWY_SEKCJI[p.sekcja] ?? p.sekcja) : '—'}
+                          </td>
+                          <td style={{ padding: '10px 18px', color: th.ink2, maxWidth: 320 }}>
+                            {p.pytanie ? (p.pytanie.length > 80 ? `${p.pytanie.slice(0, 80)}…` : p.pytanie) : '—'}
+                          </td>
+                          <td style={{ padding: '10px 18px', textAlign: 'right', color: th.ink2 }}>
+                            {p.cechy?.rerank_top1 ?? '—'}
+                          </td>
+                          <td style={{ padding: '10px 18px', textAlign: 'right', color: th.ink2 }}>
+                            {p.cechy?.pokrycie ?? '—'}
+                          </td>
+                          <td style={{ padding: '10px 18px', textAlign: 'right', color: th.ink2 }}>
+                            {p.cechy?.etap ?? '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : null}
             </section>
           ) : null}
