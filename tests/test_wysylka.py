@@ -1,6 +1,13 @@
 import pytest
 from fastapi import HTTPException
 
+
+@pytest.fixture(autouse=True)
+def izoluj_log_analytics(monkeypatch, tmp_path):
+    import api
+    monkeypatch.setattr(api, 'LOG_ANALYTICS', tmp_path / 'log_analytics_test.jsonl')
+
+
 ADRESY = [
     ('jan@poczta.pl', True),
     ('ja n@poczta.pl', False),
