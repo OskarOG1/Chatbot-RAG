@@ -9,7 +9,7 @@ import {
   etykieta,
   NAZWY_SEKCJI,
   NAZWY_POWODOW,
-  wyczyscPamiec,
+  resetujStatystyki,
   type Filtry,
   type Statystyki,
 } from '@/lib/admin';
@@ -66,23 +66,23 @@ export default function PanelAdmina() {
   const [stronyOtwarte, setStronyOtwarte] = useState(true);
   const [latencjaOtwarta, setLatencjaOtwarta] = useState(false);
   const [wszystkiePytania, setWszystkiePytania] = useState(false);
-  const [czyszczeniePamieci, setCzyszczeniePamieci] = useState(false);
-  const [komunikatPamieci, setKomunikatPamieci] = useState<string | null>(null);
+  const [resetOtwarty, setResetOtwarty] = useState(false);
+  const [resetowanie, setResetowanie] = useState(false);
+  const [komunikatResetu, setKomunikatResetu] = useState<string | null>(null);
   const th = THEMES[themeName];
 
-  const obslugaCzyszczeniaPamieci = async () => {
-    if (!window.confirm('Wyczyścić pamięć podręczną odpowiedzi? Kolejne zapytania będą liczone od nowa.')) {
-      return;
-    }
-    setCzyszczeniePamieci(true);
-    setKomunikatPamieci(null);
+  const potwierdzResetStatystyk = async () => {
+    setResetowanie(true);
+    setKomunikatResetu(null);
     try {
-      const ile = await wyczyscPamiec();
-      setKomunikatPamieci(`Wyczyszczono ${ile} zapamiętanych odpowiedzi`);
+      await resetujStatystyki();
+      setKomunikatResetu('Statystyki zresetowane, poprzednie dane zarchiwizowane na serwerze');
+      setResetOtwarty(false);
+      setOdswiez((n) => n + 1);
     } catch {
-      setKomunikatPamieci('Nie udało się wyczyścić pamięci');
+      setKomunikatResetu('Nie udało się zresetować statystyk');
     } finally {
-      setCzyszczeniePamieci(false);
+      setResetowanie(false);
     }
   };
 
@@ -184,8 +184,8 @@ export default function PanelAdmina() {
                   </>
                 ) : null}
               </div>
-              {komunikatPamieci ? (
-                <div style={{ marginTop: 4, fontFamily: BODY, fontSize: 12.5, color: th.ink2 }}>{komunikatPamieci}</div>
+              {komunikatResetu ? (
+                <div style={{ marginTop: 4, fontFamily: BODY, fontSize: 12.5, color: th.ink2 }}>{komunikatResetu}</div>
               ) : null}
             </div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
@@ -211,8 +211,7 @@ export default function PanelAdmina() {
               </Link>
               <button
                 type="button"
-                onClick={obslugaCzyszczeniaPamieci}
-                disabled={czyszczeniePamieci}
+                onClick={() => setResetOtwarty(true)}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -226,11 +225,10 @@ export default function PanelAdmina() {
                   fontSize: 13,
                   fontWeight: 500,
                   whiteSpace: 'nowrap',
-                  cursor: czyszczeniePamieci ? 'default' : 'pointer',
-                  opacity: czyszczeniePamieci ? 0.6 : 1,
+                  cursor: 'pointer',
                 }}
               >
-                {czyszczeniePamieci ? 'Czyszczę...' : 'Wyczyść pamięć'}
+                Resetuj statystyki
               </button>
               <button
                 type="button"
@@ -527,6 +525,85 @@ export default function PanelAdmina() {
             <PanelEksportu filtry={filtry} kolumny={dane.kolumny} />
           ) : null}
         </div>
+
+        {resetOtwarty ? (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 100,
+              padding: 24,
+            }}
+          >
+            <div
+              style={{
+                background: th.surface,
+                border: `1px solid ${th.line}`,
+                borderRadius: 14,
+                boxShadow: th.shadow,
+                padding: 22,
+                maxWidth: 380,
+                width: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <h2 style={{ margin: 0, fontFamily: DISPLAY, fontSize: 17, fontWeight: 700, color: th.ink }}>
+                Zresetować statystyki?
+              </h2>
+              <p style={{ margin: 0, fontFamily: BODY, fontSize: 13.5, color: th.ink2, lineHeight: 1.5 }}>
+                Dotychczasowe dane zostaną zarchiwizowane na serwerze i wyzerowane na tym panelu.
+                Tej operacji nie da się cofnąć z tego miejsca.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+                <button
+                  type="button"
+                  onClick={() => setResetOtwarty(false)}
+                  disabled={resetowanie}
+                  style={{
+                    height: 36,
+                    padding: '0 16px',
+                    borderRadius: 100,
+                    border: `1px solid ${th.line}`,
+                    background: th.surface,
+                    color: th.ink2,
+                    fontFamily: BODY,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: resetowanie ? 'default' : 'pointer',
+                  }}
+                >
+                  Anuluj
+                </button>
+                <button
+                  type="button"
+                  onClick={potwierdzResetStatystyk}
+                  disabled={resetowanie}
+                  style={{
+                    height: 36,
+                    padding: '0 16px',
+                    borderRadius: 100,
+                    border: `1px solid ${th.accentLine}`,
+                    background: th.accent,
+                    color: '#fff',
+                    fontFamily: BODY,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: resetowanie ? 'default' : 'pointer',
+                    opacity: resetowanie ? 0.7 : 1,
+                  }}
+                >
+                  {resetowanie ? 'Resetuję...' : 'Tak, resetuj'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </ThemeContext.Provider>
   );

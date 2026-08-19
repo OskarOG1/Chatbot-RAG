@@ -201,11 +201,11 @@ export function sekundy(wartosc: number): string {
   return `${wartosc.toFixed(2)} s`;
 }
 
-export async function wyczyscPamiec(): Promise<number> {
-  const res = await fetch('/api/admin/pamiec', { method: 'POST', cache: 'no-store' });
+export async function resetujStatystyki(): Promise<string> {
+  const res = await fetch('/api/admin/reset-statystyk', { method: 'POST', cache: 'no-store' });
   if (!res.ok) {
-    throw new Error(`Błąd czyszczenia pamięci: ${res.status}`);
+    throw new Error(`Błąd resetowania statystyk: ${res.status}`);
   }
-  const wynik = (await res.json()) as { wyczyszczono: number };
-  return wynik.wyczyszczono;
+  const wynik = (await res.json()) as { archiwum: string };
+  return wynik.archiwum;
 }

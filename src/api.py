@@ -623,15 +623,23 @@ def admin_statystyki(http_request: Request, dni: int | None = Query(default=None
     return statystyki_z_cache(dni, lang, strona)
 
 
-@app.post('/admin/wyczysc-pamiec')
-def admin_wyczysc_pamiec(http_request: Request):
+@app.post('/admin/resetuj-statystyki')
+def admin_resetuj_statystyki(http_request: Request):
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
+    znacznik = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    archiwum = LOG_ANALYTICS.with_name(f'{LOG_ANALYTICS.name}.przed-resetem-{znacznik}')
     with _zamek:
-        ile = len(_cache)
+        if LOG_ANALYTICS.exists():
+            LOG_ANALYTICS.rename(archiwum)
+        LOG_ANALYTICS.touch()
         _cache.clear()
-    return {'status': 'ok', 'wyczyszczono': ile}
+        _log_cache['stempel'] = None
+        _log_cache['wpisy'] = []
+        _statystyki_cache['stempel'] = None
+        _statystyki_cache['wyniki'] = {}
+    return {'status': 'ok', 'archiwum': archiwum.name}
 
 
 @app.get('/admin/eksport')
