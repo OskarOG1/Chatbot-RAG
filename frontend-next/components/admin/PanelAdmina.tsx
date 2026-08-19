@@ -9,6 +9,7 @@ import {
   etykieta,
   NAZWY_SEKCJI,
   NAZWY_POWODOW,
+  wyczyscPamiec,
   type Filtry,
   type Statystyki,
 } from '@/lib/admin';
@@ -65,7 +66,25 @@ export default function PanelAdmina() {
   const [stronyOtwarte, setStronyOtwarte] = useState(true);
   const [latencjaOtwarta, setLatencjaOtwarta] = useState(false);
   const [wszystkiePytania, setWszystkiePytania] = useState(false);
+  const [czyszczeniePamieci, setCzyszczeniePamieci] = useState(false);
+  const [komunikatPamieci, setKomunikatPamieci] = useState<string | null>(null);
   const th = THEMES[themeName];
+
+  const obslugaCzyszczeniaPamieci = async () => {
+    if (!window.confirm('Wyczyścić pamięć podręczną odpowiedzi? Kolejne zapytania będą liczone od nowa.')) {
+      return;
+    }
+    setCzyszczeniePamieci(true);
+    setKomunikatPamieci(null);
+    try {
+      const ile = await wyczyscPamiec();
+      setKomunikatPamieci(`Wyczyszczono ${ile} zapamiętanych odpowiedzi`);
+    } catch {
+      setKomunikatPamieci('Nie udało się wyczyścić pamięci');
+    } finally {
+      setCzyszczeniePamieci(false);
+    }
+  };
 
   useEffect(() => {
     let aktywny = true;
@@ -165,6 +184,9 @@ export default function PanelAdmina() {
                   </>
                 ) : null}
               </div>
+              {komunikatPamieci ? (
+                <div style={{ marginTop: 4, fontFamily: BODY, fontSize: 12.5, color: th.ink2 }}>{komunikatPamieci}</div>
+              ) : null}
             </div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
               <Link
@@ -187,6 +209,29 @@ export default function PanelAdmina() {
               >
                 Wróć do czatu
               </Link>
+              <button
+                type="button"
+                onClick={obslugaCzyszczeniaPamieci}
+                disabled={czyszczeniePamieci}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  height: 36,
+                  padding: '0 14px',
+                  borderRadius: 100,
+                  border: `1px solid ${th.line}`,
+                  background: th.surface,
+                  color: th.ink2,
+                  fontFamily: BODY,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                  cursor: czyszczeniePamieci ? 'default' : 'pointer',
+                  opacity: czyszczeniePamieci ? 0.6 : 1,
+                }}
+              >
+                {czyszczeniePamieci ? 'Czyszczę...' : 'Wyczyść pamięć'}
+              </button>
               <button
                 type="button"
                 onClick={() => setThemeName(themeName === 'light' ? 'dark' : 'light')}
@@ -284,7 +329,7 @@ export default function PanelAdmina() {
                   podpis={`${dane.ogolem.unikalne_pytania} unikalnych pytań`}
                 />
                 <Karta
-                  tytul="Trafność z logu"
+                  tytul="Trafność"
                   wartosc={procent(dane.ogolem.trafnosc)}
                   akcent
                   podpis={`${dane.ogolem.odpowiedzi} odpowiedzi, ${dane.ogolem.odmowy} odmów`}
@@ -297,7 +342,6 @@ export default function PanelAdmina() {
                 <Karta
                   tytul="Mediana latencji"
                   wartosc={sekundy(dane.latencja.mediana)}
-                  podpis={`p95 ${sekundy(dane.latencja.p95)}`}
                 />
               </div>
 
@@ -320,14 +364,6 @@ export default function PanelAdmina() {
                   <Karta
                     tytul="Koszt tokenów"
                     wartosc={dane.koszty.pokrycie === 0 ? 'brak danych' : `$${dane.koszty.koszt_usd.toFixed(4)}`}
-                    podpis={
-                      dane.koszty.pokrycie === 0
-                        ? 'pomiar dołączony w kolejnym etapie'
-                        : `${dane.koszty.tokeny_we + dane.koszty.tokeny_wy} tokenów, pokrycie ${procent(dane.koszty.pokrycie)}` +
-                          (dane.koszty.udzial_szacowanych > 0
-                            ? `, szacowane w ${procent(dane.koszty.udzial_szacowanych, 0)}`
-                            : '')
-                    }
                   />
                   <Karta
                     tytul="Wysłane wiadomości"

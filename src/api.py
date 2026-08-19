@@ -623,6 +623,17 @@ def admin_statystyki(http_request: Request, dni: int | None = Query(default=None
     return statystyki_z_cache(dni, lang, strona)
 
 
+@app.post('/admin/wyczysc-pamiec')
+def admin_wyczysc_pamiec(http_request: Request):
+    if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
+                             LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
+    with _zamek:
+        ile = len(_cache)
+        _cache.clear()
+    return {'status': 'ok', 'wyczyszczono': ile}
+
+
 @app.get('/admin/eksport')
 def admin_eksport(http_request: Request, format: Literal['csv', 'json'] = 'csv',
                   kolumny: str | None = None,
@@ -637,7 +648,7 @@ def admin_eksport(http_request: Request, format: Literal['csv', 'json'] = 'csv',
              if not w.get('typ')]
     stempel = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')
     if format == 'json':
-        tresc = json.dumps([{k: w.get(k) for k in wybrane} for w in wpisy],
+        tresc = json.dumps([{k: statystyki.komorka_eksportu(w, k) for k in wybrane} for w in wpisy],
                            ensure_ascii=False, indent=2)
         typ_tresci = 'application/json; charset=utf-8'
         nazwa = f'statystyki_{stempel}.json'
@@ -646,7 +657,7 @@ def admin_eksport(http_request: Request, format: Literal['csv', 'json'] = 'csv',
         pisarz = csv.writer(bufor, delimiter=';', lineterminator='\n')
         pisarz.writerow(wybrane)
         for w in wpisy:
-            pisarz.writerow([statystyki.bezpieczna_komorka(w.get(k)) for k in wybrane])
+            pisarz.writerow([statystyki.bezpieczna_komorka(statystyki.komorka_eksportu(w, k)) for k in wybrane])
         tresc = '﻿' + bufor.getvalue()
         typ_tresci = 'text/csv; charset=utf-8'
         nazwa = f'statystyki_{stempel}.csv'
