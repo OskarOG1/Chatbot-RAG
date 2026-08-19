@@ -184,6 +184,8 @@ export const NAZWY_POWODOW: Record<string, string> = {
   guard_injekcja: 'Wykryto próbę wstrzyknięcia promptu',
   brak_danych: 'Brak danych źródłowych',
   pytanie_o_strone: 'Pytanie o inną rolę (stary automatyczny routing)',
+  odmowa: 'Odmowa bez podanego powodu',
+  brak_wyniku: 'Pipeline nie zwrócił wyniku',
 };
 
 export function etykieta(mapa: Record<string, string>, klucz: string): string {
@@ -201,11 +203,16 @@ export function sekundy(wartosc: number): string {
   return `${wartosc.toFixed(2)} s`;
 }
 
-export async function resetujStatystyki(): Promise<string> {
-  const res = await fetch('/api/admin/reset-statystyk', { method: 'POST', cache: 'no-store' });
+export async function resetujStatystyki(token: string): Promise<string | null> {
+  const res = await fetch('/api/admin/reset-statystyk', {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { 'x-admin-token': token },
+  });
   if (!res.ok) {
-    throw new Error(`Błąd resetowania statystyk: ${res.status}`);
+    const tresc = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(tresc?.detail ?? `Błąd resetowania statystyk: ${res.status}`);
   }
-  const wynik = (await res.json()) as { archiwum: string };
+  const wynik = (await res.json()) as { archiwum: string | null };
   return wynik.archiwum;
 }

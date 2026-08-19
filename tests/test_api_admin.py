@@ -327,3 +327,59 @@ def test_statystyki_kolumny_zgadzaja_sie_z_kolumny_eksportu(client):
     assert 'kolumny' in dane
     assert set(dane['kolumny'].keys()) == {'wszystkie', 'domyslne'}
     assert tuple(dane['kolumny']['wszystkie']) == api.statystyki.KOLUMNY_EKSPORTU
+def test_reset_bez_tokenu_wylaczony(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', '')
+    odp = client.post('/admin/resetuj-statystyki')
+    assert odp.status_code == 503
+
+
+def test_reset_zly_token_odrzucony(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    odp = client.post('/admin/resetuj-statystyki', headers={'x-admin-token': 'inne'})
+    assert odp.status_code == 401
+
+
+def test_reset_archiwizuje_log(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    zapisz_log(api.LOG_ANALYTICS, [{'czas': '2026-08-19T10:00:00+00:00', 'wynik': 'odpowiedz'}])
+    odp = client.post('/admin/resetuj-statystyki', headers={'x-admin-token': 'tajne'})
+    assert odp.status_code == 200
+    nazwa = odp.json()['archiwum']
+    archiwum = api.LOG_ANALYTICS.with_name(nazwa)
+    assert archiwum.exists()
+    assert 'odpowiedz' in archiwum.read_text(encoding='utf-8')
+    assert api.LOG_ANALYTICS.read_text(encoding='utf-8') == ''
+
+
+def test_reset_bez_logu_nie_klamie_o_archiwum(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    odp = client.post('/admin/resetuj-statystyki', headers={'x-admin-token': 'tajne'})
+    assert odp.status_code == 200
+    assert odp.json()['archiwum'] is None
+
+
+def test_dwa_resety_pod_rzad_nie_kasuja_pierwszego_archiwum(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    naglowki = {'x-admin-token': 'tajne'}
+    zapisz_log(api.LOG_ANALYTICS, [{'czas': '2026-08-19T10:00:00+00:00', 'wynik': 'odpowiedz'}])
+    pierwszy = client.post('/admin/resetuj-statystyki', headers=naglowki).json()['archiwum']
+    drugi = client.post('/admin/resetuj-statystyki', headers=naglowki).json()['archiwum']
+    assert pierwszy != drugi
+    zachowane = api.LOG_ANALYTICS.with_name(pierwszy)
+    assert 'odpowiedz' in zachowane.read_text(encoding='utf-8')
+    assert api.LOG_ANALYTICS.with_name(drugi).read_text(encoding='utf-8') == ''
+
+
+def test_reset_nie_czysci_cache_odpowiedzi(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    api._cache[('pl', 'pytanie', 'stempel', 'kupujacy')] = {'agent': 'kupujacy'}
+    client.post('/admin/resetuj-statystyki', headers={'x-admin-token': 'tajne'})
+    assert len(api._cache) == 1
+
+
+def test_reset_czysci_statystyki(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    zapisz_log(api.LOG_ANALYTICS, [{'czas': '2026-08-19T10:00:00+00:00', 'wynik': 'odpowiedz'}])
+    assert client.get('/admin/statystyki').json()['ogolem']['zapytan'] == 1
+    client.post('/admin/resetuj-statystyki', headers={'x-admin-token': 'tajne'})
+    assert client.get('/admin/statystyki').json()['ogolem']['zapytan'] == 0

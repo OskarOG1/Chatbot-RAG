@@ -69,18 +69,26 @@ export default function PanelAdmina() {
   const [resetOtwarty, setResetOtwarty] = useState(false);
   const [resetowanie, setResetowanie] = useState(false);
   const [komunikatResetu, setKomunikatResetu] = useState<string | null>(null);
+  const [tokenResetu, setTokenResetu] = useState('');
   const th = THEMES[themeName];
 
   const potwierdzResetStatystyk = async () => {
     setResetowanie(true);
     setKomunikatResetu(null);
     try {
-      await resetujStatystyki();
-      setKomunikatResetu('Statystyki zresetowane, poprzednie dane zarchiwizowane na serwerze');
+      const archiwum = await resetujStatystyki(tokenResetu);
+      setKomunikatResetu(
+        archiwum
+          ? 'Statystyki zresetowane, poprzednie dane zarchiwizowane na serwerze'
+          : 'Statystyki zresetowane, nie było czego archiwizować',
+      );
       setResetOtwarty(false);
+      setTokenResetu('');
       setOdswiez((n) => n + 1);
-    } catch {
-      setKomunikatResetu('Nie udało się zresetować statystyk');
+    } catch (blad) {
+      setKomunikatResetu(
+        blad instanceof Error ? blad.message : 'Nie udało się zresetować statystyk',
+      );
     } finally {
       setResetowanie(false);
     }
@@ -261,45 +269,43 @@ export default function PanelAdmina() {
             ))}
           </div>
 
-          {zakladka !== 'Eksport' ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-              <span style={etykietaGrupy}>Okres</span>
-              {OKRESY.map((opcja) => (
-                <button
-                  key={opcja.etykieta}
-                  type="button"
-                  onClick={() => setFiltry((f) => ({ ...f, dni: opcja.dni }))}
-                  style={pigulka(filtry.dni === opcja.dni)}
-                >
-                  {opcja.etykieta}
-                </button>
-              ))}
-              {rozdzielacz}
-              <span style={etykietaGrupy}>Język</span>
-              {JEZYKI.map((opcja) => (
-                <button
-                  key={opcja.etykieta}
-                  type="button"
-                  onClick={() => setFiltry((f) => ({ ...f, lang: opcja.lang }))}
-                  style={pigulka(filtry.lang === opcja.lang)}
-                >
-                  {opcja.etykieta}
-                </button>
-              ))}
-              {rozdzielacz}
-              <span style={etykietaGrupy}>Rola</span>
-              {STRONY.map((opcja) => (
-                <button
-                  key={opcja.etykieta}
-                  type="button"
-                  onClick={() => setFiltry((f) => ({ ...f, strona: opcja.strona }))}
-                  style={pigulka(filtry.strona === opcja.strona)}
-                >
-                  {opcja.etykieta}
-                </button>
-              ))}
-            </div>
-          ) : null}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+            <span style={etykietaGrupy}>Okres</span>
+            {OKRESY.map((opcja) => (
+              <button
+                key={opcja.etykieta}
+                type="button"
+                onClick={() => setFiltry((f) => ({ ...f, dni: opcja.dni }))}
+                style={pigulka(filtry.dni === opcja.dni)}
+              >
+                {opcja.etykieta}
+              </button>
+            ))}
+            {rozdzielacz}
+            <span style={etykietaGrupy}>Język</span>
+            {JEZYKI.map((opcja) => (
+              <button
+                key={opcja.etykieta}
+                type="button"
+                onClick={() => setFiltry((f) => ({ ...f, lang: opcja.lang }))}
+                style={pigulka(filtry.lang === opcja.lang)}
+              >
+                {opcja.etykieta}
+              </button>
+            ))}
+            {rozdzielacz}
+            <span style={etykietaGrupy}>Rola</span>
+            {STRONY.map((opcja) => (
+              <button
+                key={opcja.etykieta}
+                type="button"
+                onClick={() => setFiltry((f) => ({ ...f, strona: opcja.strona }))}
+                style={pigulka(filtry.strona === opcja.strona)}
+              >
+                {opcja.etykieta}
+              </button>
+            ))}
+          </div>
 
           {blad ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: th.ink2, fontSize: 13 }}>
@@ -515,7 +521,7 @@ export default function PanelAdmina() {
                     color: th.accentInk,
                   }}
                 >
-                  {wszystkiePytania ? 'Pokaż tylko najczęstsze ▴' : `Pokaż wszystkie ${dane.top_pytania.length} pytań ▾`}
+                  {wszystkiePytania ? 'Pokaż tylko najczęstsze ▴' : `Pokaż ${dane.top_pytania.length} najczęstszych ▾`}
                 </button>
               ) : null}
             </section>
@@ -558,8 +564,25 @@ export default function PanelAdmina() {
               </h2>
               <p style={{ margin: 0, fontFamily: BODY, fontSize: 13.5, color: th.ink2, lineHeight: 1.5 }}>
                 Dotychczasowe dane zostaną zarchiwizowane na serwerze i wyzerowane na tym panelu.
-                Tej operacji nie da się cofnąć z tego miejsca.
+                Tej operacji nie da się cofnąć z tego miejsca. Wymaga tokenu administratora.
               </p>
+              <input
+                type="password"
+                value={tokenResetu}
+                onChange={(e) => setTokenResetu(e.target.value)}
+                placeholder="Token administratora"
+                autoComplete="off"
+                style={{
+                  height: 38,
+                  padding: '0 12px',
+                  borderRadius: 9,
+                  border: `1px solid ${th.line}`,
+                  background: th.raised,
+                  color: th.ink,
+                  fontFamily: BODY,
+                  fontSize: 13,
+                }}
+              />
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
                 <button
                   type="button"
@@ -583,7 +606,7 @@ export default function PanelAdmina() {
                 <button
                   type="button"
                   onClick={potwierdzResetStatystyk}
-                  disabled={resetowanie}
+                  disabled={resetowanie || !tokenResetu}
                   style={{
                     height: 36,
                     padding: '0 16px',

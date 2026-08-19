@@ -2,7 +2,7 @@ from contextvars import ContextVar
 import os
 import sys
 
-CENNIK = {'swiss-ai/apertus-v1.5-8b': (0.0, 0.0),
+CENNIK = {'swiss-ai/apertus-8b-instruct': (0.0, 0.0),
           'speakleash/Bielik-11B-v3.0-Instruct': (0.0, 0.0)}
 DOMYSLNA_STAWKA = (0.0, 0.0)
 ZNAKI_NA_TOKEN = float(os.getenv('ZNAKI_NA_TOKEN', '3.6'))

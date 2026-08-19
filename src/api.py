@@ -18,6 +18,7 @@ import io
 import os
 import re
 import koszty
+import secrets
 import statystyki
 import sys
 import threading
@@ -71,6 +72,7 @@ LIMIT_OCEN_IP_MIN = int(os.getenv('LIMIT_OCEN_IP_MIN', '10'))
 LIMIT_OCEN_IP_DZIEN = int(os.getenv('LIMIT_OCEN_IP_DZIEN', '60'))
 LIMIT_ADMIN_IP_MIN = int(os.getenv('LIMIT_ADMIN_IP_MIN', '60'))
 LIMIT_ADMIN_IP_DZIEN = int(os.getenv('LIMIT_ADMIN_IP_DZIEN', '2000'))
+ADMIN_TOKEN = os.getenv('ADMIN_TOKEN', '')
 _oceny = deque()
 _oceny_ip: OrderedDict = OrderedDict()
 _admin_ip: OrderedDict = OrderedDict()
@@ -136,6 +138,12 @@ def powod_wyniku(dane: dict) -> str:
     return dane.get('powod_odmowy') or 'odmowa'
 
 
+def dopisz_do_logu(wpis: dict) -> None:
+    with _zamek:
+        with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
+            w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
+
+
 def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str,
                     zuzycie: dict | None = None) -> None:
     dane = dane or {}
@@ -161,8 +169,7 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
             'cache_hit': cache_hit,
             'pytanie': redaguj(query),
         }
-        with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
-            w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
+        dopisz_do_logu(wpis)
     except OSError as e:
         global OSTRZEZONO_O_LOGU
         if not OSTRZEZONO_O_LOGU:
@@ -290,8 +297,7 @@ def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: 
         }
         if blad:
             wpis['blad'] = blad
-        with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
-            w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
+        dopisz_do_logu(wpis)
     except OSError as e:
         global OSTRZEZONO_O_LOGU_WYSYLKI
         if not OSTRZEZONO_O_LOGU_WYSYLKI:
@@ -312,8 +318,7 @@ def loguj_ocene(ocena: str, pytanie: str, odpowiedz: str, sekcja: str | None, la
             'pytanie': redaguj(pytanie),
             'odpowiedz': redaguj(odpowiedz),
         }
-        with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
-            w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
+        dopisz_do_logu(wpis)
     except OSError as e:
         global OSTRZEZONO_O_LOGU_OCEN
         if not OSTRZEZONO_O_LOGU_OCEN:
@@ -628,18 +633,27 @@ def admin_resetuj_statystyki(http_request: Request):
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
-    znacznik = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    if not ADMIN_TOKEN:
+        raise HTTPException(status_code=503,
+                            detail='Reset statystyk wylaczony, brak ADMIN_TOKEN w konfiguracji.')
+    podany = http_request.headers.get('x-admin-token', '')
+    if not secrets.compare_digest(podany.encode('utf-8'), ADMIN_TOKEN.encode('utf-8')):
+        raise HTTPException(status_code=401, detail='Brak uprawnien do resetu statystyk.')
+    znacznik = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S_%f')
     archiwum = LOG_ANALYTICS.with_name(f'{LOG_ANALYTICS.name}.przed-resetem-{znacznik}')
     with _zamek:
-        if LOG_ANALYTICS.exists():
+        if archiwum.exists():
+            raise HTTPException(status_code=409,
+                                detail='Archiwum o tej nazwie juz istnieje, reset przerwany.')
+        zarchiwizowano = LOG_ANALYTICS.exists()
+        if zarchiwizowano:
             LOG_ANALYTICS.rename(archiwum)
         LOG_ANALYTICS.touch()
-        _cache.clear()
         _log_cache['stempel'] = None
         _log_cache['wpisy'] = []
         _statystyki_cache['stempel'] = None
         _statystyki_cache['wyniki'] = {}
-    return {'status': 'ok', 'archiwum': archiwum.name}
+    return {'status': 'ok', 'archiwum': archiwum.name if zarchiwizowano else None}
 
 
 @app.get('/admin/eksport')
