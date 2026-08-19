@@ -7,6 +7,7 @@ KATALOG_KOPII="${KATALOG_KOPII:-/opt/backup/rag}"
 DNI_PRZECHOWYWANIA="${DNI_PRZECHOWYWANIA:-14}"
 MIN_ROZMIAR_ARCHIWUM=40
 PLIKI=(log_analytics.jsonl trudne.jsonl)
+WZORZEC_ARCHIWUM='log_analytics.jsonl.przed-resetem-*'
 
 policz_linie() {
     local sciezka="$1"
@@ -15,6 +16,16 @@ policz_linie() {
     else
         echo 0
     fi
+}
+
+zbierz_do_archiwum() {
+    DO_ARCHIWUM=("${PLIKI[@]}")
+    local sciezka
+    for sciezka in "$KATALOG_RAG"/$WZORZEC_ARCHIWUM; do
+        if [ -f "$sciezka" ]; then
+            DO_ARCHIWUM+=("$(basename "$sciezka")")
+        fi
+    done
 }
 
 sprawdz_zrodla() {
@@ -33,11 +44,14 @@ zrob_kopie() {
     mkdir -p "$KATALOG_KOPII"
     sprawdz_zrodla
 
-    local data archiwum rozmiar linie_log linie_trudne
+    local data archiwum rozmiar linie_log linie_trudne ile_archiwow
     data="$(date -u +%Y-%m-%d)"
     archiwum="$KATALOG_KOPII/rag-$data.tar.gz"
 
-    tar -czf "$archiwum.tmp" -C "$KATALOG_RAG" "${PLIKI[@]}"
+    zbierz_do_archiwum
+    ile_archiwow=$(( ${#DO_ARCHIWUM[@]} - ${#PLIKI[@]} ))
+
+    tar -czf "$archiwum.tmp" -C "$KATALOG_RAG" "${DO_ARCHIWUM[@]}"
     mv "$archiwum.tmp" "$archiwum"
 
     rozmiar="$(stat -c%s "$archiwum")"
@@ -51,9 +65,9 @@ zrob_kopie() {
     linie_log="$(policz_linie "$KATALOG_RAG/log_analytics.jsonl")"
     linie_trudne="$(policz_linie "$KATALOG_RAG/trudne.jsonl")"
 
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $archiwum ${rozmiar}B log_analytics=$linie_log trudne=$linie_trudne" \
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $archiwum ${rozmiar}B log_analytics=$linie_log trudne=$linie_trudne archiwa_resetu=$ile_archiwow" \
         >> "$KATALOG_KOPII/historia.log"
-    echo "zapisano $archiwum (${rozmiar}B, log_analytics=$linie_log, trudne=$linie_trudne)"
+    echo "zapisano $archiwum (${rozmiar}B, log_analytics=$linie_log, trudne=$linie_trudne, archiwa resetu=$ile_archiwow)"
 }
 
 odtworz() {

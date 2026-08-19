@@ -72,7 +72,7 @@ RERANKER (cross-encoder scores the question–chunk pair, window of 20) → 5 li
       ▼  GATE 2: LLM judge (YES/NO) on borderline questions
       │
       ▼
-GENERATION (system prompt + conversation history + context → apertus-v1.5-8b via API / Ollama locally)
+GENERATION (system prompt + conversation history + context → apertus-8b-instruct via API / Ollama locally)
       │
       ▼  URLs stripped from the text, citations [n] mapped to sources
       ▼  GATE 3: answer coverage by context < 0.20 → refusal
@@ -89,7 +89,7 @@ Answer + Sources
 | Vector store | FAISS | Local, fast, sufficient at this scale |
 | Lexical retrieval | BM25 + lemmatisation + trigrams | Embeddings alone missed questions built around specific words |
 | Reranker | mmarco-mMiniLMv2 (118M) | 26× faster than bge-v2-m3 at the cost of one hit |
-| Answering model | apertus-v1.5-8b | In a 25 PL + 25 EN question measurement it matches or beats Bielik-11B/Olmo-3-7B on quality (context coverage, no contradictions), with zero API errors and about 3.4x faster (see `Pomiary/jakosc_modeli.md`, `Pomiary/latencja.md`). Decision reconfirmed with a fresh measurement after hardening the prompt against duplicate sources: PL is a tie within noise, EN and latency still clearly favor apertus (3.5x fewer contradictions with the context, about 3x faster), see `Pomiary/POMIAR_APERTUS_VS_BIELIK.md` |
+| Answering model | apertus-8b-instruct | In a 25 PL + 25 EN question measurement it matches or beats Bielik-11B/Olmo-3-7B on quality (context coverage, no contradictions), with zero API errors and about 3.4x faster (see `Pomiary/jakosc_modeli.md`, `Pomiary/latencja.md`). Decision reconfirmed with a fresh measurement after hardening the prompt against duplicate sources: PL is a tie within noise, EN and latency still clearly favor apertus (3.5x fewer contradictions with the context, about 3x faster), see `Pomiary/POMIAR_APERTUS_VS_BIELIK.md` |
 
 ---
 

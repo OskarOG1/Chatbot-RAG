@@ -19,8 +19,8 @@ Baza testowa: 667 artykułów Allegro Pomoc, dwie sekcje (kupujący, sprzedając
 | Fałszywe odmowy na bramce pokrycia | PL 0/29 · EN 1/50 |
 | Pytania nie na temat złapane (reranker + sędzia LLM) | PL 29/29 · EN 29/29 |
 | Testy jednostkowe | **47/47** zielonych, CI na każdym pushu i PR |
-| Mediana czasu odpowiedzi (produkcja, Docker) | 6.31 s *(zmierzone z Bielik-11B jako modelem generacji; dzisiejszy model produkcyjny, apertus-v1.5-8b, jest ok. 3x szybszy w samej generacji, pełny pomiar end to end z nim nie powtórzony, patrz sekcja 21)* |
-| Model odpowiadający | apertus-v1.5-8b (PL i EN) |
+| Mediana czasu odpowiedzi (produkcja, Docker) | 6.31 s *(zmierzone z Bielik-11B jako modelem generacji; dzisiejszy model produkcyjny, apertus-8b-instruct, jest ok. 3x szybszy w samej generacji, pełny pomiar end to end z nim nie powtórzony, patrz sekcja 21)* |
+| Model odpowiadający | apertus-8b-instruct (PL i EN) |
 
 Znany, nienaprawiony problem: trafność kupujący EN (0.800) zostaje ok. 12 punktów procentowych pod sufitem 0.920, bo artykuły o koncie/logowaniu/RODO nakładają się między sekcją kupujących i sprzedających (sekcja 20). Jawny przełącznik strony w UI zamyka tę lukę do zera dla użytkownika, który wie po której jest stronie.
 
@@ -57,7 +57,7 @@ flowchart TD
     G1 -- tak --> D1["Odmowa etapu 1"]
     G1 -- nie --> G2{"Bramka 2<br/>sędzia LLM: kontekst i pytanie o tym samym temacie?"}
     G2 -- NIE --> D2["Odmowa etapu 1"]
-    G2 -- TAK --> GEN["Generacja: apertus v1.5 8B<br/>system prompt + historia rozmowy + kontekst"]
+    G2 -- TAK --> GEN["Generacja: apertus 8B<br/>system prompt + historia rozmowy + kontekst"]
     GEN --> C["Mapowanie cytatów [n] → źródło, czyszczenie linków"]
     C --> G3{"Bramka 3<br/>pokrycie odpowiedzi kontekstem poniżej progu?"}
     G3 -- tak --> D3["Odmowa etapu 1"]
@@ -77,7 +77,7 @@ flowchart TD
 | Baza wektorowa | FAISS | Lokalna, szybka, wystarcza na tej skali |
 | Wyszukiwanie po słowach | BM25 + lematyzacja + trigramy | Sam embedding gubił pytania zbudowane wokół konkretnych słów |
 | Reranker | mmarco-mMiniLMv2 (118M) | 26× szybszy od bge-v2-m3 przy stracie jednego trafienia |
-| Model odpowiadający | apertus-v1.5-8b | Na pomiarze 25 pytań PL + 25 EN dorównuje lub przewyższa Bielika-11B/Olmo-3-7B jakością (pokrycie kontekstu, brak sprzeczności), bez błędów API, ~3,4× szybszy (patrz `Pomiary/jakosc_modeli.md`, `Pomiary/latencja.md`). Decyzja potwierdzona ponownym pomiarem po utwardzeniu promptu przeciw dublowaniu źródeł: PL remis w granicach szumu, EN i latencja nadal wyraźnie na korzyść apertusa (3,5 razy mniej sprzeczności z kontekstem, ~3× szybszy), patrz `Pomiary/POMIAR_APERTUS_VS_BIELIK.md` |
+| Model odpowiadający | apertus-8b-instruct | Na pomiarze 25 pytań PL + 25 EN dorównuje lub przewyższa Bielika-11B/Olmo-3-7B jakością (pokrycie kontekstu, brak sprzeczności), bez błędów API, ~3,4× szybszy (patrz `Pomiary/jakosc_modeli.md`, `Pomiary/latencja.md`). Decyzja potwierdzona ponownym pomiarem po utwardzeniu promptu przeciw dublowaniu źródeł: PL remis w granicach szumu, EN i latencja nadal wyraźnie na korzyść apertusa (3,5 razy mniej sprzeczności z kontekstem, ~3× szybszy), patrz `Pomiary/POMIAR_APERTUS_VS_BIELIK.md` |
 
 ---
 
@@ -385,7 +385,7 @@ Przy `PROG_POKRYCIA=0,35`: 1/50 fałszywa odmowa („Is Allegro Pay safe": krót
 
 ---
 
-**Czas odpowiedzi w kontenerze** (5 pytań × 3 powtórzenia, model generacji: Bielik-11B, ówczesny domyślny; dzisiejszy domyślny model, apertus-v1.5-8b, jest ok. 3x szybszy w samej generacji, patrz sekcja 21, pełny pomiar E2E z nim nie powtórzony):
+**Czas odpowiedzi w kontenerze** (5 pytań × 3 powtórzenia, model generacji: Bielik-11B, ówczesny domyślny; dzisiejszy domyślny model, apertus-8b-instruct, jest ok. 3x szybszy w samej generacji, patrz sekcja 21, pełny pomiar E2E z nim nie powtórzony):
 
 | mediana do pierwszego fragmentu | 5.61 s |
 |---|---|
