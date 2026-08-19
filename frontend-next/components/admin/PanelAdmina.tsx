@@ -6,6 +6,7 @@ import {
   pobierzStatystyki,
   procent,
   sekundy,
+  etykieta,
   NAZWY_SEKCJI,
   NAZWY_POWODOW,
   type Filtry,
@@ -14,6 +15,7 @@ import {
 import { ThemeContext, THEMES, BODY, DISPLAY, type ThemeName } from '@/lib/theme';
 import { IkonaSlonce, IkonaKsiezyc } from '@/components/Ikony';
 import Karta from '@/components/admin/Karta';
+import SekcjaZwijana from '@/components/admin/SekcjaZwijana';
 import {
   Ramka,
   WykresDzienny,
@@ -43,6 +45,11 @@ const STRONY: { etykieta: string; strona: 'kupujacy' | 'sprzedajacy' | null }[] 
   { etykieta: 'Sprzedający', strona: 'sprzedajacy' },
 ];
 
+const ZAKLADKI = ['Przegląd', 'Jakość i odmowy', 'Pytania', 'Eksport'] as const;
+type Zakladka = (typeof ZAKLADKI)[number];
+
+const PYTANIA_WIDOCZNE = 6;
+
 export default function PanelAdmina() {
   const [themeName, setThemeName] = useState<ThemeName>('light');
   const [filtry, setFiltry] = useState<Filtry>({ dni: 30, lang: null, strona: null });
@@ -50,6 +57,14 @@ export default function PanelAdmina() {
   const [ladowanie, setLadowanie] = useState(true);
   const [blad, setBlad] = useState<string | null>(null);
   const [odswiez, setOdswiez] = useState(0);
+  const [zaktualizowano, setZaktualizowano] = useState<Date | null>(null);
+  const [zakladka, setZakladka] = useState<Zakladka>('Przegląd');
+  const [pozostaleOtwarte, setPozostaleOtwarte] = useState(false);
+  const [ruchOtwarty, setRuchOtwarty] = useState(true);
+  const [sekcjeOtwarte, setSekcjeOtwarte] = useState(true);
+  const [stronyOtwarte, setStronyOtwarte] = useState(true);
+  const [latencjaOtwarta, setLatencjaOtwarta] = useState(false);
+  const [wszystkiePytania, setWszystkiePytania] = useState(false);
   const th = THEMES[themeName];
 
   useEffect(() => {
@@ -60,6 +75,7 @@ export default function PanelAdmina() {
       .then((wynik) => {
         if (aktywny) {
           setDane(wynik);
+          setZaktualizowano(new Date());
         }
       })
       .catch(() => {
@@ -78,7 +94,9 @@ export default function PanelAdmina() {
   }, [filtry, odswiez]);
 
   const pigulka = (aktywna: boolean) => ({
-    padding: '8px 14px',
+    height: 34,
+    whiteSpace: 'nowrap' as const,
+    padding: '0 14px',
     borderRadius: 100,
     border: `1px solid ${aktywna ? th.accentLine : th.line}`,
     background: aktywna ? th.accentSoft : th.surface,
@@ -89,24 +107,64 @@ export default function PanelAdmina() {
     cursor: 'pointer',
   });
 
-  const rozdzielacz = <span style={{ width: 1, alignSelf: 'stretch', background: th.line }} />;
+  const etykietaGrupy = {
+    fontFamily: BODY,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: '.07em',
+    textTransform: 'uppercase' as const,
+    color: th.ink3,
+    marginRight: 2,
+  };
+
+  const rozdzielacz = <span style={{ width: 1, alignSelf: 'stretch', background: th.line, margin: '0 4px' }} />;
 
   const kupujacy = dane?.strony.find((s) => s.strona === 'kupujacy')?.ile ?? 0;
   const sprzedajacy = dane?.strony.find((s) => s.strona === 'sprzedajacy')?.ile ?? 0;
-  const nieznana = dane?.strony.find((s) => s.strona === 'nieznana')?.ile ?? 0;
+
+  const powodyPosortowane = [...(dane?.powody ?? [])].sort((a, b) => b.ile - a.ile);
+  const topPowod = powodyPosortowane[0] ?? null;
+  const udzialOdmow = dane && dane.ogolem.zapytan > 0 ? dane.ogolem.odmowy / dane.ogolem.zapytan : null;
+
+  const pytaniaWidoczne = wszystkiePytania ? dane?.top_pytania ?? [] : (dane?.top_pytania ?? []).slice(0, PYTANIA_WIDOCZNE);
+
+  const tabStyl = (aktywna: boolean) => ({
+    position: 'relative' as const,
+    padding: '10px 16px 12px',
+    background: 'none',
+    border: 'none',
+    borderBottom: `3px solid ${aktywna ? th.accent : 'transparent'}`,
+    fontFamily: BODY,
+    fontSize: 14,
+    fontWeight: 600 as const,
+    color: aktywna ? th.ink : th.ink2,
+    cursor: 'pointer',
+    marginBottom: -1,
+  });
 
   return (
     <ThemeContext.Provider value={th}>
       <div style={{ minHeight: '100vh', background: th.canvas, color: th.ink, padding: '28px 24px 48px' }}>
         <div style={{ maxWidth: 1180, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24 }}>
             <div>
               <h1 style={{ margin: 0, fontFamily: DISPLAY, fontSize: 26, fontWeight: 800 }}>Panel statystyk</h1>
-              <p style={{ margin: '6px 0 0', fontFamily: BODY, fontSize: 13, color: th.ink2 }}>
-                {dane?.zakres.od
-                  ? `Dane od ${dane.zakres.od.slice(0, 10)} do ${dane.zakres.do?.slice(0, 10)}`
-                  : 'Brak danych w wybranym zakresie'}
-              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, fontFamily: BODY, fontSize: 13, color: th.ink2 }}>
+                <span>
+                  {dane?.zakres.od
+                    ? `Dane od ${dane.zakres.od.slice(0, 10)} do ${dane.zakres.do?.slice(0, 10)}`
+                    : 'Brak danych w wybranym zakresie'}
+                </span>
+                {zaktualizowano ? (
+                  <>
+                    <span style={{ width: 4, height: 4, borderRadius: 999, background: th.ink3 }} />
+                    <span>
+                      odświeżono o{' '}
+                      {zaktualizowano.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </>
+                ) : null}
+              </div>
             </div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, flex: '0 0 auto' }}>
               <Link
@@ -152,40 +210,53 @@ export default function PanelAdmina() {
             </div>
           </header>
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-            {OKRESY.map((opcja) => (
-              <button
-                key={opcja.etykieta}
-                type="button"
-                onClick={() => setFiltry((f) => ({ ...f, dni: opcja.dni }))}
-                style={pigulka(filtry.dni === opcja.dni)}
-              >
-                {opcja.etykieta}
-              </button>
-            ))}
-            {rozdzielacz}
-            {JEZYKI.map((opcja) => (
-              <button
-                key={opcja.etykieta}
-                type="button"
-                onClick={() => setFiltry((f) => ({ ...f, lang: opcja.lang }))}
-                style={pigulka(filtry.lang === opcja.lang)}
-              >
-                {opcja.etykieta}
-              </button>
-            ))}
-            {rozdzielacz}
-            {STRONY.map((opcja) => (
-              <button
-                key={opcja.etykieta}
-                type="button"
-                onClick={() => setFiltry((f) => ({ ...f, strona: opcja.strona }))}
-                style={pigulka(filtry.strona === opcja.strona)}
-              >
-                {opcja.etykieta}
+          <div style={{ display: 'flex', gap: 6, borderBottom: `1px solid ${th.line}` }}>
+            {ZAKLADKI.map((nazwa) => (
+              <button key={nazwa} type="button" onClick={() => setZakladka(nazwa)} style={tabStyl(zakladka === nazwa)}>
+                {nazwa}
               </button>
             ))}
           </div>
+
+          {zakladka !== 'Eksport' ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+              <span style={etykietaGrupy}>Okres</span>
+              {OKRESY.map((opcja) => (
+                <button
+                  key={opcja.etykieta}
+                  type="button"
+                  onClick={() => setFiltry((f) => ({ ...f, dni: opcja.dni }))}
+                  style={pigulka(filtry.dni === opcja.dni)}
+                >
+                  {opcja.etykieta}
+                </button>
+              ))}
+              {rozdzielacz}
+              <span style={etykietaGrupy}>Język</span>
+              {JEZYKI.map((opcja) => (
+                <button
+                  key={opcja.etykieta}
+                  type="button"
+                  onClick={() => setFiltry((f) => ({ ...f, lang: opcja.lang }))}
+                  style={pigulka(filtry.lang === opcja.lang)}
+                >
+                  {opcja.etykieta}
+                </button>
+              ))}
+              {rozdzielacz}
+              <span style={etykietaGrupy}>Rola</span>
+              {STRONY.map((opcja) => (
+                <button
+                  key={opcja.etykieta}
+                  type="button"
+                  onClick={() => setFiltry((f) => ({ ...f, strona: opcja.strona }))}
+                  style={pigulka(filtry.strona === opcja.strona)}
+                >
+                  {opcja.etykieta}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           {blad ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: th.ink2, fontSize: 13 }}>
@@ -204,133 +275,221 @@ export default function PanelAdmina() {
             <p style={{ color: th.ink2, fontSize: 13 }}>Brak danych w wybranym zakresie.</p>
           ) : null}
 
-          {dane && dane.ogolem.zapytan > 0 ? (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-                gap: 14,
-              }}
-            >
-              <Karta
-                tytul="Zapytania"
-                wartosc={String(dane.ogolem.zapytan)}
-                podpis={`${dane.ogolem.unikalne_pytania} unikalnych pytań`}
-              />
-              <Karta
-                tytul="Trafność z logu"
-                wartosc={procent(dane.ogolem.trafnosc)}
-                akcent
-                podpis={`${dane.ogolem.odpowiedzi} odpowiedzi, ${dane.ogolem.odmowy} odmów`}
-              />
-              <Karta
-                tytul="Ocena użytkowników"
-                wartosc={dane.oceny.razem === 0 ? 'brak ocen' : procent(dane.oceny.trafnosc)}
-                podpis={`${dane.oceny.razem} ocen, pokrycie ${procent(dane.oceny.pokrycie)}`}
-              />
-              <Karta
-                tytul="Mediana latencji"
-                wartosc={sekundy(dane.latencja.mediana)}
-                podpis={`p95 ${sekundy(dane.latencja.p95)}`}
-              />
-              <Karta
-                tytul="Trafienia cache"
-                wartosc={procent(dane.ogolem.cache_hit)}
-                podpis={`bez cache ${sekundy(dane.latencja.mediana_bez_cache)}`}
-              />
-              <Karta
-                tytul="Kupujący i sprzedający"
-                wartosc={`${kupujacy} / ${sprzedajacy}`}
-                podpis={`nieznana strona: ${nieznana}`}
-              />
-              <Karta
-                tytul="Koszt tokenów"
-                wartosc={dane.koszty.pokrycie === 0 ? 'brak danych' : `$${dane.koszty.koszt_usd.toFixed(4)}`}
-                podpis={
-                  dane.koszty.pokrycie === 0
-                    ? 'pomiar dołączony w kolejnym etapie'
-                    : `${dane.koszty.tokeny_we + dane.koszty.tokeny_wy} tokenów, pokrycie ${procent(dane.koszty.pokrycie)}` +
-                      (dane.koszty.udzial_szacowanych > 0
-                        ? `, szacowane w ${procent(dane.koszty.udzial_szacowanych, 0)}`
-                        : '')
-                }
-              />
-              <Karta
-                tytul="Wysłane wiadomości"
-                wartosc={String(dane.ogolem.wysylki_ok)}
-                podpis={`${dane.ogolem.wysylki} prób wysyłki`}
-              />
+          {dane && dane.ogolem.zapytan > 0 && zakladka === 'Przegląd' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
+                <Karta
+                  tytul="Zapytania"
+                  wartosc={String(dane.ogolem.zapytan)}
+                  podpis={`${dane.ogolem.unikalne_pytania} unikalnych pytań`}
+                />
+                <Karta
+                  tytul="Trafność z logu"
+                  wartosc={procent(dane.ogolem.trafnosc)}
+                  akcent
+                  podpis={`${dane.ogolem.odpowiedzi} odpowiedzi, ${dane.ogolem.odmowy} odmów`}
+                />
+                <Karta
+                  tytul="Odmowy"
+                  wartosc={String(dane.ogolem.odmowy)}
+                  podpis={udzialOdmow !== null ? procent(udzialOdmow) : 'brak danych'}
+                />
+                <Karta
+                  tytul="Mediana latencji"
+                  wartosc={sekundy(dane.latencja.mediana)}
+                  podpis={`p95 ${sekundy(dane.latencja.p95)}`}
+                />
+              </div>
+
+              <SekcjaZwijana
+                tytul="Pozostałe metryki"
+                otwarta={pozostaleOtwarte}
+                onToggle={() => setPozostaleOtwarte((v) => !v)}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
+                  <Karta
+                    tytul="Ocena użytkowników"
+                    wartosc={dane.oceny.razem === 0 ? 'brak ocen' : procent(dane.oceny.trafnosc)}
+                    podpis={`${dane.oceny.razem} ocen, pokrycie ${procent(dane.oceny.pokrycie)}`}
+                  />
+                  <Karta
+                    tytul="Trafienia cache"
+                    wartosc={procent(dane.ogolem.cache_hit)}
+                    podpis={`bez cache ${sekundy(dane.latencja.mediana_bez_cache)}`}
+                  />
+                  <Karta
+                    tytul="Koszt tokenów"
+                    wartosc={dane.koszty.pokrycie === 0 ? 'brak danych' : `$${dane.koszty.koszt_usd.toFixed(4)}`}
+                    podpis={
+                      dane.koszty.pokrycie === 0
+                        ? 'pomiar dołączony w kolejnym etapie'
+                        : `${dane.koszty.tokeny_we + dane.koszty.tokeny_wy} tokenów, pokrycie ${procent(dane.koszty.pokrycie)}` +
+                          (dane.koszty.udzial_szacowanych > 0
+                            ? `, szacowane w ${procent(dane.koszty.udzial_szacowanych, 0)}`
+                            : '')
+                    }
+                  />
+                  <Karta
+                    tytul="Wysłane wiadomości"
+                    wartosc={String(dane.ogolem.wysylki_ok)}
+                    podpis={`${dane.ogolem.wysylki} prób wysyłki`}
+                  />
+                </div>
+              </SekcjaZwijana>
+
+              <SekcjaZwijana tytul="Ruch dzienny" otwarta={ruchOtwarty} onToggle={() => setRuchOtwarty((v) => !v)}>
+                <div style={{ width: '100%', height: 260 }}>
+                  <WykresDzienny dane={dane.dzienne} />
+                </div>
+              </SekcjaZwijana>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 16 }}>
+                <SekcjaZwijana
+                  tytul="Sekcje odpowiedzi"
+                  otwarta={sekcjeOtwarte}
+                  onToggle={() => setSekcjeOtwarte((v) => !v)}
+                >
+                  <div style={{ width: '100%', height: 260 }}>
+                    <WykresPoziomy dane={dane.sekcje as unknown as Record<string, unknown>[]} mapa={NAZWY_SEKCJI} pole="sekcja" />
+                  </div>
+                </SekcjaZwijana>
+                <SekcjaZwijana
+                  tytul="Kupujący kontra sprzedający"
+                  opis={`${kupujacy} / ${sprzedajacy}`}
+                  otwarta={stronyOtwarte}
+                  onToggle={() => setStronyOtwarte((v) => !v)}
+                >
+                  <div style={{ width: '100%', height: 260 }}>
+                    <WykresStron dane={dane.strony} />
+                  </div>
+                </SekcjaZwijana>
+              </div>
+
+              <SekcjaZwijana
+                tytul="Rozkład latencji"
+                otwarta={latencjaOtwarta}
+                onToggle={() => setLatencjaOtwarta((v) => !v)}
+              >
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 16 }}>
+                  <div style={{ width: '100%', height: 260 }}>
+                    <WykresLatencji dane={dane.latencja.histogram} />
+                  </div>
+                  {dane.koszty.pokrycie > 0 ? (
+                    <div style={{ width: '100%', height: 260 }}>
+                      <WykresKosztu dane={dane.dzienne} />
+                    </div>
+                  ) : null}
+                </div>
+              </SekcjaZwijana>
             </div>
           ) : null}
 
-          {dane && dane.ogolem.zapytan > 0 ? (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-                gap: 16,
-              }}
-            >
-              <Ramka tytul="Ruch dzienny">
-                <WykresDzienny dane={dane.dzienne} />
-              </Ramka>
-              <Ramka tytul="Sekcje odpowiedzi">
-                <WykresPoziomy dane={dane.sekcje as unknown as Record<string, unknown>[]} mapa={NAZWY_SEKCJI} pole="sekcja" />
-              </Ramka>
+          {dane && dane.ogolem.zapytan > 0 && zakladka === 'Jakość i odmowy' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+                <Karta
+                  tytul="Odmowy łącznie"
+                  wartosc={String(dane.ogolem.odmowy)}
+                  podpis={udzialOdmow !== null ? `${procent(udzialOdmow)} wszystkich zapytań` : 'brak danych'}
+                />
+                <Karta
+                  tytul="Ocena użytkowników"
+                  wartosc={dane.oceny.razem === 0 ? 'brak ocen' : procent(dane.oceny.trafnosc)}
+                  podpis={`${dane.oceny.razem} ocen, pokrycie ${procent(dane.oceny.pokrycie)}`}
+                />
+                <div
+                  style={{
+                    background: th.accentSoft,
+                    border: `1px solid ${th.accentLine}`,
+                    borderRadius: 14,
+                    padding: '16px 18px',
+                    boxShadow: th.shadow,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                    minWidth: 0,
+                  }}
+                >
+                  <span style={{ fontFamily: BODY, fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: th.accentInk }}>
+                    Do naprawy najpierw
+                  </span>
+                  <span style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 700, lineHeight: 1.25, color: th.accentInk }}>
+                    {topPowod ? etykieta(NAZWY_POWODOW, topPowod.powod) : 'brak odmów w okresie'}
+                  </span>
+                  {topPowod ? (
+                    <span style={{ fontFamily: BODY, fontSize: 12, color: th.accentInk }}>
+                      {topPowod.ile} odmów, {procent(topPowod.udzial)}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
               <Ramka tytul="Powody odmowy">
-                <WykresPoziomy dane={dane.powody as unknown as Record<string, unknown>[]} mapa={NAZWY_POWODOW} pole="powod" />
+                {dane.powody.length > 0 ? (
+                  <WykresPoziomy dane={dane.powody as unknown as Record<string, unknown>[]} mapa={NAZWY_POWODOW} pole="powod" />
+                ) : (
+                  <p style={{ color: th.ink2, fontSize: 13 }}>Brak odmów w wybranym zakresie.</p>
+                )}
               </Ramka>
-              <Ramka tytul="Kupujący kontra sprzedający">
-                <WykresStron dane={dane.strony} />
-              </Ramka>
-              <Ramka tytul="Rozkład latencji">
-                <WykresLatencji dane={dane.latencja.histogram} />
-              </Ramka>
-              {dane.koszty.pokrycie > 0 ? (
-                <Ramka tytul="Koszt dzienny">
-                  <WykresKosztu dane={dane.dzienne} />
-                </Ramka>
-              ) : null}
             </div>
           ) : null}
 
-          {dane && dane.ogolem.zapytan > 0 ? (
+          {dane && dane.ogolem.zapytan > 0 && zakladka === 'Pytania' ? (
             <section
               style={{
                 background: th.surface,
                 border: `1px solid ${th.line}`,
                 borderRadius: 14,
-                padding: 18,
                 boxShadow: th.shadow,
+                overflow: 'hidden',
               }}
             >
-              <h2 style={{ margin: '0 0 12px', fontFamily: DISPLAY, fontSize: 15, fontWeight: 700, color: th.ink }}>
-                Najczęstsze pytania
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px 12px' }}>
+                <h2 style={{ margin: 0, fontFamily: DISPLAY, fontSize: 15, fontWeight: 700, color: th.ink }}>
+                  Najczęstsze pytania
+                </h2>
+                <span style={{ fontFamily: BODY, fontSize: 12.5, color: th.ink2 }}>
+                  {dane.ogolem.unikalne_pytania} unikalnych · pokazane {pytaniaWidoczne.length}
+                </span>
+              </div>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: BODY, fontSize: 13 }}>
                 <tbody>
-                  {dane.top_pytania.map((pozycja) => (
+                  {pytaniaWidoczne.map((pozycja) => (
                     <tr key={pozycja.pytanie} style={{ borderTop: `1px solid ${th.lineSoft}` }}>
-                      <td style={{ padding: '8px 4px', color: th.ink2 }}>{pozycja.pytanie}</td>
-                      <td
-                        style={{
-                          padding: '8px 4px',
-                          textAlign: 'right',
-                          fontWeight: 600,
-                          width: 60,
-                          color: th.ink,
-                        }}
-                      >
+                      <td style={{ padding: '10px 18px', color: th.ink2 }}>{pozycja.pytanie}</td>
+                      <td style={{ padding: '10px 18px', textAlign: 'right', fontWeight: 600, width: 60, color: th.ink }}>
                         {pozycja.ile}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              {(dane.top_pytania.length > PYTANIA_WIDOCZNE) ? (
+                <button
+                  type="button"
+                  onClick={() => setWszystkiePytania((v) => !v)}
+                  style={{
+                    width: '100%',
+                    padding: 14,
+                    background: 'none',
+                    border: 'none',
+                    borderTop: `1px solid ${th.lineSoft}`,
+                    cursor: 'pointer',
+                    fontFamily: BODY,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: th.accentInk,
+                  }}
+                >
+                  {wszystkiePytania ? 'Pokaż tylko najczęstsze ▴' : `Pokaż wszystkie ${dane.top_pytania.length} pytań ▾`}
+                </button>
+              ) : null}
             </section>
           ) : null}
 
-          {dane && dane.ogolem.zapytan > 0 ? <PanelEksportu filtry={filtry} kolumny={dane.kolumny} /> : null}
+          {dane && dane.ogolem.zapytan > 0 && zakladka === 'Eksport' ? (
+            <PanelEksportu filtry={filtry} kolumny={dane.kolumny} />
+          ) : null}
         </div>
       </div>
     </ThemeContext.Provider>
