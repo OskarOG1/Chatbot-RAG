@@ -5,7 +5,7 @@ import os
 load_dotenv(Path(__file__).resolve().parent / '.env')
 
 MODEL_11B = 'speakleash/Bielik-11B-v3.0-Instruct'
-MODEL_DOMYSLNY = 'swiss-ai/apertus-v1.5-8b'
+MODEL_DOMYSLNY = 'swiss-ai/apertus-8b-instruct'
 
 LANG = {
     'pl': {

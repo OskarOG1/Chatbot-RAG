@@ -38,7 +38,7 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
       'System został zaprojektowany tak, aby móc działać w całości lokalnie, bez wysyłania jakichkolwiek danych poza infrastrukturę, na której jest uruchomiony. W obecnej konfiguracji demonstracyjnej, ze względu na ograniczenia sprzętowe środowiska testowego (brak lokalnego GPU o wystarczającej mocy), część obliczeń jest zlecana zewnętrznemu dostawcy inferencji modelu językowego. To ograniczenie infrastrukturalne tej instancji demo, nie architektury systemu.',
     model: 'Model i infrastruktura',
     modelText: [
-      'Model generujący odpowiedzi: Apertus v1.5 8B (swiss-ai/apertus-v1.5-8b), udostępniany przez Public AI (publicai.co).',
+      'Model generujący odpowiedzi: Apertus 8B (swiss-ai/apertus-8b-instruct), udostępniany przez Public AI (publicai.co).',
       'Model oceniający trafność odpowiedzi (drugi etap weryfikacji, niewidoczny dla użytkownika): Bielik 11B v3.0 dla języka polskiego i Olmo 3 7B dla języka angielskiego, ten sam dostawca inferencji.',
       'Serwer aplikacji (backend, frontend, indeks wyszukiwania) jest hostowany w Finlandii, na terenie Unii Europejskiej.',
     ],
@@ -77,7 +77,7 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
       'This system is designed to run entirely on local infrastructure, without sending any data outside the environment it runs on. In its current demo configuration, due to hardware limits of the test environment (no local GPU with sufficient capacity), part of the computation is delegated to an external language model inference provider. This is a limitation of this particular demo instance, not of the system architecture.',
     model: 'Model and infrastructure',
     modelText: [
-      'Answer generation model: Apertus v1.5 8B (swiss-ai/apertus-v1.5-8b), served by Public AI (publicai.co).',
+      'Answer generation model: Apertus 8B (swiss-ai/apertus-8b-instruct), served by Public AI (publicai.co).',
       'Answer quality judge model (a second, internal verification step not shown to the user): Bielik 11B v3.0 for Polish and Olmo 3 7B for English, same inference provider.',
       'The application server (backend, frontend, search index) is hosted in Finland, within the European Union.',
     ],

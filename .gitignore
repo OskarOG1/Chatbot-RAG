@@ -29,6 +29,7 @@ Pomiary/log_*.txt
 classify.py
 trudne.jsonl
 *.jsonl
+*.jsonl.przed-resetem-*
 diag_*.py
 translate_chunks.py
 Allegro-screaming_from.csv

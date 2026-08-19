@@ -57,6 +57,22 @@ export default function PanelEksportu({ filtry, kolumny }: { filtry: Filtry; kol
       <p style={{ margin: 0, fontSize: 12.5, color: th.ink2 }}>
         Zaznacz kolumny, które mają trafić do pliku. Filtry z góry strony obowiązują także tutaj.
       </p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          type="button"
+          onClick={() => setWybrane(kolumny.wszystkie)}
+          style={{ ...pigulka(false), fontWeight: 500 }}
+        >
+          Zaznacz wszystko
+        </button>
+        <button
+          type="button"
+          onClick={() => setWybrane([])}
+          style={{ ...pigulka(false), fontWeight: 500 }}
+        >
+          Odznacz wszystko
+        </button>
+      </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {kolumny.wszystkie.map((kolumna) => (
           <label key={kolumna} style={pigulka(wybrane.includes(kolumna))}>

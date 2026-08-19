@@ -11,9 +11,8 @@ import os
 
 load_dotenv(Path(__file__).resolve().parent / '.env')
 
-MODEL_7B_LOKALNY = 'SpeakLeash/bielik-minitron-7B-v3.0-instruct:Q4_K_M'
 MODEL_NAME = LANG['pl']['model']
-MODEL_FALLBACK = os.getenv('MODEL_FALLBACK', MODEL_7B_LOKALNY)
+MODEL_FALLBACK = os.getenv('MODEL_FALLBACK', MODEL_11B)
 SEDZIA_MODEL = LANG['pl']['sedzia_model']
 EMAIL_MODEL = os.getenv('EMAIL_MODEL', MODEL_11B)
 MAX_TOKENS = int(os.getenv('MAX_TOKENS', '1500'))
