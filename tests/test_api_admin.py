@@ -383,3 +383,20 @@ def test_reset_czysci_statystyki(client, monkeypatch):
     assert client.get('/admin/statystyki').json()['ogolem']['zapytan'] == 1
     client.post('/admin/resetuj-statystyki', headers={'x-admin-token': 'tajne'})
     assert client.get('/admin/statystyki').json()['ogolem']['zapytan'] == 0
+
+
+def test_ocena_zapisuje_id_zapytania(client):
+    odp = client.post('/ocena', json={
+        'ocena': 'dol', 'id_zapytania': '0123456789abcdef', 'pytanie': 'jak zmienic haslo',
+        'odpowiedz': 'kroki', 'sekcja': 'konto', 'lang': 'pl', 'strona': 'kupujacy',
+    })
+    assert odp.status_code == 200
+    wpisy = wczytaj_log(api.LOG_ANALYTICS)
+    assert wpisy[0]['id_zapytania'] == '0123456789abcdef'
+
+
+def test_ocena_odrzuca_zly_format_id(client):
+    odp = client.post('/ocena', json={
+        'ocena': 'dol', 'id_zapytania': 'ZZZ', 'pytanie': 'test',
+    })
+    assert odp.status_code == 422
