@@ -183,6 +183,7 @@ export const NAZWY_POWODOW: Record<string, string> = {
   guard_zly_alfabet: 'Niedozwolony alfabet',
   guard_injekcja: 'Wykryto próbę wstrzyknięcia promptu',
   brak_danych: 'Brak danych źródłowych',
+  pytanie_o_strone: 'Pytanie o inną rolę (stary automatyczny routing)',
 };
 
 export function etykieta(mapa: Record<string, string>, klucz: string): string {
@@ -198,4 +199,13 @@ export function procent(wartosc: number | null, miejsca = 1): string {
 
 export function sekundy(wartosc: number): string {
   return `${wartosc.toFixed(2)} s`;
+}
+
+export async function wyczyscPamiec(): Promise<number> {
+  const res = await fetch('/api/admin/pamiec', { method: 'POST', cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(`Błąd czyszczenia pamięci: ${res.status}`);
+  }
+  const wynik = (await res.json()) as { wyczyszczono: number };
+  return wynik.wyczyszczono;
 }

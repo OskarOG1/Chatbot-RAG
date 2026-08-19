@@ -17,6 +17,24 @@ MAX_DNI_SERII = int(os.getenv('MAX_DNI_SERII', '400'))
 ZNAKI_FORMULY = ('=', '+', '-', '@', '\t', '\r')
 
 
+def formatuj_czas_eksportu(wartosc):
+    if not isinstance(wartosc, str):
+        return wartosc
+    try:
+        czas = datetime.fromisoformat(wartosc)
+    except ValueError:
+        return wartosc
+    return czas.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def komorka_eksportu(wpis: dict, kolumna: str):
+    if kolumna == 'czas':
+        return formatuj_czas_eksportu(wpis.get('czas'))
+    if kolumna == 'strona':
+        return normalizuj_strone(wpis.get('strona'))
+    return wpis.get(kolumna)
+
+
 def bezpieczna_komorka(wartosc):
     if wartosc is None:
         return ''
