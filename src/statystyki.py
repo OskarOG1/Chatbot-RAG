@@ -16,6 +16,17 @@ TOP_PYTAN = 15
 MAX_DNI_SERII = int(os.getenv('MAX_DNI_SERII', '400'))
 ZNAKI_FORMULY = ('=', '+', '-', '@', '\t', '\r')
 
+DIAGNOZY_ODMOWY = {
+    'prog_rerank': 'retrieval',
+    'sedzia': 'sedzia',
+    'pokrycie': 'pokrycie',
+    'model_nie_wie': 'generacja',
+    'jawna_odmowa': 'generacja',
+    'brak_generacji': 'generacja',
+    'nie_zrozumialem': 'literowki',
+    'pytanie_o_strone': 'doprecyzowanie',
+}
+
 
 def formatuj_czas_eksportu(wartosc):
     if not isinstance(wartosc, str):
@@ -264,3 +275,46 @@ def statystyki(wpisy: list[dict]) -> dict:
             'udzial_szacowanych': round(szacowane / len(z_tokenami), 4) if z_tokenami else 0.0,
         },
     }
+
+
+def diagnoza(ocena: dict, zapytanie: dict | None) -> str:
+    if zapytanie is None:
+        return 'brak_sladu'
+    if ocena.get('ocena') == 'gora':
+        return 'ok'
+    wynik = zapytanie.get('wynik')
+    if wynik == 'rozmowa':
+        return 'rozmowa'
+    if wynik == 'odpowiedz':
+        return 'tresc'
+    powod = zapytanie.get('powod') or ''
+    if powod.startswith('guard_'):
+        return 'guard'
+    return DIAGNOZY_ODMOWY.get(powod, 'inna')
+
+
+def przypadki_ocen(wpisy: list[dict], dni: int | None = None) -> list[dict]:
+    zapytania = {w['id']: w for w in wpisy if not w.get('typ') and w.get('id')}
+    oceny = [w for w in filtruj(wpisy, dni=dni) if w.get('typ') == 'ocena']
+    przypadki = []
+    for o in oceny:
+        z = zapytania.get(o.get('id_zapytania') or '')
+        przypadki.append({
+            'czas': o.get('czas'),
+            'ocena': o.get('ocena'),
+            'lang': o.get('lang'),
+            'strona': normalizuj_strone(o.get('strona')),
+            'sekcja': o.get('sekcja'),
+            'pytanie': o.get('pytanie'),
+            'odpowiedz': o.get('odpowiedz'),
+            'id_zapytania': o.get('id_zapytania'),
+            'wynik': (z or {}).get('wynik'),
+            'powod': (z or {}).get('powod'),
+            'powod_etap2': (z or {}).get('powod_etap2'),
+            'latencja_s': (z or {}).get('latencja_s'),
+            'cache_hit': (z or {}).get('cache_hit'),
+            'cechy': (z or {}).get('cechy') or None,
+            'diagnoza': diagnoza(o, z),
+        })
+    przypadki.sort(key=lambda p: p['czas'] or '', reverse=True)
+    return przypadki

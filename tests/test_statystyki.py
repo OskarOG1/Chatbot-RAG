@@ -201,3 +201,48 @@ def test_zakres_nie_wywala_sie_na_nietekstowym_czasie():
     wpisy = [wpis(czas=123), wpis()]
     wynik = statystyki.statystyki(wpisy)
     assert wynik['zakres']['od'] is not None
+
+
+def test_przypadki_ocen_laczy_ocene_z_zapytaniem():
+    wpisy = [
+        {'czas': '2026-08-18T10:00:00+00:00', 'id': 'aaaaaaaaaaaaaaaa', 'lang': 'pl',
+         'strona': 'kupujacy', 'wynik': 'odmowa', 'powod': 'prog_rerank',
+         'cechy': {'rerank_top1': -8.0, 'chunkow': 5, 'etap': 1}},
+        {'czas': '2026-08-18T10:00:05+00:00', 'typ': 'ocena', 'ocena': 'dol',
+         'id_zapytania': 'aaaaaaaaaaaaaaaa', 'lang': 'pl', 'strona': 'kupujacy',
+         'pytanie': 'jak zwrocic towar', 'odpowiedz': 'nie wiem'},
+    ]
+    wynik = statystyki.przypadki_ocen(wpisy)
+    assert len(wynik) == 1
+    assert wynik[0]['diagnoza'] == 'retrieval'
+    assert wynik[0]['cechy']['rerank_top1'] == -8.0
+
+
+def test_przypadki_ocen_bez_id_daje_brak_sladu():
+    wpisy = [
+        {'czas': '2026-08-18T10:00:05+00:00', 'typ': 'ocena', 'ocena': 'dol',
+         'lang': 'pl', 'pytanie': 'stare pytanie', 'odpowiedz': 'stara odpowiedz'},
+    ]
+    wynik = statystyki.przypadki_ocen(wpisy)
+    assert wynik[0]['diagnoza'] == 'brak_sladu'
+    assert wynik[0]['cechy'] is None
+
+
+def test_przypadki_ocen_kciuk_w_gore_ma_diagnoze_ok():
+    wpisy = [
+        {'czas': '2026-08-18T10:00:00+00:00', 'id': 'bbbbbbbbbbbbbbbb', 'lang': 'pl',
+         'wynik': 'odpowiedz', 'powod': 'odpowiedz', 'cechy': {'etap': 1}},
+        {'czas': '2026-08-18T10:00:05+00:00', 'typ': 'ocena', 'ocena': 'gora',
+         'id_zapytania': 'bbbbbbbbbbbbbbbb', 'lang': 'pl', 'pytanie': 'x', 'odpowiedz': 'y'},
+    ]
+    assert statystyki.przypadki_ocen(wpisy)[0]['diagnoza'] == 'ok'
+
+
+def test_przypadki_ocen_zla_tresc_przy_udanej_odpowiedzi():
+    wpisy = [
+        {'czas': '2026-08-18T10:00:00+00:00', 'id': 'cccccccccccccccc', 'lang': 'pl',
+         'wynik': 'odpowiedz', 'powod': 'odpowiedz', 'cechy': {'etap': 2}},
+        {'czas': '2026-08-18T10:00:05+00:00', 'typ': 'ocena', 'ocena': 'dol',
+         'id_zapytania': 'cccccccccccccccc', 'lang': 'pl', 'pytanie': 'x', 'odpowiedz': 'y'},
+    ]
+    assert statystyki.przypadki_ocen(wpisy)[0]['diagnoza'] == 'tresc'

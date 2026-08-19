@@ -145,7 +145,7 @@ def dopisz_do_logu(wpis: dict) -> None:
 
 
 def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str,
-                    zuzycie: dict | None = None) -> None:
+                    zuzycie: dict | None = None, id_zapytania: str | None = None) -> None:
     dane = dane or {}
     zglos_bramki_pominiete(dane.get('bramki_pominiete') or [], cache_hit)
     try:
@@ -154,6 +154,7 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
         zuzycie = zuzycie or {}
         wpis = {
             'czas': datetime.now(timezone.utc).isoformat(),
+            'id': id_zapytania,
             'lang': lang,
             'strona': strona,
             'sekcja': agent or None,
@@ -168,6 +169,7 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
             'tokeny_szacowane': zuzycie.get('szacowane', False),
             'cache_hit': cache_hit,
             'pytanie': redaguj(query),
+            'cechy': dane.get('cechy') or None,
         }
         dopisz_do_logu(wpis)
     except OSError as e:
@@ -306,12 +308,13 @@ def loguj_wysylke(lang: str, kategoria: str | None, ticket: str | None, sukces: 
 
 
 def loguj_ocene(ocena: str, pytanie: str, odpowiedz: str, sekcja: str | None, lang: str,
-                 strona: str | None) -> None:
+                 strona: str | None, id_zapytania: str | None = None) -> None:
     try:
         wpis = {
             'czas': datetime.now(timezone.utc).isoformat(),
             'typ': 'ocena',
             'ocena': ocena,
+            'id_zapytania': id_zapytania,
             'lang': lang,
             'strona': strona,
             'sekcja': sekcja,
@@ -450,6 +453,7 @@ class WyslijOdpowiedz(BaseModel):
 
 class OcenaZadanie(BaseModel):
     ocena: Literal['gora', 'dol']
+    id_zapytania: str | None = Field(default=None, pattern=r'^[0-9a-f]{16}$')
     pytanie: str = Field(min_length=1, max_length=MAX_ZNAKI * 2)
     odpowiedz: str = Field(default='', max_length=MAX_ZNAKI_WPISU)
     sekcja: str | None = Field(default=None, max_length=40)
@@ -457,6 +461,7 @@ class OcenaZadanie(BaseModel):
     strona: Literal['kupujacy', 'sprzedajacy'] | None = None
 
 class ChatResponse(BaseModel):
+   id: str | None = None
    agent: str
    answer: str
    sources: list[str]
@@ -496,6 +501,7 @@ def chat(request: ChatRequest, http_request: Request):
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     start = time.perf_counter()
     strona = request.strona
+    id_zapytania = secrets.token_hex(8)
     try:
         uzyj_cache = cache_zdatny(request)
         klucz = cache_klucz(lang, request.message, request.strona) if uzyj_cache else None
@@ -511,8 +517,8 @@ def chat(request: ChatRequest, http_request: Request):
             if klucz:
                 cache_zapisz(klucz, wynik)
         loguj_zapytanie(lang, wynik, time.perf_counter() - start, cache_hit, request.message, request.strona,
-                        zuzycie)
-        return wynik
+                        zuzycie, id_zapytania)
+        return dict(wynik, id=id_zapytania)
     except Exception as e:
         print(f'blad /chat: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
         raise HTTPException(status_code=503, detail=LANG[lang]['bledy']['model_niedostepny'])
@@ -532,14 +538,17 @@ def chat_stream(request: ChatRequest, http_request: Request):
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 429, 'tekst': LANG[lang]['bledy']['limit_zapytan']}, ensure_ascii=False)}\n\n"
             return
         start = time.perf_counter()
+        id_zapytania = secrets.token_hex(8)
         try:
             uzyj_cache = cache_zdatny(request)
             klucz = cache_klucz(lang, request.message, request.strona) if uzyj_cache else None
             cached = cache_pobierz(klucz) if klucz else None
             if cached is not None:
-                yield f"data: {json.dumps({'typ': 'wynik', 'dane': cached}, ensure_ascii=False)}\n\n"
+                dane_wysylki = {k: v for k, v in cached.items() if k != 'cechy'}
+                dane_wysylki['id'] = id_zapytania
+                yield f"data: {json.dumps({'typ': 'wynik', 'dane': dane_wysylki}, ensure_ascii=False)}\n\n"
                 loguj_zapytanie(lang, cached, time.perf_counter() - start, True, request.message, request.strona,
-                                None)
+                                None, id_zapytania)
                 return
             wynik = {}
             for ev in run_stream(request.message, bielik_model=request.bielik_model,
@@ -548,11 +557,14 @@ def chat_stream(request: ChatRequest, http_request: Request):
                                  bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang, strona=strona):
                 if ev['typ'] == 'wynik':
                     wynik = ev['dane']
+                    dane_wysylki = {k: v for k, v in wynik.items() if k != 'cechy'}
+                    dane_wysylki['id'] = id_zapytania
+                    ev = {'typ': 'wynik', 'dane': dane_wysylki}
                 yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
             if klucz:
                 cache_zapisz(klucz, wynik)
             loguj_zapytanie(lang, wynik, time.perf_counter() - start, False, request.message, request.strona,
-                            koszty.podsumowanie())
+                            koszty.podsumowanie(), id_zapytania)
         except Exception as e:
             print(f'blad /chat/stream: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': LANG[lang]['bledy']['model_niedostepny']}, ensure_ascii=False)}\n\n"
@@ -614,7 +626,7 @@ def ocena(request: OcenaZadanie, http_request: Request):
     if not w_limicie_ocen():
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     loguj_ocene(request.ocena, request.pytanie, request.odpowiedz,
-                request.sekcja, lang, request.strona)
+                request.sekcja, lang, request.strona, request.id_zapytania)
     return {'status': 'ok'}
 
 
@@ -626,6 +638,15 @@ def admin_statystyki(http_request: Request, dni: int | None = Query(default=None
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
     return statystyki_z_cache(dni, lang, strona)
+
+
+@app.get('/admin/oceny')
+def admin_oceny(http_request: Request, dni: int | None = Query(default=None, ge=1, le=3650)):
+    if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
+                             LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
+    przypadki = statystyki.przypadki_ocen(wpisy_logu(), dni=dni)
+    return {'razem': len(przypadki), 'przypadki': przypadki}
 
 
 @app.post('/admin/resetuj-statystyki')

@@ -423,3 +423,27 @@ def test_jawna_odmowa_ma_wlasna_etykiete_odrebna_od_model_nie_wie(monkeypatch, a
     wynik_nowy = pipeline.run('jakies pytanie o konto', strona='kupujacy',
                               bez_korekty=True, sedzia=False, lang='pl')
     assert wynik_nowy['powod_odmowy'] == 'jawna_odmowa'
+
+
+def test_cechy_przy_odmowie_progu(atrapa_pipeline, chunk):
+    atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=-10.0)])
+    atrapa_pipeline.ustaw_etap('sprzedajacy', chunki=[chunk('sprzedaz', score=-10.0)])
+    wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
+                         bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik['powod_odmowy'] == 'prog_rerank'
+    assert wynik['cechy']['rerank_top1'] == -10.0
+    assert wynik['cechy']['chunkow'] == 1
+    assert wynik['cechy']['zrodlo_top1']
+    assert wynik['cechy']['etap'] == 1
+
+
+def test_cechy_przy_sukcesie_drugiego_etapu(monkeypatch, atrapa_pipeline, chunk):
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+    atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=-10.0)])
+    atrapa_pipeline.ustaw_etap('sprzedajacy', chunki=[chunk('sprzedaz', score=5.0)],
+                               tekst='Odpowiedz o sprzedazy.')
+    wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
+                         bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik['agent'] == 'sprzedaz'
+    assert wynik['cechy']['etap'] == 2
+    assert wynik['cechy']['pokrycie'] == 1.0

@@ -372,6 +372,7 @@ export default function ChatApp() {
               pytanie: wiadomosc,
               sekcja: dane?.agent && dane.agent !== 'email' ? dane.agent : null,
               ocena: null,
+              idZapytania: dane?.id ?? null,
             },
           ],
         };
@@ -398,6 +399,7 @@ export default function ChatApp() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           ocena,
+          id_zapytania: msg.idZapytania ?? null,
           pytanie: msg.pytanie,
           odpowiedz: msg.content,
           sekcja: msg.sekcja ?? null,

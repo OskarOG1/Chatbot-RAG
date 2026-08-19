@@ -16,6 +16,7 @@ export interface Cytat {
 }
 
 export interface ChatResponse {
+  id?: string | null;
   agent: string;
   answer: string;
   sources: string[];

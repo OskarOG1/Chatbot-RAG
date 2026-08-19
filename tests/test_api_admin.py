@@ -383,3 +383,42 @@ def test_reset_czysci_statystyki(client, monkeypatch):
     assert client.get('/admin/statystyki').json()['ogolem']['zapytan'] == 1
     client.post('/admin/resetuj-statystyki', headers={'x-admin-token': 'tajne'})
     assert client.get('/admin/statystyki').json()['ogolem']['zapytan'] == 0
+
+
+def test_ocena_zapisuje_id_zapytania(client):
+    odp = client.post('/ocena', json={
+        'ocena': 'dol', 'id_zapytania': '0123456789abcdef', 'pytanie': 'jak zmienic haslo',
+        'odpowiedz': 'kroki', 'sekcja': 'konto', 'lang': 'pl', 'strona': 'kupujacy',
+    })
+    assert odp.status_code == 200
+    wpisy = wczytaj_log(api.LOG_ANALYTICS)
+    assert wpisy[0]['id_zapytania'] == '0123456789abcdef'
+
+
+def test_ocena_odrzuca_zly_format_id(client):
+    odp = client.post('/ocena', json={
+        'ocena': 'dol', 'id_zapytania': 'ZZZ', 'pytanie': 'test',
+    })
+    assert odp.status_code == 422
+
+
+def test_admin_oceny_zwraca_przypadki(client):
+    zapisz_log(api.LOG_ANALYTICS, [
+        {'czas': '2026-08-18T10:00:00+00:00', 'id': 'aaaaaaaaaaaaaaaa', 'lang': 'pl',
+         'strona': 'kupujacy', 'wynik': 'odmowa', 'powod': 'sedzia',
+         'cechy': {'rerank_top1': 2.0, 'chunkow': 5, 'sedzia_ok': False, 'etap': 1}},
+        {'czas': '2026-08-18T10:00:05+00:00', 'typ': 'ocena', 'ocena': 'dol',
+         'id_zapytania': 'aaaaaaaaaaaaaaaa', 'lang': 'pl', 'strona': 'kupujacy',
+         'pytanie': 'jak zwrocic towar', 'odpowiedz': 'nie wiem'},
+    ])
+    odp = client.get('/admin/oceny')
+    assert odp.status_code == 200
+    dane = odp.json()
+    assert dane['razem'] == 1
+    assert dane['przypadki'][0]['diagnoza'] == 'sedzia'
+
+
+def test_admin_oceny_pusty_log(client):
+    odp = client.get('/admin/oceny')
+    assert odp.status_code == 200
+    assert odp.json() == {'razem': 0, 'przypadki': []}
