@@ -28,6 +28,7 @@ class ModeleLeniwe(dict):
 MODELE = ModeleLeniwe()
 OKNO_HISTORII = 3
 OKNO_JAWNEJ_ODMOWY = 160
+SEDZIA_CHUNKOW = int(os.getenv('SEDZIA_CHUNKOW', '3'))
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 PII_WZORCE = (
@@ -249,7 +250,7 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
     if SEDZIA_ON if sedzia is None else sedzia:
         yield krok(cfg['kroki']['sprawdzam_kontekst'])
         stan_sedziego = {}
-        pasuje = czy_kontekst_odpowiada(zapytanie_ret, chunks, lang=lang, stan=stan_sedziego)
+        pasuje = czy_kontekst_odpowiada(zapytanie_ret, chunks[:SEDZIA_CHUNKOW], lang=lang, stan=stan_sedziego)
         cechy['sedzia_ok'] = bool(pasuje)
         if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
@@ -261,10 +262,9 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
     etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
     yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=etykieta_sekcji))
     odpowiedz = None
-    tokeny_bufor = []
     for ev in answer_stream(query, agent_odp, chunks, bielik_model, history, lang, styl=styl):
         if ev['typ'] == 'token':
-            tokeny_bufor.append(ev)
+            yield ev
         elif ev['typ'] == 'koniec':
             odpowiedz = ev['dane']
 
@@ -315,7 +315,6 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
         'citations': cytaty_lub_zrodla(odpowiedz['cytaty'], chunks),
         'oferta': oferta,
         'oferta_kategoria': oferta_kategoria,
-        'tokeny_bufor': tokeny_bufor,
         'bramki_pominiete': bramki_pominiete,
         'cechy': cechy,
     })
@@ -460,9 +459,6 @@ def run_stream(query:str, bielik_model:str | None=None,
         dane_odmowy['cechy'] = wynik_etapu.get('cechy')
         yield wynik(dane_odmowy)
         return
-
-    for ev in wynik_etapu['tokeny_bufor']:
-        yield ev
 
     dane_sukcesu = {'agent': wynik_etapu['agent'],
                     'answer': wynik_etapu['answer'],

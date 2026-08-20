@@ -38,9 +38,21 @@ def zrodlo_z_golden(query: str) -> str | None:
     return GOLDEN_PO_PYTANIU.get(rankings.normalizacja(query).strip())
 
 
-def kandydaci_z_ocen(wpisy: list[dict]) -> list[dict]:
+def wczytaj_przypadki(sciezka: Path) -> list[dict]:
+    # Endpoint /admin/oceny zwraca {"razem": n, "przypadki": [...]}, czyli to samo,
+    # co statystyki.przypadki_ocen. Przyjmujemy tez sama liste, gdyby ktos zapisal wycinek.
+    with open(sciezka, encoding='utf-8') as r:
+        dane = json.load(r)
+    if isinstance(dane, dict):
+        dane = dane.get('przypadki') or []
+    if not isinstance(dane, list):
+        raise SystemExit(f'plik {sciezka} nie zawiera listy przypadkow')
+    return dane
+
+
+def kandydaci_z_ocen(przypadki: list[dict]) -> list[dict]:
     kandydaci = []
-    for p in statystyki.przypadki_ocen(wpisy):
+    for p in przypadki:
         query = p['pytanie']
         if not query:
             continue
@@ -115,11 +127,24 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--archiwa', action='store_true')
     parser.add_argument('--sucho', action='store_true')
+    parser.add_argument('--przypadki', default=None,
+                        help='plik JSON z odpowiedzi GET /admin/oceny, zamiast lokalnego logu')
     args = parser.parse_args()
 
-    wpisy = wczytaj_wszystko(args.archiwa)
-    przypadki = statystyki.przypadki_ocen(wpisy)
-    kandydaci = kandydaci_z_ocen(wpisy)
+    # Oceny powstaja na produkcji, a lokalna maszyna tamtego logu moze nigdy nie miec.
+    # Endpoint /admin/oceny oddaje gotowa liste przypadkow, wiec sciezka z pliku jest
+    # rownorzedna z czytaniem logu, a nie obejsciem.
+    if args.przypadki:
+        if args.archiwa:
+            print('UWAGA: --archiwa nie ma znaczenia przy --przypadki, log nie jest czytany.')
+        przypadki = wczytaj_przypadki(Path(args.przypadki))
+        zrodlo_danych = f'plik {args.przypadki}'
+    else:
+        wpisy = wczytaj_wszystko(args.archiwa)
+        przypadki = statystyki.przypadki_ocen(wpisy)
+        zrodlo_danych = f'log lokalny, {len(wpisy)} wpisow'
+
+    kandydaci = kandydaci_z_ocen(przypadki)
     istniejace = wczytaj_zestaw()
     zestaw, licznik = scal(istniejace, kandydaci)
 
@@ -129,7 +154,7 @@ if __name__ == '__main__':
     golden = sum(1 for p in zestaw if p.get('skad_zrodlo') == 'golden')
     serwowane = sum(1 for p in zestaw if p.get('skad_zrodlo') == 'serwowane')
 
-    print(f'Wpisow w logu: {len(wpisy)}')
+    print(f'Zrodlo danych: {zrodlo_danych}')
     print(f'Ocen: {len(przypadki)}')
     print(f"Dodane: {licznik['dodane']}  Zaktualizowane: {licznik['zaktualizowane']}")
     print(f"Link z GOLDEN: {golden}  Serwowane: {serwowane}  Do uzupelnienia: {licznik['do_uzupelnienia']}")
