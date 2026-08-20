@@ -439,11 +439,12 @@ KONCOWKA = '.,;:!?)]}>"\''
 KATEGORIE_MAIL = ('reklamacja', 'zwrot', 'faktura', 'eskalacja')
 
 NAGLOWEK_ZRODEL = re.compile(
-    r'^[ \t]*\**(?:źródła|źródło|zrodla|zrodlo|sources|source|references|bibliografia)\**'
-    r'[ \t]*:?[ \t]*((?:\[\d+\][ \t]*,?[ \t]*)*)$',
+    r'^[ \t]*#{0,6}[ \t]*[*_]{0,2}[ \t]*'
+    r'(?:źródła|źródło|zrodla|zrodlo|sources|source|references|bibliografia)'
+    r'[ \t]*:?[ \t]*[*_]{0,2}[ \t]*:?[ \t]*((?:\[\d+\][ \t]*,?[ \t]*)*)$',
     re.IGNORECASE,
 )
-LINIA_NUMERU = re.compile(r'^[ \t]*\[\d+\]')
+LINIA_NUMERU = re.compile(r'^[ \t]*(?:[-*+][ \t]+|\d+[.)][ \t]+)?[*_]{0,2}\[\d+\]')
 
 
 def usun_sekcje_zrodel(tekst: str) -> str:
