@@ -233,7 +233,7 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
 
     yield krok(cfg['kroki']['wybieram_strone'].format(strona=cfg['nazwy_stron'][strona]))
     chunks = search_reranked_multi(zapytanie_ret, query_emb, [strony.STRONA_DO_AGENTA[strona]],
-                                    k=5, k_surowe=20, lang=lang)
+                                    k=5, k_surowe=12, lang=lang)
     agent_odp = chunks[0][0]['agent'] if chunks else ''
     cechy['chunkow'] = len(chunks)
     if chunks:
@@ -382,7 +382,7 @@ def run_stream(query:str, bielik_model:str | None=None,
                                    if w.get('role') == 'user' and w.get('content')), '')
             tekst_ret = f'{ostatnia_tresc} {query}'.strip()
             router_emb = embed_query(lang, tekst_ret)
-            router_chunks = search_reranked_multi(tekst_ret, router_emb, ['kupujacy'], k=5, k_surowe=20, lang=lang)
+            router_chunks = search_reranked_multi(tekst_ret, router_emb, ['kupujacy'], k=5, k_surowe=12, lang=lang)
             kategoria = sedzia_kategoria_mail(history + [{'role': 'user', 'content': query}], router_chunks, lang)
         if kategoria is None:
             yield wynik({'agent': '', 'answer': cfg['mail_doprecyzuj'],
@@ -391,7 +391,7 @@ def run_stream(query:str, bielik_model:str | None=None,
             return
         kat_cfg = cfg['mail_kategorie'][kategoria]
         mail_emb = embed_query(lang, kat_cfg['zapytanie'])
-        mail_chunks = search_reranked_multi(kat_cfg['zapytanie'], mail_emb, ['kupujacy'], k=3, k_surowe=20, lang=lang)
+        mail_chunks = search_reranked_multi(kat_cfg['zapytanie'], mail_emb, ['kupujacy'], k=3, k_surowe=12, lang=lang)
         szkic = napisz_email(history + [{'role': 'user', 'content': query}], mail_chunks, lang, kategoria)
         yield wynik({'agent': 'email', 'answer': szkic['tekst'],
                      'sources': list(dict.fromkeys(c['url'] for c, _ in mail_chunks)),

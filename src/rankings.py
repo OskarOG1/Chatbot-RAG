@@ -12,6 +12,7 @@ from lang_config import LANG
 RERANKER_NAME = 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1'
 RERANKER = None
 RERANKER_BATCH = int(os.getenv('RERANKER_BATCH', '16'))
+RERANKER_MAX_LEN = int(os.getenv('RERANKER_MAX_LEN', '192'))
 
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
@@ -20,7 +21,7 @@ K_RRF = 60
 def get_reranker():
     global RERANKER
     if RERANKER is None:
-        RERANKER = CrossEncoder(RERANKER_NAME, max_length=512)
+        RERANKER = CrossEncoder(RERANKER_NAME, max_length=RERANKER_MAX_LEN)
     return RERANKER
 
 def kandydaci_rrf(query, query_emb, agent, k_surowe, lang='pl'):
@@ -57,7 +58,7 @@ def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl')
     if not linki:
         return []
 
-    pary = [(query, chunk['tekst']) for chunk, _ in linki]
+    pary = [(query, f"{chunk['tytul']}\n{chunk['tekst']}") for chunk, _ in linki]
     scores = get_reranker().predict(pary, batch_size=RERANKER_BATCH)
     ocenione = [(chunk, float(s)) for (chunk, _), s in zip(linki, scores)]
 
