@@ -1,4 +1,4 @@
-from agents_core import PROMPTY, klient, MAX_TOKENS, EMAIL_MODEL, context
+from agents_core import PROMPTY, nowy_klient, MAX_TOKENS, EMAIL_MODEL, context
 import koszty
 import re
 
@@ -21,12 +21,13 @@ def napisz_email(history: list[dict], chunks: list, lang: str = 'pl', kategoria:
              'Now write the message draft based on the conversation above and the process in the context.')
     wiadomosci.append({'role': 'user', 'content': tresc})
 
-    odp = klient.chat.completions.create(
-        model=EMAIL_MODEL,
-        messages=wiadomosci,
-        stream=False,
-        max_tokens=MAX_TOKENS,
-    )
+    with nowy_klient() as k:
+        odp = k.chat.completions.create(
+            model=EMAIL_MODEL,
+            messages=wiadomosci,
+            stream=False,
+            max_tokens=MAX_TOKENS,
+        )
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip()
     koszty.dodaj_z_odpowiedzi(EMAIL_MODEL, odp, wiadomosci, tekst)
     dopasowania = list(DRUGI_TEMAT.finditer(tekst))

@@ -1,5 +1,5 @@
 from lang_config import LANG
-from agents_core import PROMPTY, czat, context, KATEGORIE_MAIL
+from agents_core import PROMPTY, czat, context, KATEGORIE_MAIL, SEDZIA_TIMEOUT
 import re
 
 
@@ -17,6 +17,7 @@ def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = 
     ]
     try:
         odp = czat(bielik_model or LANG[lang]['sedzia_model'], wiadomosci,
+                   limit_czasu=SEDZIA_TIMEOUT,
                    stop=['\n', f"{p['pytanie_label']}:"], max_tokens=12)
     except Exception as e:
         print(f'sedzia kontekstu niedostepny ({type(e).__name__}: {e}), przepuszczam dalej',

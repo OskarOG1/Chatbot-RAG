@@ -17,25 +17,36 @@ SEDZIA_MODEL = LANG['pl']['sedzia_model']
 EMAIL_MODEL = os.getenv('EMAIL_MODEL', MODEL_11B)
 MAX_TOKENS = int(os.getenv('MAX_TOKENS', '1500'))
 
-klient = InferenceClient(
-    base_url=os.getenv('LLM_BASE_URL', 'http://localhost:11434/v1'),
-    api_key=os.getenv('LLM_API_KEY', 'ollama'),
-    timeout=float(os.getenv('LLM_TIMEOUT', '150')),
-)
+LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'http://localhost:11434/v1')
+LLM_API_KEY = os.getenv('LLM_API_KEY', 'ollama')
+LLM_TIMEOUT = float(os.getenv('LLM_TIMEOUT', '150'))
+SEDZIA_TIMEOUT = float(os.getenv('SEDZIA_TIMEOUT', '20'))
 
 
-def czat(nazwa: str, wiadomosci: list[dict], **kwargy):
-    try:
-        odp = klient.chat.completions.create(model=nazwa, messages=wiadomosci,
-                                              stream=False, **kwargy)
-    except Exception as e:
-        if nazwa == MODEL_DOMYSLNY:
-            raise
-        print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), '
-              f'fallback na {MODEL_DOMYSLNY}', flush=True)
-        nazwa = MODEL_DOMYSLNY
-        odp = klient.chat.completions.create(model=nazwa, messages=wiadomosci,
-                                              stream=False, **kwargy)
+def nowy_klient(limit_czasu: float | None = None) -> InferenceClient:
+    return InferenceClient(
+        base_url=LLM_BASE_URL,
+        api_key=LLM_API_KEY,
+        timeout=limit_czasu or LLM_TIMEOUT,
+    )
+
+
+klient = nowy_klient()
+
+
+def czat(nazwa: str, wiadomosci: list[dict], limit_czasu: float | None = None, **kwargy):
+    with nowy_klient(limit_czasu) as k:
+        try:
+            odp = k.chat.completions.create(model=nazwa, messages=wiadomosci,
+                                            stream=False, **kwargy)
+        except Exception as e:
+            if nazwa == MODEL_DOMYSLNY:
+                raise
+            print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), '
+                  f'fallback na {MODEL_DOMYSLNY}', flush=True)
+            nazwa = MODEL_DOMYSLNY
+            odp = k.chat.completions.create(model=nazwa, messages=wiadomosci,
+                                            stream=False, **kwargy)
     tekst = odp.choices[0].message.content if odp.choices else ''
     koszty.dodaj_z_odpowiedzi(nazwa, odp, wiadomosci, tekst)
     return odp
