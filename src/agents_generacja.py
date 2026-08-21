@@ -1,12 +1,12 @@
 from lang_config import LANG
-from agents_core import PROMPTY, klient, MAX_TOKENS, MODEL_FALLBACK, context, verify_answer
+from agents_core import PROMPTY, nowy_klient, MAX_TOKENS, MODEL_FALLBACK, context, verify_answer
 import koszty
 import itertools
 import re
 
 
-def otworz_strumien(nazwa: str, wiadomosci: list[dict], stop: list[str]):
-    return klient.chat.completions.create(
+def otworz_strumien(klient_strumienia, nazwa: str, wiadomosci: list[dict], stop: list[str]):
+    return klient_strumienia.chat.completions.create(
         model=nazwa,
         messages=wiadomosci,
         stream=True,
@@ -49,45 +49,54 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
                   history:list[dict] | None=None, lang:str='pl', styl:str | None=None):
     wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang, styl)
 
-    try:
-        strumien = otworz_strumien(nazwa, wiadomosci, stop)
-        pierwszy = next(strumien)
-        kawalki = itertools.chain([pierwszy], strumien)
-    except StopIteration:
-        kawalki = iter(())
-    except Exception as e:
-        print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_FALLBACK}')
-        nazwa = MODEL_FALLBACK
-        kawalki = otworz_strumien(nazwa, wiadomosci, stop)
-
+    klient_strumienia = nowy_klient()
     pelna = ''
-    for kawalek in kawalki:
-        if not kawalek.choices:
-            continue
-        token = kawalek.choices[0].delta.content
-        if not token:
-            continue
-        pelna += token
-        yield {'typ': 'token', 'tekst': token}
+    zaksiegowane = False
+    try:
+        try:
+            strumien = otworz_strumien(klient_strumienia, nazwa, wiadomosci, stop)
+            pierwszy = next(strumien)
+            kawalki = itertools.chain([pierwszy], strumien)
+        except StopIteration:
+            kawalki = iter(())
+        except Exception as e:
+            print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_FALLBACK}')
+            nazwa = MODEL_FALLBACK
+            kawalki = otworz_strumien(klient_strumienia, nazwa, wiadomosci, stop)
 
-    koszty.dodaj_z_odpowiedzi(nazwa, None, wiadomosci, pelna)
-    yield {'typ': 'koniec', 'dane': sfinalizuj(pelna, chunks, p)}
+        for kawalek in kawalki:
+            if not kawalek.choices:
+                continue
+            token = kawalek.choices[0].delta.content
+            if not token:
+                continue
+            pelna += token
+            yield {'typ': 'token', 'tekst': token}
+
+        koszty.dodaj_z_odpowiedzi(nazwa, None, wiadomosci, pelna)
+        zaksiegowane = True
+        yield {'typ': 'koniec', 'dane': sfinalizuj(pelna, chunks, p)}
+    finally:
+        if not zaksiegowane:
+            koszty.dodaj_z_odpowiedzi(nazwa, None, wiadomosci, pelna)
+        klient_strumienia.close()
 
 
 def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
            history:list[dict] | None=None, lang:str='pl', styl:str | None=None) -> dict:
     wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang, styl)
 
-    try:
-        odp = klient.chat.completions.create(
-            model=nazwa, messages=wiadomosci, stream=False, max_tokens=MAX_TOKENS, stop=stop,
-        )
-    except Exception as e:
-        print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_FALLBACK}')
-        nazwa = MODEL_FALLBACK
-        odp = klient.chat.completions.create(
-            model=nazwa, messages=wiadomosci, stream=False, max_tokens=MAX_TOKENS, stop=stop,
-        )
+    with nowy_klient() as k:
+        try:
+            odp = k.chat.completions.create(
+                model=nazwa, messages=wiadomosci, stream=False, max_tokens=MAX_TOKENS, stop=stop,
+            )
+        except Exception as e:
+            print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_FALLBACK}')
+            nazwa = MODEL_FALLBACK
+            odp = k.chat.completions.create(
+                model=nazwa, messages=wiadomosci, stream=False, max_tokens=MAX_TOKENS, stop=stop,
+            )
 
     pelna = odp.choices[0].message.content
     koszty.dodaj_z_odpowiedzi(nazwa, odp, wiadomosci, pelna)
@@ -106,12 +115,13 @@ def przepisz_zapytanie(query: str, history: list[dict] | None, bielik_model: str
         {'role': 'system', 'content': p['przepisz_system']},
         {'role': 'user', 'content': f"{rozmowa}\nuser: {query}\n\n{p['przepisz_label']}:"},
     ]
-    odp = klient.chat.completions.create(
-        model=nazwa,
-        messages=wiadomosci,
-        stream=False,
-        stop=['\n', f"{p['pytanie_label']}:"],
-    )
+    with nowy_klient() as k:
+        odp = k.chat.completions.create(
+            model=nazwa,
+            messages=wiadomosci,
+            stream=False,
+            stop=['\n', f"{p['pytanie_label']}:"],
+        )
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip()
     koszty.dodaj_z_odpowiedzi(nazwa, odp, wiadomosci, tekst)
     return tekst or query
