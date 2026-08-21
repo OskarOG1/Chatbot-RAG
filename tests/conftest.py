@@ -1,4 +1,6 @@
 import sys
+import threading
+import time
 from collections import Counter
 from itertools import count
 from pathlib import Path
@@ -49,6 +51,9 @@ class AtrapaPipeline:
         self.odpowiedzi = {}
         self.sedzia_wyniki = {}
         self.sedzia_pominiete = set()
+        self.tokeny = {}
+        self.przerwane = []
+        self.sedzia_gotowy = threading.Event()
         self.kategoria_maila = None
         self.mail_szkic = {'tekst': 'Szkic maila.'}
         self.przepisane_zapytanie = None
@@ -90,8 +95,18 @@ class AtrapaPipeline:
         self.historie_odpowiedzi.append(history)
         self.style_odpowiedzi.append(styl)
         odp = self.odpowiedzi.get(agent)
-        if odp is not None:
-            yield {'typ': 'koniec', 'dane': odp}
+        tokeny = self.tokeny.get(agent) or []
+        try:
+            if tokeny:
+                self.sedzia_gotowy.wait(timeout=2.0)
+                time.sleep(0.02)
+            for tekst in tokeny:
+                yield {'typ': 'token', 'tekst': tekst}
+            if odp is not None:
+                yield {'typ': 'koniec', 'dane': odp}
+        except GeneratorExit:
+            self.przerwane.append(agent)
+            raise
 
     def osadz_sedzia(self, zapytanie, chunks, bielik_model=None, lang='pl', stan=None):
         agent = chunks[0][0]['agent'] if chunks else None
@@ -99,7 +114,10 @@ class AtrapaPipeline:
         self.wywolania[f'sedzia:{agent}'] += 1
         if stan is not None and agent in self.sedzia_pominiete:
             stan['sedzia_pominiety'] = True
-        return self.sedzia_wyniki.get(agent, True)
+        try:
+            return self.sedzia_wyniki.get(agent, True)
+        finally:
+            self.sedzia_gotowy.set()
 
     def kategoria(self, history, chunks, lang):
         self.wywolania['kategoria'] += 1
