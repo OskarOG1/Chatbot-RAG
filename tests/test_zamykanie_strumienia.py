@@ -88,12 +88,16 @@ CHUNKI = [({'tekst': 'Treść artykułu pomocy o koncie.', 'tytul': 'Konto Alleg
             'agent': 'kupujacy'}, 0.9)]
 
 
-def polaczenia_do_atrapy():
+def polaczenia_do_atrapy(port):
+    # Pula huggingface_hub jest wspolna dla calego procesu, wiec przy pelnym
+    # zestawie testow moze zawierac polaczenia niezwiazane z ta atrapa
+    # (np. do huggingface.co z innego testu). Filtrujemy po adresie atrapy.
     from huggingface_hub.utils._http import get_session
-    return list(get_session()._transport._pool.connections)
+    return [c for c in get_session()._transport._pool.connections
+            if f'127.0.0.1:{port}' in str(c)]
 
 
-def test_przerwanie_zamyka_polaczenie(stan_czysty):
+def test_przerwanie_zamyka_polaczenie(stan_czysty, serwer_atrapy):
     import agents_generacja
     import koszty
 
@@ -112,11 +116,11 @@ def test_przerwanie_zamyka_polaczenie(stan_czysty):
     time.sleep(1.0)
 
     assert STAN_ATRAPY['kawalki'] <= kawalki_przed_close + 5
-    assert polaczenia_do_atrapy() == []
+    assert polaczenia_do_atrapy(serwer_atrapy) == []
     assert koszty.podsumowanie()['tokeny_wy'] > 0
 
 
-def test_pelny_przebieg_nie_zostawia_polaczenia(stan_czysty):
+def test_pelny_przebieg_nie_zostawia_polaczenia(stan_czysty, serwer_atrapy):
     import agents_generacja
     import koszty
 
@@ -125,5 +129,5 @@ def test_pelny_przebieg_nie_zostawia_polaczenia(stan_czysty):
     zdarzenia = list(agents_generacja.answer_stream('inne pytanie testowe', 'konto', CHUNKI))
 
     assert zdarzenia[-1]['typ'] == 'koniec'
-    assert polaczenia_do_atrapy() == []
+    assert polaczenia_do_atrapy(serwer_atrapy) == []
     assert koszty.podsumowanie()['wywolania'] == 1
