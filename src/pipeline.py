@@ -17,6 +17,7 @@ import re
 import simplemma
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from functools import lru_cache
 
 class ModeleLeniwe(dict):
@@ -29,6 +30,8 @@ class ModeleLeniwe(dict):
 MODELE = ModeleLeniwe()
 OKNO_HISTORII = 3
 OKNO_JAWNEJ_ODMOWY = 160
+SEDZIA_CHUNKOW = int(os.getenv('SEDZIA_CHUNKOW', '3'))
+SEDZIA_CZEKANIE = float(os.getenv('SEDZIA_CZEKANIE', '30'))
 EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=4, thread_name_prefix='sedzia')
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
@@ -252,22 +255,41 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
     werdykt = None
     if SEDZIA_ON if sedzia is None else sedzia:
         yield krok(cfg['kroki']['sprawdzam_kontekst'])
+        kontekst_kosztow = copy_context()
         werdykt = EGZEKUTOR_SEDZIEGO.submit(
-            czy_kontekst_odpowiada, zapytanie_ret, chunks, None, lang, stan_sedziego)
+            kontekst_kosztow.run,
+            czy_kontekst_odpowiada, zapytanie_ret, chunks[:SEDZIA_CHUNKOW], None, lang, stan_sedziego)
 
     etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
     yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=etykieta_sekcji))
 
+    odpowiedz = None
+    bufor = []
+    przepuszczone = werdykt is None
+
+    def werdykt_sedziego(czekaj: bool):
+        if not czekaj and not werdykt.done():
+            return None
+        try:
+            return bool(werdykt.result(timeout=SEDZIA_CZEKANIE))
+        except TimeoutError:
+            print(f'sedzia kontekstu nie zdazyl w {SEDZIA_CZEKANIE} s, przepuszczam dalej', flush=True)
+            stan_sedziego['sedzia_pominiety'] = True
+            return True
+        except Exception as e:
+            print(f'sedzia kontekstu zawiodl ({type(e).__name__}: {e}), przepuszczam dalej', flush=True)
+            stan_sedziego['sedzia_pominiety'] = True
+            return True
+
     def odmowa_sedziego():
         cechy['sedzia_ok'] = False
+        cechy['generacja_przerwana'] = True
+        cechy['tokeny_stracone'] = len(bufor)
         if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
         return {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia',
                                              'bramki_pominiete': bramki_pominiete, 'cechy': cechy}}
 
-    odpowiedz = None
-    bufor = []
-    przepuszczone = werdykt is None
     strumien = answer_stream(query, agent_odp, chunks, bielik_model, history, lang, styl=styl)
     for ev in strumien:
         if ev['typ'] == 'token':
@@ -275,21 +297,23 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
                 yield ev
                 continue
             bufor.append(ev)
-            if werdykt.done():
-                if not werdykt.result():
-                    strumien.close()
-                    yield odmowa_sedziego()
-                    return
-                cechy['sedzia_ok'] = True
-                przepuszczone = True
-                for zbuforowany in bufor:
-                    yield zbuforowany
-                bufor.clear()
+            decyzja = werdykt_sedziego(czekaj=False)
+            if decyzja is None:
+                continue
+            if not decyzja:
+                strumien.close()
+                yield odmowa_sedziego()
+                return
+            cechy['sedzia_ok'] = True
+            przepuszczone = True
+            for zbuforowany in bufor:
+                yield zbuforowany
+            bufor.clear()
         elif ev['typ'] == 'koniec':
             odpowiedz = ev['dane']
 
     if not przepuszczone:
-        if not werdykt.result():
+        if not werdykt_sedziego(czekaj=True):
             yield odmowa_sedziego()
             return
         cechy['sedzia_ok'] = True
