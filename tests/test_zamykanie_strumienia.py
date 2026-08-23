@@ -113,7 +113,9 @@ def test_przerwanie_zamyka_polaczenie(stan_czysty, serwer_atrapy):
     kawalki_przed_close = STAN_ATRAPY['kawalki']
 
     strumien.close()
-    time.sleep(1.0)
+    koniec = time.monotonic() + 2.0
+    while polaczenia_do_atrapy(serwer_atrapy) and time.monotonic() < koniec:
+        time.sleep(0.02)
 
     assert STAN_ATRAPY['kawalki'] <= kawalki_przed_close + 5
     assert polaczenia_do_atrapy(serwer_atrapy) == []
