@@ -243,6 +243,8 @@ export default function ChatApp() {
             if (tid === activeId) setAktualnyKrok(ev.tekst);
           } else if (ev.typ === 'token') {
             if (tid === activeId) setStreamBuffor((b) => b + ev.tekst);
+          } else if (ev.typ === 'reset') {
+            if (tid === activeId) setStreamBuffor('');
           } else if (ev.typ === 'wynik') {
             dane = ev.dane;
           } else if (ev.typ === 'blad') {

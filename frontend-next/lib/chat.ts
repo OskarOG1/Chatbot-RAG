@@ -46,6 +46,7 @@ export interface WyslijOdpowiedz {
 export type SseEvent =
   | { typ: 'krok'; tekst: string }
   | { typ: 'token'; tekst: string }
+  | { typ: 'reset' }
   | { typ: 'wynik'; dane: ChatResponse }
   | { typ: 'blad'; kod: number; tekst: string };
 
