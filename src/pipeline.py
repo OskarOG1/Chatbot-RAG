@@ -270,7 +270,9 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
 
     odpowiedz = None
     bufor = []
+    licznik_tokenow = 0
     przepuszczone = werdykt is None
+    optymistycznie = False
 
     def werdykt_sedziego(czekaj: bool):
         if not czekaj and not werdykt.done():
@@ -289,7 +291,7 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
     def odmowa_sedziego():
         cechy['sedzia_ok'] = False
         cechy['generacja_przerwana'] = True
-        cechy['tokeny_stracone'] = len(bufor)
+        cechy['tokeny_stracone'] = licznik_tokenow
         if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
         return {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia',
@@ -298,12 +300,22 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
     strumien = answer_stream(query, agent_odp, chunks, bielik_model, history, lang, styl=styl)
     for ev in strumien:
         if ev['typ'] == 'token':
-            if przepuszczone:
+            if przepuszczone and not optymistycznie:
+                yield ev
+                continue
+            licznik_tokenow += 1
+            if optymistycznie:
                 yield ev
                 continue
             bufor.append(ev)
             decyzja = werdykt_sedziego(czekaj=False)
             if decyzja is None:
+                if len(bufor) >= SEDZIA_BUFOR_MAX:
+                    optymistycznie = True
+                    przepuszczone = True
+                    for zbuforowany in bufor:
+                        yield zbuforowany
+                    bufor.clear()
                 continue
             if not decyzja:
                 strumien.close()
@@ -317,7 +329,7 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
         elif ev['typ'] == 'koniec':
             odpowiedz = ev['dane']
 
-    if not przepuszczone:
+    if not przepuszczone or optymistycznie:
         if not werdykt_sedziego(czekaj=True):
             yield odmowa_sedziego()
             return
