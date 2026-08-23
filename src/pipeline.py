@@ -471,17 +471,23 @@ def run_stream(query:str, bielik_model:str | None=None,
     strona = strona if strona in strony.STRONY else 'kupujacy'
 
     wynik_etapu = None
+    wyslane_tokeny = False
     for ev in probuj_sekcje(zapytanie_ret, query_emb, strona, query, history,
                              bielik_model, sedzia, lang, cfg, styl=styl):
         if ev['typ'] == 'rezultat':
             wynik_etapu = ev['dane']
         else:
+            if ev['typ'] == 'token':
+                wyslane_tokeny = True
             yield ev
 
     nota = None
     powod_etap2 = None
     bramki_pominiete = list(wynik_etapu.get('bramki_pominiete') or [])
     if wynik_etapu['powod_odmowy']:
+        if wyslane_tokeny:
+            yield {'typ': 'reset'}
+            wyslane_tokeny = False
         powod_etap1 = wynik_etapu['powod_odmowy']
         druga = next(s for s in strony.STRONY if s != strona)
         wynik_drugi = None
@@ -490,6 +496,8 @@ def run_stream(query:str, bielik_model:str | None=None,
             if ev['typ'] == 'rezultat':
                 wynik_drugi = ev['dane']
             else:
+                if ev['typ'] == 'token':
+                    wyslane_tokeny = True
                 yield ev
         for bramka in wynik_drugi.get('bramki_pominiete') or []:
             if bramka not in bramki_pominiete:
@@ -504,6 +512,9 @@ def run_stream(query:str, bielik_model:str | None=None,
             wynik_etapu = {'powod_odmowy': powod_etap1, 'cechy': wynik_etapu.get('cechy')}
 
     if wynik_etapu['powod_odmowy']:
+        if wyslane_tokeny:
+            yield {'typ': 'reset'}
+            wyslane_tokeny = False
         dane_odmowy = {'agent': '', 'answer': cfg['brak_wiedzy'],
                        'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
                        'powod_odmowy': wynik_etapu['powod_odmowy']}
