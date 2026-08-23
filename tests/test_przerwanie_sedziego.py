@@ -96,13 +96,52 @@ def podmien_wolnego_sedziego(monkeypatch, atrapa_pipeline, opoznienie=0.15):
 
 def test_przekroczony_bufor_puszcza_tokeny(monkeypatch, atrapa_pipeline):
     monkeypatch.setattr(pipeline, 'SEDZIA_BUFOR_MAX', 2)
-    agent = atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz.', sedzia=True)
-    atrapa_pipeline.tokeny[agent] = ['a ', 'b ', 'c ', 'd ']
-    podmien_wolnego_sedziego(monkeypatch, atrapa_pipeline)
+    atrapa_pipeline.ustaw_etap('kupujacy')
+
+    def generuj_bez_oczekiwania(query, agent, chunks, bielik_model, history, lang, styl=None):
+        for tekst in ['a ', 'b ', 'c ', 'd ']:
+            yield {'typ': 'token', 'tekst': tekst}
+        yield {'typ': 'koniec', 'dane': {'tekst': 'Odpowiedz.', 'cytaty': []}}
+
+    monkeypatch.setattr(pipeline, 'answer_stream', generuj_bez_oczekiwania)
+
+    class OpakowanyEgzekutor:
+        def __init__(self, wewnetrzny):
+            self.wewnetrzny = wewnetrzny
+            self.ostatni = None
+
+        def submit(self, *args, **kwargs):
+            self.ostatni = self.wewnetrzny.submit(*args, **kwargs)
+            return self.ostatni
+
+    prawdziwy = ThreadPoolExecutor(max_workers=1)
+    opakowany = OpakowanyEgzekutor(prawdziwy)
+    monkeypatch.setattr(pipeline, 'EGZEKUTOR_SEDZIEGO', opakowany)
+
+    blokada = threading.Event()
+
+    def sedzia_zablokowany(zapytanie, chunks, bielik_model=None, lang='pl', stan=None):
+        blokada.wait(timeout=2.0)
+        return True
+
+    monkeypatch.setattr(pipeline, 'czy_kontekst_odpowiada', sedzia_zablokowany)
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
-    zdarzenia = list(pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
-                                          bez_korekty=True, sedzia=True, lang='pl'))
-    teksty = [z['tekst'] for z in zdarzenia if z['typ'] == 'token']
+
+    zdarzenia = pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
+                                     bez_korekty=True, sedzia=True, lang='pl')
+    teksty = []
+    try:
+        for z in zdarzenia:
+            if z['typ'] == 'token':
+                teksty.append(z['tekst'])
+                if len(teksty) == 2:
+                    break
+        assert teksty == ['a ', 'b ']
+        assert opakowany.ostatni is not None and not opakowany.ostatni.done()
+    finally:
+        blokada.set()
+        teksty += [z['tekst'] for z in zdarzenia if z['typ'] == 'token']
+
     assert teksty == ['a ', 'b ', 'c ', 'd ']
 
 
@@ -115,10 +154,15 @@ def test_odmowa_po_optymistycznym_wyslaniu(monkeypatch, atrapa_pipeline):
     zdarzenia = list(pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
                                           bez_korekty=True, sedzia=True, lang='pl'))
     typy = [z['typ'] for z in zdarzenia]
+    teksty = [z['tekst'] for z in zdarzenia if z['typ'] == 'token']
+    assert teksty == ['a ', 'b ', 'c ', 'd ']
+    assert 'reset' not in typy
     assert zdarzenia[-1]['typ'] == 'wynik'
-    assert zdarzenia[-1]['dane']['powod_odmowy'] == 'sedzia'
-    assert 'reset' in typy
-    assert zdarzenia[-1]['dane']['cechy']['tokeny_stracone'] >= 2
+    assert not zdarzenia[-1]['dane'].get('powod_odmowy')
+    cechy = zdarzenia[-1]['dane']['cechy']
+    assert cechy['sedzia_ok'] is False
+    assert not cechy.get('generacja_przerwana')
+    assert not cechy.get('tokeny_stracone')
 
 
 def test_anulowanie_sedziego_po_porzuceniu(monkeypatch, atrapa_pipeline):

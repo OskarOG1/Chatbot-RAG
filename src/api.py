@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 from typing import Literal
-from pipeline import run, run_stream, MODELE, corpus_stamp, redaguj, IDF_DANE
+from pipeline import run, run_stream, MODELE, corpus_stamp, redaguj, IDF_DANE, EGZEKUTOR_SEDZIEGO
 from rankings import get_reranker, get_bm25, get_faiss
 from spell import detect_lang, load_dictionary
 from guards import MAX_ZNAKI, normalizuj
@@ -416,6 +416,7 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
     yield
+    EGZEKUTOR_SEDZIEGO.shutdown(wait=False, cancel_futures=True)
 
 MAX_ZNAKI_WPISU = int(os.getenv('MAX_ZNAKI_WPISU', '8000'))
 MAX_WPISOW_HISTORII = int(os.getenv('MAX_WPISOW_HISTORII', '100'))
