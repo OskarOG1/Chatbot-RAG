@@ -1,3 +1,7 @@
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
+
 import pipeline
 import strony
 
@@ -77,3 +81,73 @@ def test_sukces_bez_resetu(monkeypatch, atrapa_pipeline):
     assert 'reset' not in typy
     teksty = [z['tekst'] for z in zdarzenia if z['typ'] == 'token']
     assert teksty == ['A1 ', 'A2 ']
+
+
+def podmien_wolnego_sedziego(monkeypatch, atrapa_pipeline, opoznienie=0.15):
+    oryginal = atrapa_pipeline.osadz_sedzia
+
+    def wolny(zapytanie, chunks, bielik_model=None, lang='pl', stan=None):
+        time.sleep(opoznienie)
+        return oryginal(zapytanie, chunks, bielik_model, lang, stan)
+
+    monkeypatch.setattr(pipeline, 'czy_kontekst_odpowiada', wolny)
+    atrapa_pipeline.sedzia_gotowy.set()
+
+
+def test_przekroczony_bufor_puszcza_tokeny(monkeypatch, atrapa_pipeline):
+    monkeypatch.setattr(pipeline, 'SEDZIA_BUFOR_MAX', 2)
+    agent = atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz.', sedzia=True)
+    atrapa_pipeline.tokeny[agent] = ['a ', 'b ', 'c ', 'd ']
+    podmien_wolnego_sedziego(monkeypatch, atrapa_pipeline)
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+    zdarzenia = list(pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
+                                          bez_korekty=True, sedzia=True, lang='pl'))
+    teksty = [z['tekst'] for z in zdarzenia if z['typ'] == 'token']
+    assert teksty == ['a ', 'b ', 'c ', 'd ']
+
+
+def test_odmowa_po_optymistycznym_wyslaniu(monkeypatch, atrapa_pipeline):
+    monkeypatch.setattr(pipeline, 'SEDZIA_BUFOR_MAX', 2)
+    agent = atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz.', sedzia=False)
+    atrapa_pipeline.tokeny[agent] = ['a ', 'b ', 'c ', 'd ']
+    podmien_wolnego_sedziego(monkeypatch, atrapa_pipeline)
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+    zdarzenia = list(pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
+                                          bez_korekty=True, sedzia=True, lang='pl'))
+    typy = [z['typ'] for z in zdarzenia]
+    assert zdarzenia[-1]['typ'] == 'wynik'
+    assert zdarzenia[-1]['dane']['powod_odmowy'] == 'sedzia'
+    assert 'reset' in typy
+    assert zdarzenia[-1]['dane']['cechy']['tokeny_stracone'] >= 2
+
+
+def test_anulowanie_sedziego_po_porzuceniu(monkeypatch, atrapa_pipeline):
+    class OpakowanyEgzekutor:
+        def __init__(self, wewnetrzny):
+            self.wewnetrzny = wewnetrzny
+            self.ostatni = None
+
+        def submit(self, *args, **kwargs):
+            self.ostatni = self.wewnetrzny.submit(*args, **kwargs)
+            return self.ostatni
+
+    prawdziwy = ThreadPoolExecutor(max_workers=1)
+    opakowany = OpakowanyEgzekutor(prawdziwy)
+    monkeypatch.setattr(pipeline, 'EGZEKUTOR_SEDZIEGO', opakowany)
+    blokada = threading.Event()
+    prawdziwy.submit(blokada.wait)
+    try:
+        atrapa_pipeline.ustaw_etap('kupujacy', sedzia=True)
+        gen = pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
+                                   bez_korekty=True, sedzia=True, lang='pl')
+        for _ in range(20):
+            next(gen)
+            if opakowany.ostatni is not None:
+                break
+        else:
+            raise AssertionError('sedzia nie zostal zlecony w rozsadnej liczbie zdarzen')
+        gen.close()
+        assert opakowany.ostatni.cancelled()
+    finally:
+        blokada.set()
+        prawdziwy.shutdown(wait=True)

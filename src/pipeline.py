@@ -15,6 +15,7 @@ import os
 import pickle
 import re
 import simplemma
+import atexit
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
@@ -32,7 +33,11 @@ OKNO_HISTORII = 3
 OKNO_JAWNEJ_ODMOWY = 160
 SEDZIA_CHUNKOW = int(os.getenv('SEDZIA_CHUNKOW', '3'))
 SEDZIA_CZEKANIE = float(os.getenv('SEDZIA_CZEKANIE', '30'))
-EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=4, thread_name_prefix='sedzia')
+SEDZIA_ROWNOLEGLE = int(os.getenv('SEDZIA_ROWNOLEGLE', '8'))
+SEDZIA_BUFOR_MAX = int(os.getenv('SEDZIA_BUFOR_MAX', '40'))
+EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=SEDZIA_ROWNOLEGLE,
+                                        thread_name_prefix='sedzia')
+atexit.register(EGZEKUTOR_SEDZIEGO.shutdown, wait=False, cancel_futures=True)
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 PII_WZORCE = (
@@ -227,6 +232,19 @@ def cytaty_lub_zrodla(cytaty: list[dict], chunks: list[tuple[dict, float]]) -> l
 def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, history: list[dict],
                    bielik_model: str | None, sedzia: bool | None, lang: str, cfg: dict,
                    styl: str | None = None):
+    rejestr = {}
+    try:
+        yield from sekcja_z_bramkami(zapytanie_ret, query_emb, strona, query, history,
+                                      bielik_model, sedzia, lang, cfg, rejestr, styl)
+    finally:
+        zadanie = rejestr.get('werdykt')
+        if zadanie is not None:
+            zadanie.cancel()
+
+
+def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, history: list[dict],
+                       bielik_model: str | None, sedzia: bool | None, lang: str, cfg: dict,
+                       rejestr: dict, styl: str | None = None):
     def krok(t):
         return {'typ': 'krok', 'tekst': t}
     def rezultat(d):
@@ -259,13 +277,16 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
         werdykt = EGZEKUTOR_SEDZIEGO.submit(
             kontekst_kosztow.run,
             czy_kontekst_odpowiada, zapytanie_ret, chunks[:SEDZIA_CHUNKOW], None, lang, stan_sedziego)
+        rejestr['werdykt'] = werdykt
 
     etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
     yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=etykieta_sekcji))
 
     odpowiedz = None
     bufor = []
+    licznik_tokenow = 0
     przepuszczone = werdykt is None
+    optymistycznie = False
 
     def werdykt_sedziego(czekaj: bool):
         if not czekaj and not werdykt.done():
@@ -284,7 +305,7 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
     def odmowa_sedziego():
         cechy['sedzia_ok'] = False
         cechy['generacja_przerwana'] = True
-        cechy['tokeny_stracone'] = len(bufor)
+        cechy['tokeny_stracone'] = licznik_tokenow
         if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
         return {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia',
@@ -293,12 +314,22 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
     strumien = answer_stream(query, agent_odp, chunks, bielik_model, history, lang, styl=styl)
     for ev in strumien:
         if ev['typ'] == 'token':
-            if przepuszczone:
+            if przepuszczone and not optymistycznie:
+                yield ev
+                continue
+            licznik_tokenow += 1
+            if optymistycznie:
                 yield ev
                 continue
             bufor.append(ev)
             decyzja = werdykt_sedziego(czekaj=False)
             if decyzja is None:
+                if len(bufor) >= SEDZIA_BUFOR_MAX:
+                    optymistycznie = True
+                    przepuszczone = True
+                    for zbuforowany in bufor:
+                        yield zbuforowany
+                    bufor.clear()
                 continue
             if not decyzja:
                 strumien.close()
@@ -312,7 +343,7 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
         elif ev['typ'] == 'koniec':
             odpowiedz = ev['dane']
 
-    if not przepuszczone:
+    if not przepuszczone or optymistycznie:
         if not werdykt_sedziego(czekaj=True):
             yield odmowa_sedziego()
             return
