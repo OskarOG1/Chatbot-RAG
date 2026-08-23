@@ -28,7 +28,7 @@ def nowy_klient(limit_czasu: float | None = None) -> InferenceClient:
     return InferenceClient(
         base_url=LLM_BASE_URL,
         api_key=LLM_API_KEY,
-        timeout=limit_czasu or LLM_TIMEOUT,
+        timeout=LLM_TIMEOUT if limit_czasu is None else limit_czasu,
     )
 
 
