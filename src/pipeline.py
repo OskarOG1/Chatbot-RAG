@@ -232,6 +232,19 @@ def cytaty_lub_zrodla(cytaty: list[dict], chunks: list[tuple[dict, float]]) -> l
 def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, history: list[dict],
                    bielik_model: str | None, sedzia: bool | None, lang: str, cfg: dict,
                    styl: str | None = None):
+    rejestr = {}
+    try:
+        yield from sekcja_z_bramkami(zapytanie_ret, query_emb, strona, query, history,
+                                      bielik_model, sedzia, lang, cfg, rejestr, styl)
+    finally:
+        zadanie = rejestr.get('werdykt')
+        if zadanie is not None:
+            zadanie.cancel()
+
+
+def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, history: list[dict],
+                       bielik_model: str | None, sedzia: bool | None, lang: str, cfg: dict,
+                       rejestr: dict, styl: str | None = None):
     def krok(t):
         return {'typ': 'krok', 'tekst': t}
     def rezultat(d):
@@ -264,6 +277,7 @@ def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, histor
         werdykt = EGZEKUTOR_SEDZIEGO.submit(
             kontekst_kosztow.run,
             czy_kontekst_odpowiada, zapytanie_ret, chunks[:SEDZIA_CHUNKOW], None, lang, stan_sedziego)
+        rejestr['werdykt'] = werdykt
 
     etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
     yield krok(cfg['kroki']['generuje_odpowiedz'].format(agent=etykieta_sekcji))
