@@ -1,5 +1,4 @@
 import json
-import os
 import sys
 import threading
 import time
@@ -63,10 +62,8 @@ def serwer_atrapy():
     import agents_core
     stary_url = agents_core.LLM_BASE_URL
     stary_klucz = agents_core.LLM_API_KEY
-    os.environ['LLM_BASE_URL'] = f'http://127.0.0.1:{port}/v1'
-    os.environ['LLM_API_KEY'] = 'atrapa'
-    agents_core.LLM_BASE_URL = os.environ['LLM_BASE_URL']
-    agents_core.LLM_API_KEY = os.environ['LLM_API_KEY']
+    agents_core.LLM_BASE_URL = f'http://127.0.0.1:{port}/v1'
+    agents_core.LLM_API_KEY = 'atrapa'
 
     yield port
 
