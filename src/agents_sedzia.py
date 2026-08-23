@@ -1,12 +1,15 @@
 from lang_config import LANG
-from agents_core import PROMPTY, czat, context, KATEGORIE_MAIL, SEDZIA_TIMEOUT
+from agents_core import (PROMPTY, czat, context, skroc_tekst, KATEGORIE_MAIL,
+                         SEDZIA_TIMEOUT, SEDZIA_ZNAKOW)
 import re
 
 
 def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = None,
-                            lang: str = 'pl', stan: dict | None = None) -> bool:
+                            lang: str = 'pl', stan: dict | None = None,
+                            limit_znakow: int | None = None) -> bool:
     p = PROMPTY[lang]
-    teksty = [c for c, _ in chunks]
+    limit = SEDZIA_ZNAKOW if limit_znakow is None else limit_znakow
+    teksty = [dict(c, tekst=skroc_tekst(c['tekst'], limit)) for c, _ in chunks]
     kontekst = context(teksty)
     wiadomosci = [
         {'role': 'system', 'content': p['sedzia_system']},

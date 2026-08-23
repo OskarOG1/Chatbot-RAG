@@ -21,13 +21,14 @@ LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'http://localhost:11434/v1')
 LLM_API_KEY = os.getenv('LLM_API_KEY', 'ollama')
 LLM_TIMEOUT = float(os.getenv('LLM_TIMEOUT', '150'))
 SEDZIA_TIMEOUT = float(os.getenv('SEDZIA_TIMEOUT', '20'))
+SEDZIA_ZNAKOW = int(os.getenv('SEDZIA_ZNAKOW', '0'))
 
 
 def nowy_klient(limit_czasu: float | None = None) -> InferenceClient:
     return InferenceClient(
         base_url=LLM_BASE_URL,
         api_key=LLM_API_KEY,
-        timeout=limit_czasu or LLM_TIMEOUT,
+        timeout=LLM_TIMEOUT if limit_czasu is None else limit_czasu,
     )
 
 
@@ -467,6 +468,14 @@ def usun_sekcje_zrodel(tekst: str) -> str:
                 return '\n'.join(linie[:i]).rstrip()
             return '\n'.join(linie[:i] + reszta)
     return tekst
+
+
+def skroc_tekst(tekst: str, limit: int) -> str:
+    if limit <= 0 or len(tekst) <= limit:
+        return tekst
+    obciety = tekst[:limit]
+    spacja = obciety.rfind(' ')
+    return obciety[:spacja] if spacja > limit // 2 else obciety
 
 
 def context(chunks: list[dict]) -> str:
