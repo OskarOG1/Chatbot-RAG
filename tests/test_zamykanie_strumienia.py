@@ -107,6 +107,9 @@ def test_przerwanie_zamyka_polaczenie(stan_czysty, serwer_atrapy):
             if odebrane >= 5:
                 break
     assert odebrane == 5
+    assert polaczenia_do_atrapy(serwer_atrapy), (
+        'pula nie pokazuje polaczenia do atrapy, wiec asercja o jego zamknieciu '
+        'nie sprawdzalaby niczego, sprawdz sciezke get_session()._transport._pool')
     kawalki_przed_close = STAN_ATRAPY['kawalki']
 
     strumien.close()
