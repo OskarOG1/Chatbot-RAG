@@ -15,6 +15,7 @@ import os
 import pickle
 import re
 import simplemma
+import atexit
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
@@ -32,7 +33,11 @@ OKNO_HISTORII = 3
 OKNO_JAWNEJ_ODMOWY = 160
 SEDZIA_CHUNKOW = int(os.getenv('SEDZIA_CHUNKOW', '3'))
 SEDZIA_CZEKANIE = float(os.getenv('SEDZIA_CZEKANIE', '30'))
-EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=4, thread_name_prefix='sedzia')
+SEDZIA_ROWNOLEGLE = int(os.getenv('SEDZIA_ROWNOLEGLE', '8'))
+SEDZIA_BUFOR_MAX = int(os.getenv('SEDZIA_BUFOR_MAX', '40'))
+EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=SEDZIA_ROWNOLEGLE,
+                                        thread_name_prefix='sedzia')
+atexit.register(EGZEKUTOR_SEDZIEGO.shutdown, wait=False, cancel_futures=True)
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 PII_WZORCE = (
