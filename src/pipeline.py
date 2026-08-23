@@ -15,7 +15,6 @@ import os
 import pickle
 import re
 import simplemma
-import atexit
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
@@ -37,7 +36,6 @@ SEDZIA_ROWNOLEGLE = int(os.getenv('SEDZIA_ROWNOLEGLE', '8'))
 SEDZIA_BUFOR_MAX = int(os.getenv('SEDZIA_BUFOR_MAX', '40'))
 EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=SEDZIA_ROWNOLEGLE,
                                         thread_name_prefix='sedzia')
-atexit.register(EGZEKUTOR_SEDZIEGO.shutdown, wait=False, cancel_futures=True)
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
 PII_WZORCE = (
@@ -302,10 +300,10 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
             stan_sedziego['sedzia_pominiety'] = True
             return True
 
-    def odmowa_sedziego():
+    def odmowa_sedziego(przerwano: bool):
         cechy['sedzia_ok'] = False
-        cechy['generacja_przerwana'] = True
-        cechy['tokeny_stracone'] = licznik_tokenow
+        cechy['generacja_przerwana'] = przerwano
+        cechy['tokeny_stracone'] = licznik_tokenow if przerwano else 0
         if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
         return {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia',
@@ -333,7 +331,7 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
                 continue
             if not decyzja:
                 strumien.close()
-                yield odmowa_sedziego()
+                yield odmowa_sedziego(przerwano=True)
                 return
             cechy['sedzia_ok'] = True
             przepuszczone = True
@@ -344,10 +342,11 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
             odpowiedz = ev['dane']
 
     if not przepuszczone or optymistycznie:
-        if not werdykt_sedziego(czekaj=True):
-            yield odmowa_sedziego()
+        werdykt_pozytywny = werdykt_sedziego(czekaj=True)
+        if not werdykt_pozytywny and not optymistycznie:
+            yield odmowa_sedziego(przerwano=False)
             return
-        cechy['sedzia_ok'] = True
+        cechy['sedzia_ok'] = werdykt_pozytywny
         for zbuforowany in bufor:
             yield zbuforowany
 
