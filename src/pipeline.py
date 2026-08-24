@@ -37,7 +37,8 @@ SEDZIA_BUFOR_MAX = int(os.getenv('SEDZIA_BUFOR_MAX', '40'))
 EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=SEDZIA_ROWNOLEGLE,
                                         thread_name_prefix='sedzia')
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
-LOG_TRUDNE = Path(__file__).resolve().parent.parent / 'RAG' / 'trudne.jsonl'
+KATALOG_RAG = Path(__file__).resolve().parent.parent / 'RAG'
+LOG_TRUDNE = KATALOG_RAG / 'trudne.jsonl'
 PII_WZORCE = (
     re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+'),
     re.compile(r'(?:\+\d{1,3}[\s-]?)?(?:\d[\s.-]?){9,}'),
@@ -102,13 +103,13 @@ def embed_query(lang: str, tekst: str):
 
 def chunks_path(lang: str) -> Path:
     suffix = LANG[lang]['suffix']
-    return Path(__file__).resolve().parent.parent / 'RAG' / f'chunks{suffix}.json'
+    return KATALOG_RAG / f'chunks{suffix}.json'
 
 
 def sekcje_chunks_paths(lang: str) -> list[Path]:
     suffix = LANG[lang]['suffix']
-    rag_dir = Path(__file__).resolve().parent.parent / 'RAG'
-    return [rag_dir / f'chunks_kupujacy{suffix}.json', rag_dir / f'chunks_sprzedaz{suffix}.json']
+    return [KATALOG_RAG / f'chunks_kupujacy{suffix}.json',
+            KATALOG_RAG / f'chunks_sprzedaz{suffix}.json']
 
 
 def corpus_stamp(lang: str) -> int:

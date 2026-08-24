@@ -52,9 +52,15 @@ class HandlerAtrapy(BaseHTTPRequestHandler):
             STAN_ATRAPY['blad'] = repr(e)
 
 
+class SerwerAtrapy(ThreadingHTTPServer):
+
+    def handle_error(self, request, client_address):
+        pass
+
+
 @pytest.fixture(scope='module')
 def serwer_atrapy():
-    serwer = ThreadingHTTPServer(('127.0.0.1', 0), HandlerAtrapy)
+    serwer = SerwerAtrapy(('127.0.0.1', 0), HandlerAtrapy)
     port = serwer.server_address[1]
     watek = threading.Thread(target=serwer.serve_forever, daemon=True)
     watek.start()

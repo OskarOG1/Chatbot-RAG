@@ -1,7 +1,7 @@
 
 from huggingface_hub import InferenceClient
 from urls import ARTYKUL_REGEX
-from lang_config import LANG, MODEL_11B, MODEL_DOMYSLNY
+from lang_config import MODEL_11B, MODEL_DOMYSLNY
 from pathlib import Path
 from dotenv import load_dotenv
 from collections import Counter
@@ -11,9 +11,7 @@ import os
 
 load_dotenv(Path(__file__).resolve().parent / '.env')
 
-MODEL_NAME = LANG['pl']['model']
 MODEL_FALLBACK = os.getenv('MODEL_FALLBACK', MODEL_11B)
-SEDZIA_MODEL = LANG['pl']['sedzia_model']
 EMAIL_MODEL = os.getenv('EMAIL_MODEL', MODEL_11B)
 MAX_TOKENS = int(os.getenv('MAX_TOKENS', '1500'))
 
@@ -30,9 +28,6 @@ def nowy_klient(limit_czasu: float | None = None) -> InferenceClient:
         api_key=LLM_API_KEY,
         timeout=LLM_TIMEOUT if limit_czasu is None else limit_czasu,
     )
-
-
-klient = nowy_klient()
 
 
 def czat(nazwa: str, wiadomosci: list[dict], limit_czasu: float | None = None, **kwargy):

@@ -88,25 +88,3 @@ def test_kolejnosc_wynikow_jest_nierosnaca(atrapa_retrievalu):
 
     assert oceny == sorted(oceny, reverse=True)
     assert oceny == [6.0, 5.0, 4.0, 0.5]
-
-
-# B6 (Pomiary/PLAN_PRZEGLAD_PR44_PR45.md): dedup_tresci mierzono osobnym skryptem
-# (Pomiary/measure_dedup_hybrid.py, hit@5 38/50 -> 39/50 bez straty na hit@1), wiec
-# search_hybrid dedupuje po tresci na stale, tak jak search_reranked_multi.
-
-
-def test_search_hybrid_dedupuje_po_tresci(monkeypatch):
-    kandydaci = [
-        {'agent': 'kupujacy', 'url': 'https://allegro.pl/pomoc/a-1', 'tytul': 'T', 'tekst': 'X', 'naglowek': None},
-        {'agent': 'kupujacy', 'url': 'https://allegro.pl/pomoc/a-2', 'tytul': 'T', 'tekst': 'X', 'naglowek': None},
-        {'agent': 'kupujacy', 'url': 'https://allegro.pl/pomoc/b-1', 'tytul': 'U', 'tekst': 'Y', 'naglowek': None},
-    ]
-    monkeypatch.setattr(rankings, 'wczytaj_chunki', lambda agent, lang: kandydaci)
-    monkeypatch.setattr(rankings, 'ranking_faiss', lambda emb, agent, chunki, lang: [0, 1, 2])
-    monkeypatch.setattr(rankings, 'ranking_bm25', lambda query, agent, lang: [0, 1, 2])
-
-    wyniki = rankings.search_hybrid('pytanie', None, 'kupujacy', k=5, lang='pl')
-    urle = [c['url'] for c, _ in wyniki]
-
-    assert len(urle) == 2
-    assert urle.count('https://allegro.pl/pomoc/a-1') + urle.count('https://allegro.pl/pomoc/a-2') == 1

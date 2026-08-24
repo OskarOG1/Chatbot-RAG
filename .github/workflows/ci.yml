@@ -15,6 +15,7 @@ jobs:
         with:
           path: ~/.cache/huggingface
           key: hf-cache-${{ hashFiles('requirements.txt', 'requirements-test.txt') }}
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu torch==2.13.0
       - run: pip install -r requirements-test.txt
       - run: ruff check src tests
       - run: pytest tests -q -rs

@@ -68,36 +68,52 @@ def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl')
     return sorted(unikalne, key=lambda p: p[1], reverse=True)[:k]
 
 
+def stempel_pliku(sciezka) -> int | None:
+    try:
+        return sciezka.stat().st_mtime_ns
+    except OSError:
+        return None
+
+
+def z_cache(cache: dict, klucz: tuple, sciezka, wczytaj):
+    stempel = stempel_pliku(sciezka)
+    wpis = cache.get(klucz)
+    if wpis is not None and wpis[0] == stempel:
+        return wpis[1]
+    wartosc = wczytaj(sciezka)
+    cache[klucz] = (stempel, wartosc)
+    return wartosc
+
+
 BM25_CACHE = {}
 def get_bm25(agent:str, lang:str='pl'):
-    klucz = (lang, agent)
-    if klucz not in BM25_CACHE:
-        suffix = LANG[lang]['suffix']
-        with open(RAG_DIR / f'{agent}{suffix}.bm25', 'rb') as r:
-         BM25_CACHE[klucz] = pickle.load(r)
+    suffix = LANG[lang]['suffix']
+    sciezka = RAG_DIR / f'{agent}{suffix}.bm25'
 
-    return BM25_CACHE[klucz]
+    def wczytaj(plik):
+        with open(plik, 'rb') as r:
+            return pickle.load(r)
+
+    return z_cache(BM25_CACHE, (lang, agent), sciezka, wczytaj)
 
 FAISS_CACHE = {}
 def get_faiss(agent:str, lang:str='pl'):
-    klucz = (lang, agent)
-    if klucz not in FAISS_CACHE:
-        suffix = LANG[lang]['suffix']
-        FAISS_CACHE[klucz] = faiss.read_index(str(RAG_DIR / f'{agent}{suffix}.faiss'))
-
-    return FAISS_CACHE[klucz]
+    suffix = LANG[lang]['suffix']
+    sciezka = RAG_DIR / f'{agent}{suffix}.faiss'
+    return z_cache(FAISS_CACHE, (lang, agent), sciezka,
+                   lambda plik: faiss.read_index(str(plik)))
 
 CHUNKI_CACHE = {}
 def wczytaj_chunki(agent:str, lang:str='pl') -> list[dict]:
-    klucz = (lang, agent)
-    if klucz not in CHUNKI_CACHE:
-        suffix = LANG[lang]['suffix']
-        nazwa = f'chunks{suffix}.json' if agent == 'all' else f'chunks_{agent}{suffix}.json'
-        sciezka_chunki = RAG_DIR / nazwa
-        with open(sciezka_chunki, 'r', encoding='utf-8') as r:
-            CHUNKI_CACHE[klucz] = json.load(r)
+    suffix = LANG[lang]['suffix']
+    nazwa = f'chunks{suffix}.json' if agent == 'all' else f'chunks_{agent}{suffix}.json'
+    sciezka = RAG_DIR / nazwa
 
-    return CHUNKI_CACHE[klucz]
+    def wczytaj(plik):
+        with open(plik, 'r', encoding='utf-8') as r:
+            return json.load(r)
+
+    return z_cache(CHUNKI_CACHE, (lang, agent), sciezka, wczytaj)
 
 def ranking_faiss(query_emb, agent:str, chunki: list[dict], lang:str='pl') -> list[int]:
 
@@ -145,16 +161,3 @@ def rrf(rankingi: list[list[int]]) -> dict[int, float]:
             punkty[idx] = punkty.get(idx, 0) + 1 / (K_RRF + pozycja)
             
     return punkty
-
-def search_hybrid(query: str, query_emb, agent: str, k:int= 5, lang:str='pl') -> list[tuple]:
-
-    chunki = wczytaj_chunki(agent, lang)
-    r_faiss = ranking_faiss(query_emb, agent, chunki, lang)
-    r_bm25 = ranking_bm25(query, agent, lang)
-    punkty = rrf([r_faiss, r_bm25])
-
-    posortowane = sorted(punkty, key=punkty.get, reverse=True)
-    wyniki = [(chunki[idx], punkty[idx]) for idx in posortowane]
-    wyniki = dedup_najlepszy(wyniki, klucz_url)
-    wyniki = dedup_najlepszy(wyniki, klucz_tresci)
-    return wyniki[:k]
