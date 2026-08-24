@@ -78,6 +78,22 @@ LANG = {
                              'płatności i sprzedaż na Allegro.',
             'maks_zdan': 3,
             'maks_znakow': 600,
+            'domena': {
+                'slowa': {'allegro', 'konto', 'konta', 'koncie', 'login', 'loginu', 'hasło',
+                          'hasła', 'oferta', 'oferty', 'ofertę', 'ofercie', 'aukcja', 'aukcji',
+                          'aukcje', 'licytacja', 'licytacji', 'kupujący', 'sprzedający',
+                          'sprzedawca', 'sprzedawcy', 'sprzedaż', 'sprzedaży', 'zamówienie',
+                          'zamówienia', 'zamówień', 'przesyłka', 'przesyłki', 'paczka', 'paczki',
+                          'paczkomat', 'paczkomatu', 'kurier', 'kuriera', 'dostawa', 'dostawy',
+                          'zwrot', 'zwrotu', 'zwroty', 'reklamacja', 'reklamacji', 'reklamację',
+                          'faktura', 'faktury', 'fakturę', 'płatność', 'płatności', 'przelew',
+                          'przelewu', 'zapłata', 'zapłaty', 'zapłacić', 'opłata', 'opłaty',
+                          'opłacić', 'raty', 'ratach', 'prowizja', 'prowizji', 'koszyk',
+                          'koszyka', 'kupon', 'kuponu', 'rabat', 'rabatu', 'wystawić',
+                          'wystawienie', 'wystawiania', 'opinie', 'opinii', 'smart', 'inpost'},
+                'frazy': ('allegro pay', 'allegro smart', 'allegro lokalnie', 'allegro one',
+                          'centrum pomocy', 'one box', 'moje zakupy', 'moja sprzedaż'),
+            },
             'tematy_zablokowane': {
                 'kryzys': {
                     'slowa': {'samobójstwo', 'samobójstwa', 'samookaleczenie', 'samookaleczenia'},
@@ -288,6 +304,16 @@ LANG = {
                              'payments, and selling on Allegro.',
             'maks_zdan': 3,
             'maks_znakow': 600,
+            'domena': {
+                'slowa': {'allegro', 'account', 'login', 'password', 'offer', 'offers', 'auction',
+                          'auctions', 'bid', 'bidding', 'buyer', 'seller', 'selling', 'order',
+                          'orders', 'parcel', 'package', 'courier', 'delivery', 'shipping',
+                          'return', 'returns', 'refund', 'complaint', 'invoice', 'payment',
+                          'payments', 'transfer', 'instalments', 'commission', 'basket', 'cart',
+                          'coupon', 'discount', 'listing', 'reviews', 'smart', 'inpost'},
+                'frazy': ('allegro pay', 'allegro smart', 'allegro lokalnie', 'allegro one',
+                          'help center', 'one box', 'my purchases', 'my sales'),
+            },
             'tematy_zablokowane': {
                 'kryzys': {
                     'slowa': {'suicide', 'suicidal', 'selfharm'},

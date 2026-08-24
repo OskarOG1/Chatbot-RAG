@@ -410,8 +410,15 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
 
 
 def probuj_ogolna(query: str, history: list[dict], bielik_model: str | None,
-                   lang: str, cfg: dict):
-    cechy = {'ogolna_temat': None, 'ogolna_znakow': 0, 'ogolna_konkrety': None}
+                   lang: str, cfg: dict, powod_rag: str | None = None):
+    cechy = {'ogolna_temat': None, 'ogolna_domena': False, 'ogolna_znakow': 0,
+             'ogolna_konkrety': None}
+
+    if powod_rag is not None and powod_rag != 'prog_rerank':
+        cechy['ogolna_domena'] = True
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'ogolna_blisko_bazy',
+                                            'answer': None, 'cechy': cechy}}
+        return
 
     zablokowany = ogolna.temat_zablokowany(query, lang)
     if zablokowany:
@@ -419,6 +426,12 @@ def probuj_ogolna(query: str, history: list[dict], bielik_model: str | None,
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'ogolna_temat',
                                             'answer': ogolna.komunikat_tematu(zablokowany, lang),
                                             'cechy': cechy}}
+        return
+
+    if ogolna.pytanie_o_allegro(query, lang):
+        cechy['ogolna_domena'] = True
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'ogolna_domena',
+                                            'answer': None, 'cechy': cechy}}
         return
 
     yield {'typ': 'krok', 'tekst': cfg['kroki']['odpowiadam_ogolnie']}
@@ -597,7 +610,8 @@ def run_stream(query:str, bielik_model:str | None=None,
 
         wynik_ogolnej = None
         if OGOLNA_ON if warstwa_ogolna is None else warstwa_ogolna:
-            for ev in probuj_ogolna(query, history, bielik_model, lang, cfg):
+            for ev in probuj_ogolna(query, history, bielik_model, lang, cfg,
+                                     wynik_etapu['powod_odmowy']):
                 if ev['typ'] == 'rezultat':
                     wynik_ogolnej = ev['dane']
                 else:

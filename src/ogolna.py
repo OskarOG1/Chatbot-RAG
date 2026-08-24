@@ -46,6 +46,21 @@ def temat_zablokowany(query: str, lang: str = 'pl') -> str | None:
     return None
 
 
+@lru_cache(maxsize=8)
+def listy_domeny(lang: str) -> tuple:
+    cfg = LANG[lang]['ogolna']['domena']
+    return (frozenset(fold(s) for s in cfg['slowa']),
+            tuple(fold(f) for f in cfg['frazy']))
+
+
+def pytanie_o_allegro(query: str, lang: str = 'pl') -> bool:
+    plaski = fold(query)
+    slowa, frazy = listy_domeny(lang)
+    if set(tokenize_words(plaski)) & slowa:
+        return True
+    return any(fraza in plaski for fraza in frazy)
+
+
 def komunikat_tematu(nazwa: str, lang: str = 'pl') -> str:
     cfg = LANG[lang]['ogolna']
     return cfg['tematy_zablokowane'][nazwa].get('komunikat') or cfg['poza_zakresem']

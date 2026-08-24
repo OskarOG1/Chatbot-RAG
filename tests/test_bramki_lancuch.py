@@ -103,7 +103,7 @@ def test_zbior_wartosci_powod_odmowy_pokryty_kodem():
         'jawna_odmowa', 'nie_zrozumialem', 'mail_doprecyzuj',
         'guard_za_krotkie', 'guard_za_dlugie', 'guard_nie_rozumiem',
         'guard_zly_alfabet', 'guard_injekcja',
-        'ogolna_temat', 'ogolna_brak_generacji',
+        'ogolna_temat', 'ogolna_domena', 'ogolna_blisko_bazy', 'ogolna_brak_generacji',
     }
     assert znalezione == oczekiwane
 
