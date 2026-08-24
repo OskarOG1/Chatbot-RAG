@@ -67,12 +67,6 @@ def test_sprawdz_odpowiedz_za_krotka_daje_ogolna_pusta():
     assert wynik['powod'] == 'ogolna_pusta'
 
 
-def test_z_odeslaniem_dokleja_odeslanie_z_konfiguracji():
-    wynik = ogolna.z_odeslaniem('Tekst odpowiedzi.', 'pl')
-    assert wynik.startswith('Tekst odpowiedzi.')
-    assert pipeline.LANG['pl']['ogolna']['odeslanie'] in wynik
-
-
 # Grupa E: integracja przez pipeline.run, obie sekcje RAG odmawiaja przez prog_rerank
 # (atrapa_pipeline nie ma ustawionej zadnej sekcji), wiec kaskada zawsze schodzi do
 # trzeciego szczebla drabiny.
@@ -87,7 +81,7 @@ def test_ogolna_czysta_odpowiedz_wygrywa_jako_wynik(atrapa_pipeline):
     assert wynik['sources'] == []
     assert wynik['citations'] == []
     assert wynik['nota_sekcji']
-    assert wynik['answer'].endswith(pipeline.LANG['pl']['ogolna']['odeslanie'])
+    assert 'allegro.pl/pomoc' not in wynik['answer']
     assert wynik['powod_rag'] == 'prog_rerank'
 
 
@@ -174,10 +168,23 @@ def test_strumien_resetuje_po_tokenach_warstwy_ogolnej(atrapa_pipeline):
     assert indeks_resetu < len(typy) - 1
 
 
-def test_odmowa_sedziego_nie_schodzi_do_warstwy_ogolnej(atrapa_pipeline, chunk):
+def test_odmowa_sedziego_schodzi_do_warstwy_ogolnej(atrapa_pipeline):
+    # sedzia mowiacy NIE stwierdza, ze kontekst i pytanie sa z roznych dziedzin, czyli jest
+    # to argument ZA warstwa ogolna, nie przeciw. Blokuja tylko powody znaczace, ze baza
+    # miala material na temat pytania.
     atrapa_pipeline.ustaw_etap('kupujacy', sedzia=False)
+    atrapa_pipeline.ogolna_tekst = ('Sklepy internetowe zwykle stosują podobne zasady '
+                                     'obsługi klienta i wsparcia technicznego.')
     wynik = pipeline.run('jakies pytanie poza domena', strona='kupujacy',
                          bez_korekty=True, sedzia=True, lang='pl')
-    assert wynik['powod_odmowy'] == 'sedzia'
+    assert wynik['tryb'] == 'ogolna'
+
+
+def test_odmowa_pokrycia_nie_schodzi_do_warstwy_ogolnej(monkeypatch, atrapa_pipeline):
+    atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz nie majaca zwiazku z pytaniem.')
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 0.0)
+    wynik = pipeline.run('jakies pytanie poza domena', strona='kupujacy',
+                         bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik['powod_odmowy'] == 'pokrycie'
     assert wynik['powod_ogolna'] == 'ogolna_blisko_bazy'
     assert atrapa_pipeline.wywolania['ogolna'] == 0

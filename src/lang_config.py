@@ -73,7 +73,6 @@ LANG = {
         },
         'ogolna': {
             'nota': 'To odpowiedź z ogólnej wiedzy asystenta, nie z bazy pomocy Allegro.',
-            'odeslanie': 'Dokładne zasady sprawdź w Centrum Pomocy Allegro: https://allegro.pl/pomoc',
             'poza_zakresem': 'W tej sprawie nie pomogę. Odpowiadam na pytania o konto, zakupy, '
                              'płatności i sprzedaż na Allegro.',
             'maks_zdan': 3,
@@ -172,7 +171,11 @@ LANG = {
             'podziekowania': ('dziękuję', 'dzięki', 'dziękuję bardzo', 'wielkie dzięki',
                               'super dzięki', 'pomogło', 'to pomogło', 'bardzo pomogło'),
             'meta': ('kim jesteś', 'kim ty jesteś', 'co potrafisz', 'w czym możesz pomóc',
-                     'w czym możesz mi pomóc', 'czym się zajmujesz', 'co robisz',
+                     'w czym możesz mi pomóc', 'z czym możesz pomóc', 'z czym możesz mi pomóc',
+                     'w czym jesteś w stanie pomóc', 'z czym jesteś w stanie pomóc',
+                     'w czym jesteś w stanie mi pomóc', 'z czym jesteś w stanie mi pomóc',
+                     'w czym pomagasz', 'z czym pomagasz', 'co potrafisz zrobić',
+                     'jak możesz mi pomóc', 'czym się zajmujesz', 'co robisz',
                      'czy jesteś botem', 'czy jesteś człowiekiem', 'jesteś botem',
                      'jesteś sztuczną inteligencją', 'do czego służysz'),
             'sterowanie': {
@@ -299,7 +302,6 @@ LANG = {
         },
         'ogolna': {
             'nota': "This answer comes from the assistant's general knowledge, not from Allegro's help base.",
-            'odeslanie': 'Check the exact rules in the Allegro Help Center: https://allegro.pl/help',
             'poza_zakresem': "I can't help with that. I answer questions about accounts, shopping, "
                              'payments, and selling on Allegro.',
             'maks_zdan': 3,
@@ -390,6 +392,8 @@ LANG = {
             'podziekowania': ('thanks', 'thank you', 'thanks a lot', 'thank you very much',
                               'that helped', 'thanks that helped'),
             'meta': ('who are you', 'what can you do', 'how can you help', 'what are you',
+                     'what can you help with', 'what are you able to help with',
+                     'how can you help me', 'what do you help with',
                      'are you a bot', 'are you human', 'are you an ai'),
             'sterowanie': {
                 'prosciej': ("i don't understand", 'i do not understand', 'simpler please',
