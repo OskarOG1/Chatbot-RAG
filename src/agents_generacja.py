@@ -2,15 +2,19 @@ from lang_config import LANG
 from agents_core import PROMPTY, nowy_klient, MAX_TOKENS, MODEL_FALLBACK, context, verify_answer
 import koszty
 import itertools
+import os
 import re
 
+OGOLNA_MAX_TOKENS = int(os.getenv('OGOLNA_MAX_TOKENS', '220'))
 
-def otworz_strumien(klient_strumienia, nazwa: str, wiadomosci: list[dict], stop: list[str]):
+
+def otworz_strumien(klient_strumienia, nazwa: str, wiadomosci: list[dict], stop: list[str],
+                     maks_tokenow: int = MAX_TOKENS):
     return klient_strumienia.chat.completions.create(
         model=nazwa,
         messages=wiadomosci,
         stream=True,
-        max_tokens=MAX_TOKENS,
+        max_tokens=maks_tokenow,
         stop=stop,
     )
 
@@ -45,16 +49,14 @@ def sfinalizuj(pelna: str, chunks: list, p: dict) -> dict:
     return verify_answer(pelna, chunks)
 
 
-def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
-                  history:list[dict] | None=None, lang:str='pl', styl:str | None=None):
-    wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang, styl)
-
+def pompuj_strumien(wiadomosci: list[dict], nazwa: str, stop: list[str], maks_tokenow: int,
+                     zebrane: dict):
     klient_strumienia = nowy_klient()
     pelna = ''
     zaksiegowane = False
     try:
         try:
-            strumien = otworz_strumien(klient_strumienia, nazwa, wiadomosci, stop)
+            strumien = otworz_strumien(klient_strumienia, nazwa, wiadomosci, stop, maks_tokenow)
             pierwszy = next(strumien)
             kawalki = itertools.chain([pierwszy], strumien)
         except StopIteration:
@@ -62,7 +64,7 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
         except Exception as e:
             print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_FALLBACK}')
             nazwa = MODEL_FALLBACK
-            kawalki = otworz_strumien(klient_strumienia, nazwa, wiadomosci, stop)
+            kawalki = otworz_strumien(klient_strumienia, nazwa, wiadomosci, stop, maks_tokenow)
 
         for kawalek in kawalki:
             if not kawalek.choices:
@@ -75,11 +77,37 @@ def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str |
 
         koszty.dodaj_z_odpowiedzi(nazwa, None, wiadomosci, pelna)
         zaksiegowane = True
-        yield {'typ': 'koniec', 'dane': sfinalizuj(pelna, chunks, p)}
+        zebrane['pelna'] = pelna
     finally:
         if not zaksiegowane:
             koszty.dodaj_z_odpowiedzi(nazwa, None, wiadomosci, pelna)
         klient_strumienia.close()
+
+
+def answer_stream(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
+                  history:list[dict] | None=None, lang:str='pl', styl:str | None=None):
+    wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang, styl)
+    zebrane = {}
+    yield from pompuj_strumien(wiadomosci, nazwa, stop, MAX_TOKENS, zebrane)
+    if 'pelna' in zebrane:
+        yield {'typ': 'koniec', 'dane': sfinalizuj(zebrane['pelna'], chunks, p)}
+
+
+def answer_ogolna_stream(query: str, history: list[dict] | None = None,
+                          bielik_model: str | None = None, lang: str = 'pl'):
+    p = PROMPTY[lang]
+    nazwa = bielik_model or LANG[lang]['model']
+    wiadomosci = [{'role': 'system', 'content': p['ogolna_system']}]
+    for w in (history or []):
+        if w.get('role') in ('user', 'assistant') and w.get('content'):
+            wiadomosci.append({'role': w['role'], 'content': w['content']})
+    wiadomosci.append({'role': 'user', 'content': query})
+    stop = [f"{p['pytanie_label']}:", '<|start_header_id|>']
+
+    zebrane = {}
+    yield from pompuj_strumien(wiadomosci, nazwa, stop, OGOLNA_MAX_TOKENS, zebrane)
+    if 'pelna' in zebrane:
+        yield {'typ': 'koniec', 'dane': zebrane['pelna']}
 
 
 def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=None,
