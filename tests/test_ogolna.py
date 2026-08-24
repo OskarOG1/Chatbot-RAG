@@ -125,6 +125,23 @@ def test_sukces_pierwszej_sekcji_nie_uruchamia_warstwy_ogolnej(monkeypatch, atra
     assert atrapa_pipeline.wywolania['ogolna'] == 0
 
 
+def test_pytanie_o_allegro_nie_wywoluje_modelu(atrapa_pipeline):
+    wynik = pipeline.run('jak zlozyc nowe polecenie zaplaty', strona='kupujacy',
+                         bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik['answer'] == pipeline.LANG['pl']['brak_wiedzy']
+    assert wynik['powod_ogolna'] == 'ogolna_domena'
+    assert atrapa_pipeline.wywolania['ogolna'] == 0
+
+
+def test_pytanie_spoza_domeny_dostaje_odpowiedz_ogolna(atrapa_pipeline):
+    atrapa_pipeline.ogolna_tekst = ('Stolicą Francji jest Paryż, znany z Wieży Eiffla '
+                                     'i wielu muzeów.')
+    wynik = pipeline.run('jaka jest stolica Francji', strona='kupujacy',
+                         bez_korekty=True, sedzia=False, lang='pl')
+    assert wynik['tryb'] == 'ogolna'
+    assert atrapa_pipeline.wywolania['ogolna'] == 1
+
+
 def test_etap_trzy_dopiero_gdy_warstwa_ogolna_odpowiedziala(atrapa_pipeline, chunk):
     atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=-10.0)])
     atrapa_pipeline.ogolna_tekst = ('Sklepy internetowe zwykle stosują podobne zasady '
@@ -155,3 +172,12 @@ def test_strumien_resetuje_po_tokenach_warstwy_ogolnej(atrapa_pipeline):
     ostatni_token = max(i for i, t in enumerate(typy) if t == 'token')
     assert indeks_resetu > ostatni_token
     assert indeks_resetu < len(typy) - 1
+
+
+def test_odmowa_sedziego_nie_schodzi_do_warstwy_ogolnej(atrapa_pipeline, chunk):
+    atrapa_pipeline.ustaw_etap('kupujacy', sedzia=False)
+    wynik = pipeline.run('jakies pytanie poza domena', strona='kupujacy',
+                         bez_korekty=True, sedzia=True, lang='pl')
+    assert wynik['powod_odmowy'] == 'sedzia'
+    assert wynik['powod_ogolna'] == 'ogolna_blisko_bazy'
+    assert atrapa_pipeline.wywolania['ogolna'] == 0

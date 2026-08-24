@@ -27,6 +27,8 @@ DIAGNOZY_ODMOWY = {
     'nie_zrozumialem': 'literowki',
     'pytanie_o_strone': 'doprecyzowanie',
     'ogolna_temat': 'ogolna',
+    'ogolna_domena': 'ogolna',
+    'ogolna_blisko_bazy': 'ogolna',
     'ogolna_konkrety': 'ogolna',
     'ogolna_pusta': 'ogolna',
     'ogolna_dluga': 'ogolna',
