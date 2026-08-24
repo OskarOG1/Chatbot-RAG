@@ -26,8 +26,8 @@ import time
 import traceback
 import json
 
-AGENCI_ROZGRZEWKA_PL = ('kupujacy', 'sprzedaz')
-AGENCI_ROZGRZEWKA_EN = ('kupujacy', 'sprzedaz')
+AGENCI_ROZGRZEWKA = ('kupujacy', 'sprzedaz')
+AGENCI_ROZGRZEWKA_PL = AGENCI_ROZGRZEWKA
 
 _zamek = threading.Lock()
 
@@ -388,33 +388,38 @@ def statystyki_z_cache(dni: int | None, lang: str | None, strona: str | None) ->
     return wynik
 
 
+def ostrzez_o_rozgrzewce(co: str, blad: Exception) -> None:
+    print(f'UWAGA: rozgrzewka {co} nieudana ({type(blad).__name__}: {blad})',
+          file=sys.stderr, flush=True)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
     try:
         get_reranker().predict([('rozgrzewka', 'rozgrzewka')])
-    except Exception:
-        pass
+    except Exception as e:
+        ostrzez_o_rozgrzewce('rerankera', e)
     for lang, cfg in LANG.items():
         try:
             MODELE[lang].encode([cfg['query_prefix'] + 'rozgrzewka'])
-        except Exception:
-            pass
+        except Exception as e:
+            ostrzez_o_rozgrzewce(f'embeddera {lang}', e)
     try:
         load_dictionary()
-    except Exception:
-        pass
-    for lang, agenci in (('pl', AGENCI_ROZGRZEWKA_PL), ('en', AGENCI_ROZGRZEWKA_EN)):
+    except Exception as e:
+        ostrzez_o_rozgrzewce('slownika literowek', e)
+    for lang, agenci in (('pl', AGENCI_ROZGRZEWKA), ('en', AGENCI_ROZGRZEWKA)):
         try:
             IDF_DANE[lang]
-        except Exception:
-            pass
+        except Exception as e:
+            ostrzez_o_rozgrzewce(f'IDF {lang}', e)
         for agent in agenci:
             try:
                 get_faiss(agent, lang)
                 get_bm25(agent, lang)
-            except Exception:
-                pass
+            except Exception as e:
+                ostrzez_o_rozgrzewce(f'indeksow {agent} {lang}', e)
     yield
     EGZEKUTOR_SEDZIEGO.shutdown(wait=False, cancel_futures=True)
 
