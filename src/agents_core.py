@@ -65,7 +65,8 @@ PROMPTY = {
             'Nie zaczynaj odpowiedzi od zdań w stylu „Na podstawie dostępnego kontekstu" ani podobnych. '
             'Zacznij od jednego zdania wprowadzającego wprost do sedna pytania. Dalszą treść przedstaw jako kolejne '
             'kroki, gdy chodzi o instrukcję, albo jako zwięzłe akapity, gdy chodzi o wyjaśnienie, zawsze w tej samej '
-            'konwencji wyliczeń w obrębie jednej odpowiedzi. Nie używaj nagłówków markdown (#, ##). '
+            'konwencji wyliczeń w obrębie jednej odpowiedzi. Limit długości: maksymalnie pięć zdań albo pięć kroków. '
+            'Pomijaj tło, powtórzenia i zastrzeżenia niewnoszące nowej informacji. Nie używaj nagłówków markdown (#, ##). '
             'Nie dodawaj własnej sekcji źródeł na końcu. '
             'Odpowiadaj zawsze po polsku.'
         ),
