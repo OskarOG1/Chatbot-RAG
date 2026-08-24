@@ -18,12 +18,17 @@ Baza testowa: 667 artykułów Allegro Pomoc, dwie sekcje (kupujący, sprzedając
 |---|---|
 | Baza wiedzy | 667 artykułów, 3551 fragmentów: PL 353 art./2109 frag., EN 314 art./1442 frag. |
 | Trafność wyszukiwania, top 5 | kupujący PL **0.840** · sprzedaż PL **1.000** · kupujący EN **0.800** · sprzedaż EN **0.947** |
+| Odpowiedź bez odmowy, pełny pipeline (GOLDEN, kupujący PL, 50 pytań) | **49/50** |
+| Oczekiwane źródło w odpowiedzi, pełny pipeline (GOLDEN, kupujący PL, 50 pytań) | **40/50** |
+| Odpowiedź bez odmowy, pełny pipeline (50 realnych pytań z forum Allegro, bez znanego źródła) | **40/50** |
 | Fałszywe odmowy na bramce pokrycia | PL 0/29 · EN 1/50 |
 | Pytania nie na temat złapane | PL 29/29 · EN 29/29 |
-| Testy jednostkowe | **305/305** zielonych, CI na każdym pushu i PR |
-| Model odpowiadający | apertus 8B, PL i EN (identyfikator ustawia `MODEL` w `.env`) |
+| Testy jednostkowe | **306/306** zielonych, CI na każdym pushu i PR |
+| Model odpowiadający | Bielik-11B, PL (identyfikator ustawia `MODEL` w `.env`) · apertus 8B, EN |
 
 **Znane ograniczenie.** Trafność kupujący EN (0.800) zostaje około 12 punktów procentowych pod sufitem 0.920, bo artykuły o koncie, logowaniu i RODO nakładają się między sekcją kupujących i sprzedających. Jawny przełącznik strony w interfejsie zamyka tę lukę dla użytkownika, który wie, po której jest stronie.
+
+**O trzech nowych wierszach.** To pomiar innego rodzaju niż wiersz "Trafność wyszukiwania" powyżej: nie sam retrieval, tylko cały `pipeline.run` (korektor, reranker, sędzia kontekstu, generacja Bielikiem-11B), na dwóch zestawach po 50 pytań. GOLDEN ma znane źródło, więc liczy się i odmowa, i trafienie. 50 pytań realnych to ręcznie odsiane, sensowne pytania o Allegro z `RAG/pytania_realne.jsonl` (5096 wpisów z forum), bez znanego źródła, więc liczy się tylko, czy system w ogóle odpowiedział: 8 odmów sędziego kontekstu, po jednej na bramce rerankera i na "model nie wie". Nie jest to bezpośrednie porównanie z wierszem wyżej (inny model, inna metodologia, brak rozbicia na sprzedaż/EN, bo oryginalny plik z tamtymi zestawami golden nie przetrwał czyszczenia repo, patrz `Pomiary/measure.py`).
 
 ---
 
@@ -115,6 +120,8 @@ pytest tests -q
 | Reranker | mmarco-mMiniLMv2 (118M) | 26x szybszy od bge-v2-m3 przy stracie jednego trafienia, po zmianie okna na 192 i doklejeniu tytułu jeszcze 3,81x szybszy i trafniejszy |
 | Model odpowiadający | apertus 8B | Na pomiarze 25 pytań PL i 25 EN dorównuje lub przewyższa Bielika-11B jakością, bez błędów API, około 3x szybszy |
 | Sędzia kontekstu | Bielik-11B (PL), Olmo-3-7B (EN) | Odpięty od modelu odpowiadającego, decyzja TAK/NIE jest lżejsza niż generacja |
+
+**Uwaga o rozbieżności.** `MODEL` w `.env` jest w tej chwili ustawiony na Bielik-11B (patrz `W skrócie` wyżej), nie na apertus opisany w wierszu tabeli. To zmiana z bieżącej sesji pomiarowej, nie ponowna decyzja architektoniczna: pomiar 25 i 25 pytań uzasadniający apertusa (wiersz wyżej) nie został powtórzony bezpośrednio z Bielikiem w roli obu modeli naraz, więc wybór w tabeli wciąż opisuje najlepiej sprawdzoną konfigurację, a nie tę aktualnie wpiętą.
 
 Uzasadnienia z liczbami, razem z wariantami odrzuconymi, są w [DECYZJE.md](DECYZJE.md).
 
