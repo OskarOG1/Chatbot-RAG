@@ -103,7 +103,7 @@ def sygnal_bramki_pominiete_aktywny() -> bool:
 def cache_zdatny(request: 'ChatRequest') -> bool:
     return (not request.history and not request.agent_poprzedni and not request.przepisz
             and request.bielik_model is None and request.sedzia is None
-            and not request.bez_korekty)
+            and request.ogolna is None and not request.bez_korekty)
 
 
 def cache_klucz(lang: str, message: str, strona: str) -> tuple:
@@ -119,7 +119,8 @@ def cache_pobierz(klucz: tuple) -> dict | None:
 
 
 def cache_zapisz(klucz: tuple, wynik: dict) -> None:
-    if not wynik.get('agent') and wynik.get('powod_odmowy') != 'prog_rerank':
+    if (not wynik.get('agent') and wynik.get('tryb') != 'ogolna'
+            and wynik.get('powod_odmowy') != 'prog_rerank'):
         return
     with _zamek:
         _cache[klucz] = wynik
@@ -133,6 +134,8 @@ def powod_wyniku(dane: dict) -> str:
         return 'brak_wyniku'
     if dane.get('tryb') == 'rozmowa':
         return 'rozmowa'
+    if dane.get('tryb') == 'ogolna':
+        return dane.get('powod_rag') or 'ogolna'
     if dane.get('agent'):
         return 'odpowiedz'
     return dane.get('powod_odmowy') or 'odmowa'
@@ -150,7 +153,8 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
     zglos_bramki_pominiete(dane.get('bramki_pominiete') or [], cache_hit)
     try:
         agent = dane.get('agent') or ''
-        wynik = 'rozmowa' if dane.get('tryb') == 'rozmowa' else ('odpowiedz' if agent else 'odmowa')
+        tryb = dane.get('tryb')
+        wynik = tryb if tryb in ('rozmowa', 'ogolna') else ('odpowiedz' if agent else 'odmowa')
         zuzycie = zuzycie or {}
         wpis = {
             'czas': datetime.now(timezone.utc).isoformat(),
@@ -161,6 +165,7 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
             'wynik': wynik,
             'powod': powod_wyniku(dane),
             'powod_etap2': dane.get('powod_etap2'),
+            'powod_ogolna': dane.get('powod_ogolna'),
             'bramki_pominiete': dane.get('bramki_pominiete') or [],
             'latencja_s': round(latencja, 3),
             'tokeny_we': zuzycie.get('tokeny_we', 0),
@@ -440,6 +445,7 @@ class ChatRequest(BaseModel):
     sedzia: bool | None = None
     lang: Literal['pl', 'en'] | None = None
     strona: Literal['kupujacy', 'sprzedajacy'] = 'kupujacy'
+    ogolna: bool | None = None
 
 class Cytat(BaseModel):
    n: int
@@ -478,8 +484,9 @@ class ChatResponse(BaseModel):
    oferta_kategoria: str | None = None
    kategoria: str | None = None
    naglowek_ui: str | None = None
-   tryb: Literal['rag', 'email', 'rozmowa'] = 'rag'
+   tryb: Literal['rag', 'email', 'rozmowa', 'ogolna'] = 'rag'
    powod_odmowy: str | None = None
+   powod_rag: str | None = None
 
 class LicznikKosztow:
     def __init__(self, app):
@@ -518,7 +525,8 @@ def chat(request: ChatRequest, http_request: Request):
             wynik = run(request.message, bielik_model=request.bielik_model,
                         history=[w.model_dump() for w in request.history],
                         agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
-                        bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang, strona=strona)
+                        bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang, strona=strona,
+                        warstwa_ogolna=request.ogolna)
             zuzycie = koszty.podsumowanie()
             if klucz:
                 cache_zapisz(klucz, wynik)
@@ -560,7 +568,8 @@ def chat_stream(request: ChatRequest, http_request: Request):
             for ev in run_stream(request.message, bielik_model=request.bielik_model,
                                  history=[w.model_dump() for w in request.history],
                                  agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
-                                 bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang, strona=strona):
+                                 bez_korekty=request.bez_korekty, sedzia=request.sedzia, lang=lang, strona=strona,
+                                 warstwa_ogolna=request.ogolna):
                 if ev['typ'] == 'wynik':
                     wynik = ev['dane']
                     dane_wysylki = {k: v for k, v in wynik.items() if k != 'cechy'}

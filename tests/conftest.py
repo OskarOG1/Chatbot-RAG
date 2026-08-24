@@ -62,6 +62,8 @@ class AtrapaPipeline:
         self.generacje = []
         self.historie_odpowiedzi = []
         self.style_odpowiedzi = []
+        self.ogolna_tekst = None
+        self.tokeny_ogolne = []
 
         import pipeline
         monkeypatch.setattr(pipeline, 'embed_query', lambda lang, tekst: None)
@@ -71,6 +73,7 @@ class AtrapaPipeline:
         monkeypatch.setattr(pipeline, 'sedzia_kategoria_mail', self.kategoria)
         monkeypatch.setattr(pipeline, 'napisz_email', self.mail)
         monkeypatch.setattr(pipeline, 'przepisz_zapytanie', self.przepisz)
+        monkeypatch.setattr(pipeline, 'answer_ogolna_stream', self.generuj_ogolna)
 
     def ustaw_etap(self, strona, chunki=None, tekst=None, cytaty=None, sedzia=True):
         import strony
@@ -129,6 +132,13 @@ class AtrapaPipeline:
 
     def przepisz(self, query, history, bielik_model, lang):
         return self.przepisane_zapytanie if self.przepisane_zapytanie is not None else query
+
+    def generuj_ogolna(self, query, history=None, bielik_model=None, lang='pl'):
+        self.wywolania['ogolna'] += 1
+        for tekst in self.tokeny_ogolne:
+            yield {'typ': 'token', 'tekst': tekst}
+        if self.ogolna_tekst is not None:
+            yield {'typ': 'koniec', 'dane': self.ogolna_tekst}
 
 
 @pytest.fixture

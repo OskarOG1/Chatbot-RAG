@@ -7,7 +7,8 @@ import os
 LOG_ANALYTICS = Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.jsonl'
 
 KOLUMNY_EKSPORTU = ('czas', 'lang', 'strona', 'sekcja', 'wynik', 'powod', 'powod_etap2',
-                    'latencja_s', 'cache_hit', 'pytanie', 'tokeny_we', 'tokeny_wy', 'koszt_usd')
+                    'powod_ogolna', 'latencja_s', 'cache_hit', 'pytanie', 'tokeny_we',
+                    'tokeny_wy', 'koszt_usd')
 KOLUMNY_DOMYSLNE = ('czas', 'lang', 'strona', 'sekcja', 'wynik', 'powod', 'latencja_s', 'cache_hit')
 PROGI_LATENCJI = (2.0, 5.0, 10.0, 20.0)
 ETYKIETY_LATENCJI = ('0 do 2 s', '2 do 5 s', '5 do 10 s', '10 do 20 s', 'ponad 20 s')
@@ -25,6 +26,13 @@ DIAGNOZY_ODMOWY = {
     'brak_generacji': 'generacja',
     'nie_zrozumialem': 'literowki',
     'pytanie_o_strone': 'doprecyzowanie',
+    'ogolna_temat': 'ogolna',
+    'ogolna_konkrety': 'ogolna',
+    'ogolna_pusta': 'ogolna',
+    'ogolna_dluga': 'ogolna',
+    'ogolna_model_nie_wie': 'ogolna',
+    'ogolna_jawna_odmowa': 'ogolna',
+    'ogolna_brak_generacji': 'ogolna',
 }
 
 
@@ -166,7 +174,8 @@ def statystyki(wpisy: list[dict]) -> dict:
     odpowiedzi = [w for w in zapytania if w.get('wynik') == 'odpowiedz']
     odmowy = [w for w in zapytania if w.get('wynik') == 'odmowa']
     rozmowy = [w for w in zapytania if w.get('wynik') == 'rozmowa']
-    pytania_rag = len(odpowiedzi) + len(odmowy)
+    ogolne = [w for w in zapytania if w.get('wynik') == 'ogolna']
+    pytania_rag = len(odpowiedzi) + len(odmowy) + len(ogolne)
     n = len(zapytania)
 
     latencje = sorted(float(w['latencja_s']) for w in zapytania if liczba(w.get('latencja_s')))
@@ -189,10 +198,13 @@ def statystyki(wpisy: list[dict]) -> dict:
         dzien = dzien_wpisu(w)
         if dzien is None:
             continue
-        pozycja = dni.setdefault(dzien, {'zapytan': 0, 'odmowy': 0, 'latencje': [], 'koszt_usd': 0.0})
+        pozycja = dni.setdefault(dzien, {'zapytan': 0, 'odmowy': 0, 'ogolne': 0,
+                                          'latencje': [], 'koszt_usd': 0.0})
         pozycja['zapytan'] += 1
         if w.get('wynik') == 'odmowa':
             pozycja['odmowy'] += 1
+        if w.get('wynik') == 'ogolna':
+            pozycja['ogolne'] += 1
         if liczba(w.get('latencja_s')):
             pozycja['latencje'].append(float(w['latencja_s']))
         pozycja['koszt_usd'] += float(w.get('koszt_usd') or 0.0)
@@ -205,11 +217,12 @@ def statystyki(wpisy: list[dict]) -> dict:
         for dzien in okno:
             pozycja = dni.get(dzien)
             if pozycja is None:
-                seria.append({'dzien': dzien, 'zapytan': 0, 'odmowy': 0,
+                seria.append({'dzien': dzien, 'zapytan': 0, 'odmowy': 0, 'ogolne': 0,
                               'mediana_latencji': 0.0, 'koszt_usd': 0.0})
             else:
                 seria.append({'dzien': dzien, 'zapytan': pozycja['zapytan'],
                               'odmowy': pozycja['odmowy'],
+                              'ogolne': pozycja['ogolne'],
                               'mediana_latencji': round(kwantyl(sorted(pozycja['latencje']), 0.5), 3),
                               'koszt_usd': round(pozycja['koszt_usd'], 6)})
 
@@ -233,6 +246,7 @@ def statystyki(wpisy: list[dict]) -> dict:
             'odpowiedzi': len(odpowiedzi),
             'odmowy': len(odmowy),
             'rozmowy': len(rozmowy),
+            'ogolne': len(ogolne),
             'trafnosc': round(len(odpowiedzi) / pytania_rag, 4) if pytania_rag else None,
             'cache_hit': round(sum(1 for w in zapytania if w.get('cache_hit')) / n, 4) if n else 0.0,
             'unikalne_pytania': len(pytania),
@@ -285,6 +299,8 @@ def diagnoza(ocena: dict, zapytanie: dict | None) -> str:
     wynik = zapytanie.get('wynik')
     if wynik == 'rozmowa':
         return 'rozmowa'
+    if wynik == 'ogolna':
+        return 'ogolna'
     if wynik == 'odpowiedz':
         return 'tresc'
     powod = zapytanie.get('powod') or ''

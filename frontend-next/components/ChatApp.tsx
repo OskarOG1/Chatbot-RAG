@@ -318,6 +318,12 @@ export default function ChatApp() {
           { role: 'user', content: wiadomosc },
           { role: 'assistant', content: t.mailHistoriaSkrot(dane.naglowek_ui ?? '') },
         ];
+      } else if (dane?.tryb === 'ogolna') {
+        historiaApi = [
+          ...historiaApi,
+          { role: 'user', content: wiadomosc },
+          { role: 'assistant', content: dane.answer },
+        ];
       }
       let ostatniaKorekta = x.ostatniaKorekta;
       if (dane?.doprecyzowanie) {

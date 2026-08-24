@@ -1,10 +1,12 @@
 from sentence_transformers import SentenceTransformer
 import faiss
 from rankings import search_reranked_multi, normalizacja
-from agents import answer_stream, przepisz_zapytanie, czy_kontekst_odpowiada, napisz_email, sedzia_kategoria_mail
+from agents import (answer_stream, answer_ogolna_stream, przepisz_zapytanie,
+                    czy_kontekst_odpowiada, napisz_email, sedzia_kategoria_mail)
 from guards import sprawdz
 from spell import correct, tokenize_words, MIN_DLUGOSC
 from lang_config import LANG
+import ogolna
 import strony
 import rozmowa
 from pathlib import Path
@@ -37,6 +39,7 @@ SEDZIA_BUFOR_MAX = int(os.getenv('SEDZIA_BUFOR_MAX', '40'))
 EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=SEDZIA_ROWNOLEGLE,
                                         thread_name_prefix='sedzia')
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
+OGOLNA_ON = os.getenv('OGOLNA_ON', 'true').lower() in ('1', 'true', 'yes')
 KATALOG_RAG = Path(__file__).resolve().parent.parent / 'RAG'
 LOG_TRUDNE = KATALOG_RAG / 'trudne.jsonl'
 PII_WZORCE = (
@@ -406,10 +409,55 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
     })
 
 
+def probuj_ogolna(query: str, history: list[dict], bielik_model: str | None,
+                   lang: str, cfg: dict):
+    cechy = {'ogolna_temat': None, 'ogolna_znakow': 0, 'ogolna_konkrety': None}
+
+    zablokowany = ogolna.temat_zablokowany(query, lang)
+    if zablokowany:
+        cechy['ogolna_temat'] = zablokowany
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'ogolna_temat',
+                                            'answer': ogolna.komunikat_tematu(zablokowany, lang),
+                                            'cechy': cechy}}
+        return
+
+    yield {'typ': 'krok', 'tekst': cfg['kroki']['odpowiadam_ogolnie']}
+
+    surowa = None
+    for ev in answer_ogolna_stream(query, history, bielik_model, lang):
+        if ev['typ'] == 'koniec':
+            surowa = ev['dane']
+        else:
+            yield ev
+
+    if surowa is None:
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'ogolna_brak_generacji',
+                                            'answer': None, 'cechy': cechy}}
+        return
+
+    sprawdzenie = ogolna.sprawdz_odpowiedz(surowa, lang)
+    tekst = sprawdzenie['tekst']
+    cechy['ogolna_znakow'] = len(tekst)
+    cechy['ogolna_konkrety'] = sprawdzenie['konkrety'] or None
+
+    powod = sprawdzenie['powod']
+    if powod is None and model_nie_wie(tekst, lang):
+        powod = 'ogolna_model_nie_wie'
+    if powod is None and jawna_odmowa_na_starcie(tekst, lang):
+        powod = 'ogolna_jawna_odmowa'
+    if powod:
+        yield {'typ': 'rezultat', 'dane': {'powod_odmowy': powod, 'answer': None, 'cechy': cechy}}
+        return
+
+    yield {'typ': 'rezultat', 'dane': {'powod_odmowy': None,
+                                        'answer': ogolna.z_odeslaniem(tekst, lang),
+                                        'cechy': cechy}}
+
+
 def run_stream(query:str, bielik_model:str | None=None,
                history:list[dict] | None=None, agent_poprzedni:str | None=None,
                przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
-               lang:str='pl', strona:str | None=None):
+               lang:str='pl', strona:str | None=None, warstwa_ogolna:bool | None=None):
 
     cfg = LANG[lang]
 
@@ -546,14 +594,48 @@ def run_stream(query:str, bielik_model:str | None=None,
         if wyslane_tokeny:
             yield {'typ': 'reset'}
             wyslane_tokeny = False
+
+        wynik_ogolnej = None
+        if OGOLNA_ON if warstwa_ogolna is None else warstwa_ogolna:
+            for ev in probuj_ogolna(query, history, bielik_model, lang, cfg):
+                if ev['typ'] == 'rezultat':
+                    wynik_ogolnej = ev['dane']
+                else:
+                    if ev['typ'] == 'token':
+                        wyslane_tokeny = True
+                    yield ev
+
+        cechy_koncowe = dict(wynik_etapu.get('cechy') or {})
+        if wynik_ogolnej:
+            cechy_koncowe.update(wynik_ogolnej.get('cechy') or {})
+
+        if wynik_ogolnej and wynik_ogolnej['powod_odmowy'] is None:
+            cechy_koncowe['etap'] = 3
+            dane_ogolnej = {'agent': '', 'answer': wynik_ogolnej['answer'],
+                            'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
+                            'nota_sekcji': cfg['ogolna']['nota'], 'tryb': 'ogolna',
+                            'powod_rag': wynik_etapu['powod_odmowy'], 'cechy': cechy_koncowe}
+            if bramki_pominiete:
+                dane_ogolnej['bramki_pominiete'] = bramki_pominiete
+            yield wynik(dane_ogolnej)
+            return
+
+        if wyslane_tokeny:
+            yield {'typ': 'reset'}
+            wyslane_tokeny = False
+
         dane_odmowy = {'agent': '', 'answer': cfg['brak_wiedzy'],
                        'sources': [], 'citations': [], 'doprecyzowanie': doprecyzowanie,
                        'powod_odmowy': wynik_etapu['powod_odmowy']}
+        if wynik_ogolnej:
+            dane_odmowy['powod_ogolna'] = wynik_ogolnej['powod_odmowy']
+            if wynik_ogolnej.get('answer'):
+                dane_odmowy['answer'] = wynik_ogolnej['answer']
         if powod_etap2:
             dane_odmowy['powod_etap2'] = powod_etap2
         if bramki_pominiete:
             dane_odmowy['bramki_pominiete'] = bramki_pominiete
-        dane_odmowy['cechy'] = wynik_etapu.get('cechy')
+        dane_odmowy['cechy'] = cechy_koncowe
         yield wynik(dane_odmowy)
         return
 
@@ -575,10 +657,11 @@ def run_stream(query:str, bielik_model:str | None=None,
 def run(query:str, bielik_model:str | None=None,
         history:list[dict] | None=None, agent_poprzedni:str | None=None,
         przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
-        lang:str='pl', strona:str | None=None) -> dict:
+        lang:str='pl', strona:str | None=None, warstwa_ogolna:bool | None=None) -> dict:
     dane = {}
     for ev in run_stream(query, bielik_model, history,
-                         agent_poprzedni, przepisz, bez_korekty, sedzia, lang, strona):
+                         agent_poprzedni, przepisz, bez_korekty, sedzia, lang, strona,
+                         warstwa_ogolna):
         if ev['typ'] == 'wynik':
             dane = ev['dane']
     return dane
