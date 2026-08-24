@@ -105,7 +105,3 @@ def sprawdz_odpowiedz(surowa: str, lang: str = 'pl') -> dict:
     if znalezione:
         return {'tekst': tekst, 'powod': 'ogolna_konkrety', 'konkrety': znalezione}
     return {'tekst': tekst, 'powod': None, 'konkrety': []}
-
-
-def z_odeslaniem(tekst: str, lang: str = 'pl') -> str:
-    return f"{tekst}\n\n{LANG[lang]['ogolna']['odeslanie']}"

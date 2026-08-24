@@ -40,6 +40,7 @@ EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=SEDZIA_ROWNOLEGLE,
                                         thread_name_prefix='sedzia')
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 OGOLNA_ON = os.getenv('OGOLNA_ON', 'true').lower() in ('1', 'true', 'yes')
+POWODY_BLISKO_BAZY = ('pokrycie', 'model_nie_wie', 'jawna_odmowa', 'brak_generacji')
 KATALOG_RAG = Path(__file__).resolve().parent.parent / 'RAG'
 LOG_TRUDNE = KATALOG_RAG / 'trudne.jsonl'
 PII_WZORCE = (
@@ -414,7 +415,7 @@ def probuj_ogolna(query: str, history: list[dict], bielik_model: str | None,
     cechy = {'ogolna_temat': None, 'ogolna_domena': False, 'ogolna_znakow': 0,
              'ogolna_konkrety': None}
 
-    if powod_rag is not None and powod_rag != 'prog_rerank':
+    if powod_rag in POWODY_BLISKO_BAZY:
         cechy['ogolna_domena'] = True
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'ogolna_blisko_bazy',
                                             'answer': None, 'cechy': cechy}}
@@ -462,9 +463,7 @@ def probuj_ogolna(query: str, history: list[dict], bielik_model: str | None,
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': powod, 'answer': None, 'cechy': cechy}}
         return
 
-    yield {'typ': 'rezultat', 'dane': {'powod_odmowy': None,
-                                        'answer': ogolna.z_odeslaniem(tekst, lang),
-                                        'cechy': cechy}}
+    yield {'typ': 'rezultat', 'dane': {'powod_odmowy': None, 'answer': tekst, 'cechy': cechy}}
 
 
 def run_stream(query:str, bielik_model:str | None=None,
