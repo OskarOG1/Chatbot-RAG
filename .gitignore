@@ -38,6 +38,8 @@ test_HF.py
 *.md
 !README.md
 !README_EN.md
+!DECYZJE.md
+!DECISIONS.md
 
 Python.code-workspace
 .env
