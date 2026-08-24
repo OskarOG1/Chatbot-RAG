@@ -34,6 +34,7 @@ LANG = {
             'poza_zakresem': 'Poza zakresem bazy pomocy, odmawiam',
             'sprawdzam_kontekst': 'Sprawdzam, czy kontekst odpowiada na pytanie',
             'generuje_odpowiedz': 'Generuję odpowiedź (sekcja: {agent})',
+            'odpowiadam_ogolnie': 'Baza pomocy nie ma tego tematu, odpowiadam z wiedzy ogólnej',
         },
         'nazwy_sekcji': {
             'konto': 'konto',
@@ -69,6 +70,53 @@ LANG = {
                     'o konto i bezpieczeństwo, zakupy i dostawę, płatności oraz sprzedaż, '
                     'zawsze z linkiem do artykułu. Mogę też przygotować szkic wiadomości do '
                     'sprzedawcy w sprawie reklamacji, zwrotu lub faktury.',
+        },
+        'ogolna': {
+            'nota': 'To odpowiedź z ogólnej wiedzy asystenta, nie z bazy pomocy Allegro.',
+            'odeslanie': 'Dokładne zasady sprawdź w Centrum Pomocy Allegro: https://allegro.pl/pomoc',
+            'poza_zakresem': 'W tej sprawie nie pomogę. Odpowiadam na pytania o konto, zakupy, '
+                             'płatności i sprzedaż na Allegro.',
+            'maks_zdan': 3,
+            'maks_znakow': 600,
+            'tematy_zablokowane': {
+                'kryzys': {
+                    'slowa': {'samobójstwo', 'samobójstwa', 'samookaleczenie', 'samookaleczenia'},
+                    'frazy': ('zabić się', 'odebrać sobie życie', 'nie chcę żyć',
+                              'zrobić sobie krzywdę'),
+                    'komunikat': 'Jeśli myślisz o zrobieniu sobie krzywdy, zadzwoń pod 112 albo '
+                                 '116 123, to bezpłatny telefon zaufania czynny całą dobę. '
+                                 'Ja pomagam tylko w sprawach Allegro.',
+                },
+                'zdrowie': {
+                    'slowa': {'dawka', 'dawkę', 'dawkowanie', 'lek', 'leki', 'leków', 'tabletki',
+                              'objawy', 'diagnoza', 'choroba', 'chorobę', 'antybiotyk', 'ciąża'},
+                    'frazy': ('czy powinienem iść do lekarza', 'jak leczyć'),
+                    'komunikat': 'Nie doradzam w sprawach zdrowia, z tym idź do lekarza albo '
+                                 'farmaceuty. Pomogę za to w sprawach Allegro.',
+                },
+                'prawo': {
+                    'slowa': {'pozew', 'pozwu', 'sąd', 'sądu', 'adwokat', 'adwokata', 'prokurator',
+                              'komornik', 'mandat', 'rozwód', 'spadek', 'testament'},
+                    'frazy': ('czy mogę pozwać', 'jak napisać pozew'),
+                    'komunikat': 'Nie udzielam porad prawnych, w takiej sprawie pomoże prawnik '
+                                 'albo rzecznik konsumentów. Pomogę za to w sprawach Allegro.',
+                },
+                'finanse': {
+                    'slowa': {'inwestować', 'inwestycja', 'akcje', 'kryptowaluty', 'bitcoin',
+                              'giełda', 'giełdzie', 'kredyt', 'kredytu', 'lokata', 'obligacje'},
+                    'frazy': ('w co zainwestować', 'czy opłaca się kupić akcje'),
+                    'komunikat': 'Nie doradzam w sprawach inwestycji ani kredytów. '
+                                 'Pomogę za to w sprawach Allegro.',
+                },
+                'niedozwolone': {
+                    'slowa': {'narkotyki', 'narkotyków', 'broń', 'broni', 'amunicja',
+                              'zhakować', 'włamać', 'podrobić'},
+                    'frazy': ('materiały wybuchowe', 'jak zhakować', 'jak podrobić', 'jak oszukać',
+                              'jak obejść zabezpieczenia', 'fałszywe dokumenty'),
+                    'komunikat': 'W tym nie pomogę. Odpowiadam na pytania o konto, zakupy, '
+                                 'płatności i sprzedaż na Allegro.',
+                },
+            },
         },
         'guardy': {
             'za_krotkie': 'Napisz proszę pełne pytanie.',
@@ -198,6 +246,7 @@ LANG = {
             'poza_zakresem': 'Outside the help base scope, declining',
             'sprawdzam_kontekst': 'Checking whether the context answers the question',
             'generuje_odpowiedz': 'Generating the answer (section: {agent})',
+            'odpowiadam_ogolnie': 'The help base does not cover this, answering from general knowledge',
         },
         'nazwy_sekcji': {
             'konto': 'account',
@@ -231,6 +280,51 @@ LANG = {
                     'accounts and security, shopping and delivery, payments, and selling, always '
                     'with a link to the article. I can also prepare a draft message to a seller '
                     'about a complaint, return, or invoice.',
+        },
+        'ogolna': {
+            'nota': "This answer comes from the assistant's general knowledge, not from Allegro's help base.",
+            'odeslanie': 'Check the exact rules in the Allegro Help Center: https://allegro.pl/help',
+            'poza_zakresem': "I can't help with that. I answer questions about accounts, shopping, "
+                             'payments, and selling on Allegro.',
+            'maks_zdan': 3,
+            'maks_znakow': 600,
+            'tematy_zablokowane': {
+                'kryzys': {
+                    'slowa': {'suicide', 'suicidal', 'selfharm'},
+                    'frazy': ('kill myself', 'end my life', "don't want to live", 'hurt myself'),
+                    'komunikat': 'If you are thinking about hurting yourself, call your local '
+                                 'emergency number, 112 in the European Union, or a crisis '
+                                 'helpline. I can only help with Allegro matters.',
+                },
+                'zdrowie': {
+                    'slowa': {'dosage', 'dose', 'medicine', 'medication', 'pills', 'symptoms',
+                              'diagnosis', 'antibiotic', 'pregnancy'},
+                    'frazy': ('should i see a doctor', 'how to treat'),
+                    'komunikat': "I don't give health advice, please talk to a doctor or "
+                                 'pharmacist. I can help with Allegro matters instead.',
+                },
+                'prawo': {
+                    'slowa': {'lawsuit', 'court', 'attorney', 'lawyer', 'prosecutor', 'bailiff',
+                              'divorce', 'inheritance', 'testament'},
+                    'frazy': ('can i sue', 'how to file a lawsuit'),
+                    'komunikat': "I don't give legal advice, a lawyer or a consumer ombudsman "
+                                 'will help with that. I can help with Allegro matters instead.',
+                },
+                'finanse': {
+                    'slowa': {'invest', 'investment', 'stocks', 'crypto', 'cryptocurrency',
+                              'bitcoin', 'mortgage', 'loan', 'bonds'},
+                    'frazy': ('what should i invest in', 'is it worth buying stocks'),
+                    'komunikat': "I don't give investment or credit advice. "
+                                 'I can help with Allegro matters instead.',
+                },
+                'niedozwolone': {
+                    'slowa': {'drugs', 'weapon', 'weapons', 'ammunition', 'hack', 'counterfeit'},
+                    'frazy': ('explosive materials', 'how to hack', 'how to counterfeit',
+                              'how to scam', 'bypass security', 'fake documents'),
+                    'komunikat': "I can't help with that. I answer questions about accounts, "
+                                 'shopping, payments, and selling on Allegro.',
+                },
+            },
         },
         'guardy': {
             'za_krotkie': 'Please write a complete question.',
