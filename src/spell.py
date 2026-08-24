@@ -102,8 +102,9 @@ def build_dictionary(chunki: list[dict] | None = None) -> Counter:
     except OSError:
         pass
 
-    global FOLDED_CACHE
+    global FOLDED_CACHE, DOKLADNE_CACHE
     FOLDED_CACHE = None
+    DOKLADNE_CACHE = None
     return slownik
 
 
@@ -128,20 +129,36 @@ def load_dictionary() -> Counter:
 
 
 FOLDED_CACHE = None
+DOKLADNE_CACHE = None
 def folded_index(slownik: Counter) -> dict[int, list[tuple[str, int, str, int]]]:
-    global FOLDED_CACHE
+    global FOLDED_CACHE, DOKLADNE_CACHE
     if FOLDED_CACHE is None:
         kubelki: dict[int, list[tuple[str, int, str, int]]] = {}
+        dokladne: dict[str, tuple[str, int, int]] = {}
         for indeks, (slowo, czestosc) in enumerate(slownik.items()):
             zlozone = fold(slowo)
             kubelki.setdefault(len(zlozone), []).append((slowo, czestosc, zlozone, indeks))
+            poprzednie = dokladne.get(zlozone)
+            if poprzednie is None or czestosc > poprzednie[1] or (
+                    czestosc == poprzednie[1] and indeks < poprzednie[2]):
+                dokladne[zlozone] = (slowo, czestosc, indeks)
         FOLDED_CACHE = kubelki
+        DOKLADNE_CACHE = dokladne
     return FOLDED_CACHE
+
+
+def dokladne_trafienie(slownik: Counter, zlozony: str) -> str | None:
+    folded_index(slownik)
+    wpis = DOKLADNE_CACHE.get(zlozony)
+    return wpis[0] if wpis is not None else None
 
 
 def best_candidate(token: str, slownik: Counter) -> str | None:
 
     zlozony = fold(token)
+    dokladny = dokladne_trafienie(slownik, zlozony)
+    if dokladny is not None:
+        return dokladny
     dlugosc = len(zlozony)
     dozwolona = 1 if len(token) <= 6 else MAX_ODLEGLOSC
     najlepszy = None
