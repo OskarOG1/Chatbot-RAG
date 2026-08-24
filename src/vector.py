@@ -39,39 +39,11 @@ def main(lang: str = 'pl'):
     sciezka_chunks = RAG_DIR / f'chunks{suffix}.json'
     chunki, embeddings = wczytaj_chunki(sciezka_chunks, suffix)
 
-    if lang == 'pl':
-        nazwy_agentow = ['konto', 'zakupy', 'platnosci', 'sprzedaz']
-
-        for nazwa in nazwy_agentow:
-
-            indeksy = [i for i, c in enumerate(chunki) if str(c.get('agent', "")).strip().lower() == nazwa]
-
-            if not indeksy:
-
-               print(f"Agent [{nazwa}]: Brak pasujących chunków w pliku.")
-               continue
-
-            agenci_chunki = [chunki[i] for i in indeksy]
-            agenci_embeddings = embeddings[indeksy]
-
-            zapisz_indeks(nazwa, agenci_chunki, agenci_embeddings, lang)
-
-            vector_json = RAG_DIR / f'chunks_{nazwa}.json'
-            with open(vector_json, 'w', encoding='utf-8') as w:
-                json.dump(agenci_chunki, w, ensure_ascii=False, indent=4)
-
-            print(f'agent [{nazwa}]: zapisano {len(indeksy)} chunkow i wektorow')
-
     strony_agentow = {
         'kupujacy': lambda c: str(c.get('agent', '')).strip().lower() != 'sprzedaz',
         'sprzedaz': lambda c: str(c.get('agent', '')).strip().lower() == 'sprzedaz',
     }
-    strony_tozsame_z_agentem = {'sprzedaz'} if lang == 'pl' else set()
     for strona, pasuje in strony_agentow.items():
-        if strona in strony_tozsame_z_agentem:
-            print(f'strona [{strona}]: pomijam, tożsama z już zapisanym indeksem agenta [{strona}]')
-            continue
-
         indeksy = [i for i, c in enumerate(chunki) if pasuje(c)]
 
         if not indeksy:
@@ -90,9 +62,6 @@ def main(lang: str = 'pl'):
 
         print(f'strona [{strona}]: zapisano {len(indeksy)} chunkow i wektorow')
 
-    nazwa_all = f'all{suffix}'
-    zapisz_indeks(nazwa_all, chunki, embeddings, lang)
-    print(f'{nazwa_all}: zapisano {len(chunki)} chunkow (faiss + bm25)')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
