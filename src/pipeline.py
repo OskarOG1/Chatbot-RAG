@@ -32,6 +32,8 @@ class ModeleLeniwe(dict):
 MODELE = ModeleLeniwe()
 OKNO_HISTORII = 3
 OKNO_JAWNEJ_ODMOWY = 160
+K_SUROWE_SEKCJI = int(os.getenv('K_SUROWE_SEKCJI', '12'))
+K_CHUNKOW_SEKCJI = int(os.getenv('K_CHUNKOW_SEKCJI', '5'))
 SEDZIA_CHUNKOW = int(os.getenv('SEDZIA_CHUNKOW', '3'))
 SEDZIA_CZEKANIE = float(os.getenv('SEDZIA_CZEKANIE', '30'))
 SEDZIA_ROWNOLEGLE = int(os.getenv('SEDZIA_ROWNOLEGLE', '8'))
@@ -255,11 +257,15 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
 
     bramki_pominiete = []
     cechy = {'rerank_top1': None, 'chunkow': 0, 'zrodlo_top1': None,
-             'sedzia_ok': None, 'pokrycie': None, 'etap': 1}
+             'sedzia_ok': None, 'pokrycie': None, 'etap': 1,
+             'strona_wybrana': strona, 'przewaga_sekcji': None}
 
-    yield krok(cfg['kroki']['wybieram_strone'].format(strona=cfg['nazwy_stron'][strona]))
-    chunks = search_reranked_multi(zapytanie_ret, query_emb, [strony.STRONA_DO_AGENTA[strona]],
-                                    k=5, k_surowe=12, lang=lang)
+    wyniki = search_reranked_multi(zapytanie_ret, query_emb, strony.agenci_wszystkich_stron(),
+                                    k=K_SUROWE_SEKCJI * len(strony.STRONY),
+                                    k_surowe=K_SUROWE_SEKCJI, lang=lang)
+    strona_wybrana, chunks, przewaga = strony.rozstrzygnij(wyniki, strona, K_CHUNKOW_SEKCJI)
+    cechy['strona_wybrana'] = strona_wybrana
+    cechy['przewaga_sekcji'] = przewaga
     agent_odp = chunks[0][0]['agent'] if chunks else ''
     cechy['chunkow'] = len(chunks)
     if chunks:
@@ -271,6 +277,8 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'prog_rerank',
                                             'bramki_pominiete': bramki_pominiete, 'cechy': cechy}}
         return
+
+    yield krok(cfg['kroki']['wybieram_strone'].format(strona=cfg['nazwy_stron'][strona_wybrana]))
 
     stan_sedziego = {}
     werdykt = None
@@ -405,6 +413,7 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         'citations': cytaty_lub_zrodla(odpowiedz['cytaty'], chunks),
         'oferta': oferta,
         'oferta_kategoria': oferta_kategoria,
+        'strona': strona_wybrana,
         'bramki_pominiete': bramki_pominiete,
         'cechy': cechy,
     })
@@ -572,35 +581,11 @@ def run_stream(query:str, bielik_model:str | None=None,
                 wyslane_tokeny = True
             yield ev
 
-    nota = None
-    powod_etap2 = None
     bramki_pominiete = list(wynik_etapu.get('bramki_pominiete') or [])
-    if wynik_etapu['powod_odmowy']:
-        if wyslane_tokeny:
-            yield {'typ': 'reset'}
-            wyslane_tokeny = False
-        powod_etap1 = wynik_etapu['powod_odmowy']
-        druga = next(s for s in strony.STRONY if s != strona)
-        wynik_drugi = None
-        for ev in probuj_sekcje(zapytanie_ret, query_emb, druga, query, history,
-                                 bielik_model, sedzia, lang, cfg, styl=styl):
-            if ev['typ'] == 'rezultat':
-                wynik_drugi = ev['dane']
-            else:
-                if ev['typ'] == 'token':
-                    wyslane_tokeny = True
-                yield ev
-        for bramka in wynik_drugi.get('bramki_pominiete') or []:
-            if bramka not in bramki_pominiete:
-                bramki_pominiete.append(bramka)
-        if wynik_drugi['powod_odmowy'] is None:
-            wynik_etapu = wynik_drugi
-            if isinstance(wynik_etapu.get('cechy'), dict):
-                wynik_etapu['cechy']['etap'] = 2
-            nota = cfg['nota_sekcji'][druga]
-        else:
-            powod_etap2 = wynik_drugi['powod_odmowy']
-            wynik_etapu = {'powod_odmowy': powod_etap1, 'cechy': wynik_etapu.get('cechy')}
+    strona_wybrana = wynik_etapu.get('strona') or strona
+    nota = None
+    if not wynik_etapu['powod_odmowy'] and strona_wybrana != strona:
+        nota = cfg['nota_sekcji'][strona_wybrana]
 
     if wynik_etapu['powod_odmowy']:
         if wyslane_tokeny:
@@ -644,8 +629,6 @@ def run_stream(query:str, bielik_model:str | None=None,
             dane_odmowy['powod_ogolna'] = wynik_ogolnej['powod_odmowy']
             if wynik_ogolnej.get('answer'):
                 dane_odmowy['answer'] = wynik_ogolnej['answer']
-        if powod_etap2:
-            dane_odmowy['powod_etap2'] = powod_etap2
         if bramki_pominiete:
             dane_odmowy['bramki_pominiete'] = bramki_pominiete
         dane_odmowy['cechy'] = cechy_koncowe
