@@ -85,11 +85,13 @@ class AtrapaPipeline:
         return agent
 
     def wyszukaj(self, zapytanie, emb, agenci, k, k_surowe, lang='pl'):
-        agent = agenci[0]
         self.wywolania['search'] += 1
-        self.wywolania[f'search:{agent}'] += 1
-        self.wyszukiwania.append({'zapytanie': zapytanie, 'agent': agent})
-        return list(self.sekcje.get(agent, []))
+        wyniki = []
+        for agent in agenci:
+            self.wywolania[f'search:{agent}'] += 1
+            wyniki.extend(self.sekcje.get(agent, []))
+        self.wyszukiwania.append({'zapytanie': zapytanie, 'agenci': list(agenci)})
+        return sorted(wyniki, key=lambda para: para[1], reverse=True)[:k]
 
     def generuj(self, query, agent, chunks, bielik_model, history, lang, styl=None):
         self.wywolania['answer'] += 1

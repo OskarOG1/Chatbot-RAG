@@ -2,8 +2,8 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+import ogolna
 import pipeline
-import strony
 
 
 def test_odmowa_sedziego_nie_wypuszcza_tokenow(atrapa_pipeline):
@@ -23,7 +23,6 @@ def test_przerwanie_zostawia_slad_w_cechach(atrapa_pipeline):
     wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
                          bez_korekty=True, sedzia=True, lang='pl')
     assert wynik['powod_odmowy'] == 'sedzia'
-    assert wynik['powod_etap2'] == 'prog_rerank'
     assert wynik['cechy']['generacja_przerwana'] is True
     assert wynik['cechy']['tokeny_stracone'] >= 1
 
@@ -42,33 +41,33 @@ def test_zgoda_sedziego_przepuszcza_wszystkie_tokeny(monkeypatch, atrapa_pipelin
 def test_odmowa_pokrycia_wysyla_reset(monkeypatch, atrapa_pipeline):
     a = atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz A.', sedzia=True)
     atrapa_pipeline.tokeny[a] = ['A1 ', 'A2 ']
-    druga = next(s for s in strony.STRONY if s != 'kupujacy')
-    b = atrapa_pipeline.ustaw_etap(druga, tekst='Odpowiedz B.', sedzia=True)
-    atrapa_pipeline.tokeny[b] = ['B1 ']
-    monkeypatch.setattr(pipeline, 'pokrycie_idf',
-                         lambda tekst, chunks, lang: 0.0 if tekst == 'Odpowiedz A.' else 1.0)
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 0.0)
+    zdarzenia = list(pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
+                                          bez_korekty=True, sedzia=True, lang='pl',
+                                          warstwa_ogolna=False))
+    typy = [z['typ'] for z in zdarzenia]
+    assert typy.count('reset') == 1
+    indeks = typy.index('reset')
+    assert not any(z['typ'] == 'token' for z in zdarzenia[indeks:])
+    assert zdarzenia[-1]['typ'] == 'wynik'
+    assert zdarzenia[-1]['dane']['powod_odmowy'] == 'pokrycie'
+
+
+def test_reset_pochodzi_z_warstwy_ogolnej_gdy_sekcja_nie_wyslala_tokenow(monkeypatch, atrapa_pipeline, chunk):
+    atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=-10.0)])
+    atrapa_pipeline.tokeny_ogolne = ['C1 ']
+    atrapa_pipeline.ogolna_tekst = 'Odpowiedz ogolna.'
+    monkeypatch.setattr(ogolna, 'temat_zablokowany', lambda query, lang='pl': None)
+    monkeypatch.setattr(ogolna, 'pytanie_o_allegro', lambda query, lang='pl': False)
+    monkeypatch.setattr(ogolna, 'sprawdz_odpowiedz', lambda surowa, lang='pl':
+                         {'tekst': surowa, 'konkrety': None, 'powod': 'ogolna_temat'})
     zdarzenia = list(pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
                                           bez_korekty=True, sedzia=True, lang='pl'))
     typy = [z['typ'] for z in zdarzenia]
     assert typy.count('reset') == 1
-    indeks = typy.index('reset')
-    po_resecie = [z['tekst'] for z in zdarzenia[indeks:] if z['typ'] == 'token']
-    assert po_resecie == ['B1 ']
-
-
-def test_odmowa_obu_sekcji_wysyla_dwa_resety(monkeypatch, atrapa_pipeline):
-    a = atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz A.', sedzia=True)
-    atrapa_pipeline.tokeny[a] = ['A1 ', 'A2 ']
-    druga = next(s for s in strony.STRONY if s != 'kupujacy')
-    b = atrapa_pipeline.ustaw_etap(druga, tekst='Odpowiedz B.', sedzia=True)
-    atrapa_pipeline.tokeny[b] = ['B1 ']
-    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 0.0)
-    zdarzenia = list(pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
-                                          bez_korekty=True, sedzia=True, lang='pl'))
-    typy = [z['typ'] for z in zdarzenia]
-    assert typy.count('reset') == 2
     assert zdarzenia[-1]['typ'] == 'wynik'
-    assert zdarzenia[-1]['dane']['powod_odmowy']
+    assert zdarzenia[-1]['dane']['powod_odmowy'] == 'prog_rerank'
+    assert zdarzenia[-1]['dane']['powod_ogolna'] == 'ogolna_temat'
 
 
 def test_sukces_bez_resetu(monkeypatch, atrapa_pipeline):

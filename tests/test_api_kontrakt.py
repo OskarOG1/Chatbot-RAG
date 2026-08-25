@@ -281,7 +281,7 @@ def test_guard_za_dlugie_osiagalny_zamiast_422(monkeypatch, client):
 # /chat/stream
 
 
-def test_chat_stream_krok_przed_wynikiem_i_kroki_obu_etapow(monkeypatch, atrapa_pipeline, client):
+def test_chat_stream_krok_przed_wynikiem_i_jeden_komunikat_o_stronie(monkeypatch, atrapa_pipeline, client):
     atrapa_pipeline.ustaw_etap('sprzedajacy', tekst='Odpowiedz z sekcji sprzedazy.')
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
 
@@ -302,5 +302,6 @@ def test_chat_stream_krok_przed_wynikiem_i_kroki_obu_etapow(monkeypatch, atrapa_
     nazwy = pipeline.LANG['pl']['nazwy_stron']
     oczekiwane_kupujacy = cfg['wybieram_strone'].format(strona=nazwy['kupujacy'])
     oczekiwane_sprzedajacy = cfg['wybieram_strone'].format(strona=nazwy['sprzedajacy'])
-    assert oczekiwane_kupujacy in kroki
     assert oczekiwane_sprzedajacy in kroki
+    assert oczekiwane_kupujacy not in kroki
+    assert kroki.count(oczekiwane_sprzedajacy) == 1
