@@ -71,13 +71,12 @@ def test_loguj_zapytanie_zapisuje_wynik_rozmowa():
     assert wpis['powod'] == 'rozmowa'
 
 
-def test_loguj_zapytanie_zapisuje_powod_etap2_i_bramki_pominiete():
-    dane = {'agent': '', 'powod_odmowy': 'prog_rerank', 'powod_etap2': 'sedzia',
-            'bramki_pominiete': ['pokrycie']}
+def test_loguj_zapytanie_zapisuje_bramki_pominiete():
+    dane = {'agent': '', 'powod_odmowy': 'prog_rerank', 'bramki_pominiete': ['pokrycie']}
     api.loguj_zapytanie('pl', dane, 0.01, False, 'jakies pytanie', 'kupujacy')
     wpis = json.loads(api.LOG_ANALYTICS.read_text(encoding='utf-8').strip().splitlines()[-1])
-    assert wpis['powod_etap2'] == 'sedzia'
     assert wpis['bramki_pominiete'] == ['pokrycie']
+    assert 'powod_etap2' not in wpis
 
 
 # cache_klucz / cache_zdatny / cache_zapisz (N9)

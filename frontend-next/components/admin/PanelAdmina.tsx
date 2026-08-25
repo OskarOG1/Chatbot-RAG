@@ -8,6 +8,7 @@ import {
   sekundy,
   etykieta,
   NAZWY_SEKCJI,
+  NAZWY_STRON,
   NAZWY_POWODOW,
   resetujStatystyki,
   pobierzPrzypadki,
@@ -595,7 +596,7 @@ export default function PanelAdmina() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: BODY, fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderTop: `1px solid ${th.lineSoft}` }}>
-                        {['Czas', 'Ocena', 'Diagnoza', 'Do poprawy', 'Sekcja', 'Pytanie', 'Rerank top1', 'Pokrycie', 'Etap'].map((naglowek) => (
+                        {['Czas', 'Ocena', 'Diagnoza', 'Do poprawy', 'Sekcja', 'Pytanie', 'Rerank top1', 'Pokrycie', 'Etap', 'Wybrana strona', 'Przewaga sekcji'].map((naglowek) => (
                           <th
                             key={naglowek}
                             style={{ padding: '10px 18px', textAlign: 'left', color: th.ink3, fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase' as const, whiteSpace: 'nowrap' }}
@@ -634,6 +635,12 @@ export default function PanelAdmina() {
                           </td>
                           <td style={{ padding: '10px 18px', textAlign: 'right', color: th.ink2 }}>
                             {p.cechy?.etap ?? '—'}
+                          </td>
+                          <td style={{ padding: '10px 18px', color: th.ink2, whiteSpace: 'nowrap' }}>
+                            {p.cechy?.strona_wybrana ? (NAZWY_STRON[p.cechy.strona_wybrana] ?? p.cechy.strona_wybrana) : '—'}
+                          </td>
+                          <td style={{ padding: '10px 18px', textAlign: 'right', color: th.ink2 }}>
+                            {p.cechy?.przewaga_sekcji ?? '—'}
                           </td>
                         </tr>
                       ))}

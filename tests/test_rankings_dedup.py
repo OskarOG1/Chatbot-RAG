@@ -58,6 +58,20 @@ def szukaj(k):
     return rankings.search_reranked_multi('pytanie', None, ['kupujacy'], k=k, k_surowe=20, lang='pl')
 
 
+def test_ten_sam_artykul_w_obu_sekcjach_zostaje_w_obu(monkeypatch):
+    kandydaci = {
+        'kupujacy': [(chunk('https://allegro.pl/pomoc/c-kupujacy', *TRESC_C), 0.10)],
+        'sprzedaz': [(chunk('https://allegro.pl/pomoc/c-sprzedaz', *TRESC_C, agent='sprzedaz'), 0.10)],
+    }
+    monkeypatch.setattr(rankings, 'kandydaci_rrf',
+                        lambda query, query_emb, agent, k_surowe, lang='pl': list(kandydaci[agent]))
+    monkeypatch.setattr(rankings, 'get_reranker', lambda: AtrapaRerankera([3.0, 3.0]))
+    wyniki = rankings.search_reranked_multi('pytanie', None, ['kupujacy', 'sprzedaz'],
+                                            k=None, k_surowe=20, lang='pl')
+
+    assert sorted(c['agent'] for c, _ in wyniki) == ['kupujacy', 'sprzedaz']
+
+
 def test_z_grupy_duplikatow_zostaje_wpis_o_najwyzszym_wyniku(atrapa_retrievalu):
     wyniki = szukaj(k=7)
     urle = [c['url'] for c, _ in wyniki]

@@ -24,6 +24,14 @@ def test_brak_wynikow_drugiej_strony_daje_przewage_none():
     assert len(chunki) == 1
 
 
+def test_brak_wynikow_strony_uzytkownika_wybiera_druga():
+    wyniki = [({'agent': 'sprzedaz'}, 4.0)]
+    strona_wybrana, chunki, przewaga = strony.rozstrzygnij(wyniki, 'kupujacy', 5)
+    assert strona_wybrana == 'sprzedajacy'
+    assert przewaga is None
+    assert len(chunki) == 1
+
+
 def test_przycina_do_k_i_odrzuca_obca_sekcje():
     wyniki = [({'agent': 'sprzedaz'}, 9.0), ({'agent': 'zakupy'}, 8.0),
               ({'agent': 'sprzedaz'}, 7.0), ({'agent': 'sprzedaz'}, 6.0)]
