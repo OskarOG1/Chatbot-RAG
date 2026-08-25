@@ -164,7 +164,6 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
             'sekcja': agent or None,
             'wynik': wynik,
             'powod': powod_wyniku(dane),
-            'powod_etap2': dane.get('powod_etap2'),
             'powod_ogolna': dane.get('powod_ogolna'),
             'bramki_pominiete': dane.get('bramki_pominiete') or [],
             'latencja_s': round(latencja, 3),

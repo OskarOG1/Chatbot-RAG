@@ -7,6 +7,7 @@ import unicodedata
 import pickle
 import os
 import simplemma
+import strony
 from lang_config import LANG
 
 RERANKER_NAME = 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1'
@@ -38,7 +39,7 @@ def klucz_url(chunk):
     return chunk['url']
 
 def klucz_tresci(chunk):
-    return (chunk['tytul'], chunk['tekst'])
+    return (strony.strona_z_agenta(chunk['agent']), chunk['tytul'], chunk['tekst'])
 
 def dedup_najlepszy(wyniki, klucz):
     najlepsze = {}

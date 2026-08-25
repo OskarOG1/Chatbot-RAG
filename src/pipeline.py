@@ -32,7 +32,7 @@ class ModeleLeniwe(dict):
 MODELE = ModeleLeniwe()
 OKNO_HISTORII = 3
 OKNO_JAWNEJ_ODMOWY = 160
-K_SUROWE_SEKCJI = int(os.getenv('K_SUROWE_SEKCJI', '12'))
+K_SUROWE_SEKCJI = int(os.getenv('K_SUROWE_SEKCJI', '6'))
 K_CHUNKOW_SEKCJI = int(os.getenv('K_CHUNKOW_SEKCJI', '5'))
 SEDZIA_CHUNKOW = int(os.getenv('SEDZIA_CHUNKOW', '3'))
 SEDZIA_CZEKANIE = float(os.getenv('SEDZIA_CZEKANIE', '30'))
@@ -261,11 +261,11 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
              'strona_wybrana': strona, 'przewaga_sekcji': None}
 
     wyniki = search_reranked_multi(zapytanie_ret, query_emb, strony.agenci_wszystkich_stron(),
-                                    k=K_SUROWE_SEKCJI * len(strony.STRONY),
-                                    k_surowe=K_SUROWE_SEKCJI, lang=lang)
+                                    k=None, k_surowe=K_SUROWE_SEKCJI, lang=lang)
     strona_wybrana, chunks, przewaga = strony.rozstrzygnij(wyniki, strona, K_CHUNKOW_SEKCJI)
     cechy['strona_wybrana'] = strona_wybrana
     cechy['przewaga_sekcji'] = przewaga
+    yield krok(cfg['kroki']['wybieram_strone'].format(strona=cfg['nazwy_stron'][strona_wybrana]))
     agent_odp = chunks[0][0]['agent'] if chunks else ''
     cechy['chunkow'] = len(chunks)
     if chunks:
@@ -277,8 +277,6 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'prog_rerank',
                                             'bramki_pominiete': bramki_pominiete, 'cechy': cechy}}
         return
-
-    yield krok(cfg['kroki']['wybieram_strone'].format(strona=cfg['nazwy_stron'][strona_wybrana]))
 
     stan_sedziego = {}
     werdykt = None

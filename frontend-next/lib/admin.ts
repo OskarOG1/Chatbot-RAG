@@ -144,7 +144,6 @@ export const ETYKIETY_KOLUMN: Record<string, string> = {
   sekcja: 'Sekcja',
   wynik: 'Wynik',
   powod: 'Powód',
-  powod_etap2: 'Powód, etap 2',
   latencja_s: 'Latencja (s)',
   cache_hit: 'Trafienie cache',
   pytanie: 'Pytanie',
@@ -224,6 +223,8 @@ export interface CechyPrzypadku {
   sedzia_ok: boolean | null;
   pokrycie: number | null;
   etap: number;
+  strona_wybrana: string | null;
+  przewaga_sekcji: number | null;
 }
 
 export interface Przypadek {
@@ -237,7 +238,6 @@ export interface Przypadek {
   id_zapytania: string | null;
   wynik: string | null;
   powod: string | null;
-  powod_etap2: string | null;
   latencja_s: number | null;
   cache_hit: boolean | null;
   cechy: CechyPrzypadku | null;

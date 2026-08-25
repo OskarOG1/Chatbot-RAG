@@ -6,7 +6,7 @@ import os
 
 LOG_ANALYTICS = Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.jsonl'
 
-KOLUMNY_EKSPORTU = ('czas', 'lang', 'strona', 'sekcja', 'wynik', 'powod', 'powod_etap2',
+KOLUMNY_EKSPORTU = ('czas', 'lang', 'strona', 'sekcja', 'wynik', 'powod',
                     'powod_ogolna', 'latencja_s', 'cache_hit', 'pytanie', 'tokeny_we',
                     'tokeny_wy', 'koszt_usd')
 KOLUMNY_DOMYSLNE = ('czas', 'lang', 'strona', 'sekcja', 'wynik', 'powod', 'latencja_s', 'cache_hit')
@@ -328,7 +328,6 @@ def przypadki_ocen(wpisy: list[dict], dni: int | None = None) -> list[dict]:
             'id_zapytania': o.get('id_zapytania'),
             'wynik': (z or {}).get('wynik'),
             'powod': (z or {}).get('powod'),
-            'powod_etap2': (z or {}).get('powod_etap2'),
             'latencja_s': (z or {}).get('latencja_s'),
             'cache_hit': (z or {}).get('cache_hit'),
             'cechy': (z or {}).get('cechy') or None,
