@@ -4,7 +4,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 import ogolna
 import pipeline
-import strony
 
 
 def test_odmowa_sedziego_nie_wypuszcza_tokenow(atrapa_pipeline):
