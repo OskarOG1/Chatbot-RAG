@@ -41,21 +41,19 @@ def test_mail_doprecyzuj_gdy_router_nie_rozpozna_kategorii(atrapa_pipeline):
     assert wynik['powod_odmowy'] == 'mail_doprecyzuj'
 
 
-def test_sedzia_odmawia_w_obu_sekcjach(atrapa_pipeline):
+def test_sedzia_odmawia(atrapa_pipeline):
     atrapa_pipeline.ustaw_etap('kupujacy', sedzia=False)
     wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
                          bez_korekty=True, sedzia=True, lang='pl')
     assert wynik['powod_odmowy'] == 'sedzia'
-    assert wynik['powod_etap2'] == 'prog_rerank'
 
 
-def test_pokrycie_ponizej_progu_w_obu_sekcjach(monkeypatch, atrapa_pipeline):
+def test_pokrycie_ponizej_progu(monkeypatch, atrapa_pipeline):
     atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz nie majaca zwiazku z pytaniem.')
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 0.0)
     wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
                          bez_korekty=True, sedzia=False, lang='pl')
     assert wynik['powod_odmowy'] == 'pokrycie'
-    assert wynik['powod_etap2'] == 'prog_rerank'
 
 
 def test_brak_generacji_gdy_answer_stream_nie_zwroci_konca(atrapa_pipeline):
@@ -63,7 +61,6 @@ def test_brak_generacji_gdy_answer_stream_nie_zwroci_konca(atrapa_pipeline):
     wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
                          bez_korekty=True, sedzia=False, lang='pl')
     assert wynik['powod_odmowy'] == 'brak_generacji'
-    assert wynik['powod_etap2'] == 'prog_rerank'
 
 
 def test_model_nie_wie_gdy_odpowiedz_zawiera_zwrot(monkeypatch, atrapa_pipeline):
@@ -72,7 +69,6 @@ def test_model_nie_wie_gdy_odpowiedz_zawiera_zwrot(monkeypatch, atrapa_pipeline)
     wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
                          bez_korekty=True, sedzia=False, lang='pl')
     assert wynik['powod_odmowy'] == 'model_nie_wie'
-    assert wynik['powod_etap2'] == 'prog_rerank'
 
 
 def test_model_nie_wie_nie_odpala_gdy_odpowiedz_ma_cytaty(monkeypatch, atrapa_pipeline):
@@ -153,10 +149,10 @@ def test_historia_przycinana_do_okna(monkeypatch, atrapa_pipeline):
     assert atrapa_pipeline.generacje[0]['history'] == historia[-pipeline.OKNO_HISTORII:]
 
 
-# Grupa C: semantyka kaskady
+# Grupa C: semantyka wyboru sekcji
 
 
-def test_sukces_pierwszego_etapu_nie_uruchamia_drugiego(monkeypatch, atrapa_pipeline):
+def test_sekcja_uzytkownika_wygrywa_i_nie_ma_noty(monkeypatch, atrapa_pipeline):
     atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz o koncie.')
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
 
@@ -164,32 +160,38 @@ def test_sukces_pierwszego_etapu_nie_uruchamia_drugiego(monkeypatch, atrapa_pipe
                          bez_korekty=True, sedzia=False, lang='pl')
     assert wynik.get('powod_odmowy') is None
     assert wynik.get('nota_sekcji') is None
+    assert wynik['cechy']['strona_wybrana'] == 'kupujacy'
     assert atrapa_pipeline.wywolania['search'] == 1
 
 
-def test_odmowa_pierwszego_etapu_uruchamia_dokladnie_jeden_dodatkowy(monkeypatch, atrapa_pipeline):
-    atrapa_pipeline.ustaw_etap('kupujacy', tekst='Nie mam informacji na ten temat.', sedzia=True)
-    atrapa_pipeline.ustaw_etap('sprzedajacy', tekst='Odpowiedz z sekcji sprzedajacych.', sedzia=True)
+def test_wyzsza_ocena_drugiej_sekcji_wygrywa_bez_drugiej_generacji(monkeypatch, atrapa_pipeline, chunk):
+    atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=1.0)],
+                               tekst='Odpowiedz o koncie.', sedzia=True)
+    atrapa_pipeline.ustaw_etap('sprzedajacy', chunki=[chunk('sprzedaz', score=9.0)],
+                               tekst='Odpowiedz z sekcji sprzedajacych.', sedzia=True)
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
 
     wynik = pipeline.run('jakies pytanie o sprzedaz', strona='kupujacy',
                          bez_korekty=True, sedzia=True, lang='pl')
     assert wynik.get('powod_odmowy') is None
     assert wynik['agent'] == 'sprzedaz'
-    assert atrapa_pipeline.wywolania['search'] == 2
-    assert atrapa_pipeline.wywolania['sedzia'] == 2
-    assert atrapa_pipeline.wywolania['answer'] == 2
+    assert wynik['nota_sekcji'] == pipeline.LANG['pl']['nota_sekcji']['sprzedajacy']
+    assert wynik['cechy']['przewaga_sekcji'] == 8.0
+    assert atrapa_pipeline.wywolania['search'] == 1
+    assert atrapa_pipeline.wywolania['sedzia'] == 1
+    assert atrapa_pipeline.wywolania['answer'] == 1
 
 
-def test_powod_etap1_wygrywa_nad_powodem_etapu_drugiego(atrapa_pipeline):
-    atrapa_pipeline.ustaw_etap('sprzedajacy', sedzia=False)
+def test_obie_sekcje_ponizej_progu_daja_odmowe(atrapa_pipeline, chunk):
+    atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=-10.0)])
+    atrapa_pipeline.ustaw_etap('sprzedajacy', chunki=[chunk('sprzedaz', score=-9.0)])
     wynik = pipeline.run('jakies pytanie poza domena', strona='kupujacy',
                          bez_korekty=True, sedzia=True, lang='pl')
     assert wynik['powod_odmowy'] == 'prog_rerank'
-    assert wynik['powod_etap2'] == 'sedzia'
+    assert atrapa_pipeline.wywolania['sedzia'] == 0
 
 
-def test_strona_spoza_stron_zwija_sie_do_kupujacego_jako_pierwszy_etap(monkeypatch, atrapa_pipeline):
+def test_strona_spoza_stron_zwija_sie_do_kupujacego(monkeypatch, atrapa_pipeline):
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
     for wartosc in (None, 'auto'):
         atrapa_pipeline.ustaw_etap('sprzedajacy', tekst='Odpowiedz z sekcji sprzedajacych.')
@@ -200,7 +202,7 @@ def test_strona_spoza_stron_zwija_sie_do_kupujacego_jako_pierwszy_etap(monkeypat
         assert wynik['nota_sekcji'] == pipeline.LANG['pl']['nota_sekcji']['sprzedajacy']
 
 
-def test_strona_sprzedajacy_odwraca_kolejnosc_etapow(monkeypatch, atrapa_pipeline):
+def test_strona_sprzedajacy_dostaje_note_kupujacego(monkeypatch, atrapa_pipeline):
     atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz o koncie.')
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
 
@@ -211,9 +213,11 @@ def test_strona_sprzedajacy_odwraca_kolejnosc_etapow(monkeypatch, atrapa_pipelin
     assert wynik['nota_sekcji'] == pipeline.LANG['pl']['nota_sekcji']['kupujacy']
 
 
-def test_styl_ze_sterowania_dociera_do_obu_etapow(monkeypatch, atrapa_pipeline):
-    atrapa_pipeline.ustaw_etap('kupujacy', tekst='Nie mam informacji na ten temat.')
-    atrapa_pipeline.ustaw_etap('sprzedajacy', tekst='Rozwiniete wyjasnienie sprzedazy.')
+def test_styl_ze_sterowania_dociera_do_generacji(monkeypatch, atrapa_pipeline, chunk):
+    atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=1.0)],
+                               tekst='Odpowiedz o koncie.')
+    atrapa_pipeline.ustaw_etap('sprzedajacy', chunki=[chunk('sprzedaz', score=9.0)],
+                               tekst='Rozwiniete wyjasnienie sprzedazy.')
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
 
     historia = [{'role': 'user', 'content': 'jak sprzedawac'},
@@ -222,7 +226,7 @@ def test_styl_ze_sterowania_dociera_do_obu_etapow(monkeypatch, atrapa_pipeline):
                          strona='kupujacy', bez_korekty=True, sedzia=False, lang='pl')
     assert wynik.get('powod_odmowy') is None
     assert wynik['agent'] == 'sprzedaz'
-    assert len(atrapa_pipeline.generacje) == 2
+    assert len(atrapa_pipeline.generacje) == 1
     assert all(g['styl'] == 'rozwin' for g in atrapa_pipeline.generacje)
 
 
@@ -347,7 +351,6 @@ def test_jawna_odmowa_na_starcie_odrzuca_mimo_cytatu(monkeypatch, atrapa_pipelin
     wynik = pipeline.run('jakies pytanie o zwrot przez spolke', strona='kupujacy',
                          bez_korekty=True, sedzia=False, lang='pl')
     assert wynik['powod_odmowy'] == 'jawna_odmowa'
-    assert wynik['powod_etap2'] == 'prog_rerank'
 
 
 def test_zastrzezenie_na_starcie_z_cytatami_wciaz_przepuszczone(monkeypatch, atrapa_pipeline):
