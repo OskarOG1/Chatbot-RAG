@@ -441,7 +441,7 @@ def test_cechy_przy_odmowie_progu(atrapa_pipeline, chunk):
     assert wynik['cechy']['etap'] == 1
 
 
-def test_cechy_przy_sukcesie_drugiego_etapu(monkeypatch, atrapa_pipeline, chunk):
+def test_cechy_przy_sukcesie_drugiej_sekcji(monkeypatch, atrapa_pipeline, chunk):
     monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
     atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=-10.0)])
     atrapa_pipeline.ustaw_etap('sprzedajacy', chunki=[chunk('sprzedaz', score=5.0)],
@@ -449,5 +449,5 @@ def test_cechy_przy_sukcesie_drugiego_etapu(monkeypatch, atrapa_pipeline, chunk)
     wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
                          bez_korekty=True, sedzia=False, lang='pl')
     assert wynik['agent'] == 'sprzedaz'
-    assert wynik['cechy']['etap'] == 2
+    assert wynik['cechy']['etap'] == 1
     assert wynik['cechy']['pokrycie'] == 1.0
