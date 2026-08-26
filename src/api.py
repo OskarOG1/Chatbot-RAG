@@ -52,7 +52,17 @@ EMAIL_WZORZEC = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+')
 
 CACHE_MAX = int(os.getenv('CACHE_MAX', '200'))
 _cache: 'OrderedDict[tuple, dict]' = OrderedDict()
-LOG_ANALYTICS = Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.jsonl'
+def sciezka_log_analytics() -> Path:
+    zmienna = os.getenv('LOG_ANALYTICS_PLIK')
+    if zmienna:
+        sciezka = Path(zmienna)
+        if not sciezka.is_absolute():
+            sciezka = Path(__file__).resolve().parent.parent / sciezka
+        return sciezka
+    return Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.jsonl'
+
+
+LOG_ANALYTICS = sciezka_log_analytics()
 OSTRZEZONO_O_LOGU = False
 OSTRZEZONO_O_LOGU_WYSYLKI = False
 
