@@ -6,6 +6,7 @@ import faiss
 import pickle
 from rankings import tokenizacja
 from rank_bm25 import BM25Okapi
+import aliasy
 from lang_config import LANG
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,7 +27,7 @@ def zapisz_indeks(nazwa: str, chunki_pod: list[dict], embeddings_pod: np.ndarray
     index.add(embeddings_pod)
     faiss.write_index(index, str(RAG_DIR / f'{nazwa}.faiss'))
 
-    tokeny = [tokenizacja(f"{c['tytul']}\n{c['tekst']}", lang) for c in chunki_pod]
+    tokeny = [tokenizacja(aliasy.tekst_do_retrievalu(c), lang) for c in chunki_pod]
     bm25 = BM25Okapi(tokeny)
 
     with open(RAG_DIR / f'{nazwa}.bm25', "wb") as w:
