@@ -422,3 +422,33 @@ def test_admin_oceny_pusty_log(client):
     odp = client.get('/admin/oceny')
     assert odp.status_code == 200
     assert odp.json() == {'razem': 0, 'przypadki': []}
+
+
+def test_chat_wpis_ma_konfiguracje(client, monkeypatch):
+    monkeypatch.setattr(api, 'run', lambda *a, **kw: {'agent': 'konto', 'answer': 'x',
+                                                       'sources': [], 'citations': []})
+    monkeypatch.setattr(api.pipeline, 'K_SUROWE_SEKCJI', 9)
+    odp = client.post('/chat', json={'message': 'jak zmienic haslo'})
+    assert odp.status_code == 200
+    wpis = wczytaj_log(api.LOG_ANALYTICS)[-1]
+    konfiguracja = wpis['konfiguracja']
+    ustawienia_pl = api.LANG['pl']
+    assert konfiguracja['model'] == ustawienia_pl['model']
+    assert konfiguracja['prog_rerank'] == ustawienia_pl['prog_rerank']
+    assert konfiguracja['prog_pokrycia'] == ustawienia_pl['prog_pokrycia']
+    assert konfiguracja['k_surowe_sekcji'] == 9
+
+
+def test_sciezka_log_analytics_respektuje_zmienna(monkeypatch, tmp_path):
+    import importlib
+
+    plik_wlasny = tmp_path / 'log_test_env.jsonl'
+    monkeypatch.setenv('LOG_ANALYTICS_PLIK', str(plik_wlasny))
+    try:
+        importlib.reload(api)
+        assert api.LOG_ANALYTICS == plik_wlasny
+    finally:
+        monkeypatch.delenv('LOG_ANALYTICS_PLIK', raising=False)
+        importlib.reload(api)
+        assert api.LOG_ANALYTICS.name == 'log_analytics.jsonl'
+        assert api.LOG_ANALYTICS.parent.name == 'RAG'

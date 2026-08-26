@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 from typing import Literal
+import pipeline
 from pipeline import run, run_stream, MODELE, corpus_stamp, redaguj, IDF_DANE, EGZEKUTOR_SEDZIEGO
 from rankings import get_reranker, get_bm25, get_faiss
 from spell import detect_lang, load_dictionary
@@ -52,7 +53,17 @@ EMAIL_WZORZEC = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+')
 
 CACHE_MAX = int(os.getenv('CACHE_MAX', '200'))
 _cache: 'OrderedDict[tuple, dict]' = OrderedDict()
-LOG_ANALYTICS = Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.jsonl'
+def sciezka_log_analytics() -> Path:
+    zmienna = os.getenv('LOG_ANALYTICS_PLIK')
+    if zmienna:
+        sciezka = Path(zmienna)
+        if not sciezka.is_absolute():
+            sciezka = Path(__file__).resolve().parent.parent / sciezka
+        return sciezka
+    return Path(__file__).resolve().parent.parent / 'RAG' / 'log_analytics.jsonl'
+
+
+LOG_ANALYTICS = sciezka_log_analytics()
 OSTRZEZONO_O_LOGU = False
 OSTRZEZONO_O_LOGU_WYSYLKI = False
 
@@ -156,6 +167,21 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
         tryb = dane.get('tryb')
         wynik = tryb if tryb in ('rozmowa', 'ogolna') else ('odpowiedz' if agent else 'odmowa')
         zuzycie = zuzycie or {}
+        try:
+            ustawienia_jezyka = LANG.get(lang) or {}
+            konfiguracja = {
+                'model': ustawienia_jezyka.get('model'),
+                'sedzia_model': ustawienia_jezyka.get('sedzia_model'),
+                'prog_rerank': ustawienia_jezyka.get('prog_rerank'),
+                'prog_pokrycia': ustawienia_jezyka.get('prog_pokrycia'),
+                'k_surowe_sekcji': pipeline.K_SUROWE_SEKCJI,
+                'k_chunkow_sekcji': pipeline.K_CHUNKOW_SEKCJI,
+                'sedzia_bufor_max': pipeline.SEDZIA_BUFOR_MAX,
+                'sedzia_on': pipeline.SEDZIA_ON,
+                'ogolna_on': pipeline.OGOLNA_ON,
+            }
+        except Exception:
+            konfiguracja = None
         wpis = {
             'czas': datetime.now(timezone.utc).isoformat(),
             'id': id_zapytania,
@@ -174,6 +200,7 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
             'cache_hit': cache_hit,
             'pytanie': redaguj(query),
             'cechy': dane.get('cechy') or None,
+            'konfiguracja': konfiguracja,
         }
         dopisz_do_logu(wpis)
     except OSError as e:
