@@ -16,7 +16,7 @@ LANG = {
         'suffix': '',
         'model': os.getenv('MODEL', MODEL_DOMYSLNY),
         'sedzia_model': os.getenv('SEDZIA_MODEL', MODEL_11B),
-        'prog_rerank': -2.75,
+        'prog_rerank': -2.0,
         'prog_pokrycia': 0.20,
         'brak_wiedzy': (
             'Nie znalazłem tej informacji w bazie pomocy Allegro. '
