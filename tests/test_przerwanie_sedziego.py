@@ -155,13 +155,32 @@ def test_odmowa_po_optymistycznym_wyslaniu(monkeypatch, atrapa_pipeline):
     typy = [z['typ'] for z in zdarzenia]
     teksty = [z['tekst'] for z in zdarzenia if z['typ'] == 'token']
     assert teksty == ['a ', 'b ', 'c ', 'd ']
-    assert 'reset' not in typy
+    assert typy.count('reset') == 1
+    assert typy.index('reset') > typy.index('token')
     assert zdarzenia[-1]['typ'] == 'wynik'
-    assert not zdarzenia[-1]['dane'].get('powod_odmowy')
+    assert zdarzenia[-1]['dane']['powod_odmowy'] == 'sedzia'
     cechy = zdarzenia[-1]['dane']['cechy']
     assert cechy['sedzia_ok'] is False
     assert not cechy.get('generacja_przerwana')
-    assert not cechy.get('tokeny_stracone')
+    assert cechy['tokeny_stracone'] == len(teksty)
+
+
+def test_werdykt_niezdazony_w_krotkim_limicie_przepuszcza(monkeypatch, atrapa_pipeline):
+    monkeypatch.setattr(pipeline, 'SEDZIA_BUFOR_MAX', 2)
+    monkeypatch.setattr(pipeline, 'SEDZIA_CZEKANIE_KONCOWE', 0.01)
+    agent = atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz.', sedzia=True)
+    atrapa_pipeline.tokeny[agent] = ['a ', 'b ', 'c ', 'd ']
+    podmien_wolnego_sedziego(monkeypatch, atrapa_pipeline, opoznienie=1.0)
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+    zdarzenia = list(pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
+                                          bez_korekty=True, sedzia=True, lang='pl'))
+    typy = [z['typ'] for z in zdarzenia]
+    teksty = [z['tekst'] for z in zdarzenia if z['typ'] == 'token']
+    assert teksty == ['a ', 'b ', 'c ', 'd ']
+    assert 'reset' not in typy
+    assert zdarzenia[-1]['typ'] == 'wynik'
+    assert not zdarzenia[-1]['dane'].get('powod_odmowy')
+    assert 'sedzia' in zdarzenia[-1]['dane']['bramki_pominiete']
 
 
 def test_anulowanie_sedziego_po_porzuceniu(monkeypatch, atrapa_pipeline):

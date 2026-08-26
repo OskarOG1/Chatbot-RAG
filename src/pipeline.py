@@ -36,6 +36,7 @@ K_SUROWE_SEKCJI = int(os.getenv('K_SUROWE_SEKCJI', '6'))
 K_CHUNKOW_SEKCJI = int(os.getenv('K_CHUNKOW_SEKCJI', '5'))
 SEDZIA_CHUNKOW = int(os.getenv('SEDZIA_CHUNKOW', '3'))
 SEDZIA_CZEKANIE = float(os.getenv('SEDZIA_CZEKANIE', '30'))
+SEDZIA_CZEKANIE_KONCOWE = float(os.getenv('SEDZIA_CZEKANIE_KONCOWE', '3'))
 SEDZIA_ROWNOLEGLE = int(os.getenv('SEDZIA_ROWNOLEGLE', '8'))
 SEDZIA_BUFOR_MAX = int(os.getenv('SEDZIA_BUFOR_MAX', '40'))
 EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=SEDZIA_ROWNOLEGLE,
@@ -297,13 +298,13 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
     przepuszczone = werdykt is None
     optymistycznie = False
 
-    def werdykt_sedziego(czekaj: bool):
+    def werdykt_sedziego(czekaj: bool, limit: float = SEDZIA_CZEKANIE):
         if not czekaj and not werdykt.done():
             return None
         try:
-            return bool(werdykt.result(timeout=SEDZIA_CZEKANIE))
+            return bool(werdykt.result(timeout=limit))
         except TimeoutError:
-            print(f'sedzia kontekstu nie zdazyl w {SEDZIA_CZEKANIE} s, przepuszczam dalej', flush=True)
+            print(f'sedzia kontekstu nie zdazyl w {limit} s, przepuszczam dalej', flush=True)
             stan_sedziego['sedzia_pominiety'] = True
             return True
         except Exception as e:
@@ -311,10 +312,10 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
             stan_sedziego['sedzia_pominiety'] = True
             return True
 
-    def odmowa_sedziego(przerwano: bool):
+    def odmowa_sedziego(przerwano: bool, tokeny_wyslane: int = 0):
         cechy['sedzia_ok'] = False
         cechy['generacja_przerwana'] = przerwano
-        cechy['tokeny_stracone'] = licznik_tokenow if przerwano else 0
+        cechy['tokeny_stracone'] = licznik_tokenow if przerwano else tokeny_wyslane
         if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
         return {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia',
@@ -352,14 +353,20 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         elif ev['typ'] == 'koniec':
             odpowiedz = ev['dane']
 
-    if not przepuszczone or optymistycznie:
+    if not przepuszczone:
         werdykt_pozytywny = werdykt_sedziego(czekaj=True)
-        if not werdykt_pozytywny and not optymistycznie:
+        if not werdykt_pozytywny:
             yield odmowa_sedziego(przerwano=False)
             return
         cechy['sedzia_ok'] = werdykt_pozytywny
         for zbuforowany in bufor:
             yield zbuforowany
+    elif optymistycznie:
+        werdykt_pozytywny = werdykt_sedziego(czekaj=True, limit=SEDZIA_CZEKANIE_KONCOWE)
+        if not werdykt_pozytywny:
+            yield odmowa_sedziego(przerwano=False, tokeny_wyslane=licznik_tokenow)
+            return
+        cechy['sedzia_ok'] = werdykt_pozytywny
 
     if werdykt is not None and stan_sedziego.get('sedzia_pominiety'):
         bramki_pominiete.append('sedzia')
