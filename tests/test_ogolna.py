@@ -188,3 +188,48 @@ def test_odmowa_pokrycia_nie_schodzi_do_warstwy_ogolnej(monkeypatch, atrapa_pipe
     assert wynik['powod_odmowy'] == 'pokrycie'
     assert wynik['powod_ogolna'] == 'ogolna_blisko_bazy'
     assert atrapa_pipeline.wywolania['ogolna'] == 0
+
+
+# Grupa F: bramka tematow zablokowanych nie moze lapac ofiary ani opierac sie na korekcie
+
+
+def test_temat_zablokowany_ofiara_wlamania_to_none():
+    assert ogolna.temat_zablokowany('ktoś włamał się na moje konto', 'pl') is None
+    assert ogolna.temat_zablokowany('ktoś próbował włamać się na moje konto', 'pl') is None
+
+
+def test_temat_zablokowany_sprawca_wlamania_to_niedozwolone():
+    assert ogolna.temat_zablokowany('jak włamać się na cudze konto', 'pl') == 'niedozwolone'
+    assert ogolna.temat_zablokowany('jak zhakować czyjeś konto', 'pl') == 'niedozwolone'
+
+
+def test_temat_zablokowany_ofiara_i_sprawca_po_angielsku():
+    assert ogolna.temat_zablokowany('someone tried to hack my account', 'en') is None
+    assert ogolna.temat_zablokowany('how to hack into someones account', 'en') == 'niedozwolone'
+
+
+def test_korekta_literowek_nie_wywoluje_bramki_tematu(atrapa_pipeline, monkeypatch):
+    # korektor potrafi przepisac czas przeszly na bezokolicznik z korpusu (wlamal na wlamac),
+    # wiec bramka bezpieczenstwa musi patrzec na to, co napisal uzytkownik, nie na domysl.
+    atrapa_pipeline.ogolna_tekst = ('Skontaktuj się z obsługą serwisu i zmień hasło '
+                                     'na wszystkich swoich urządzeniach.')
+    monkeypatch.setattr(pipeline, 'correct', lambda query: {
+        'poprawione': 'Co zrobić jesli ktos włamać mi sie na konto',
+        'zmieniono': True, 'zmiany': [('wlamal', 'włamać')], 'nieznane': [],
+    })
+    wynik = pipeline.run('Co zrobić jesli ktos wlamal mi sie na konot', strona='kupujacy',
+                         bez_korekty=False, sedzia=False, lang='pl')
+    komunikat = pipeline.LANG['pl']['ogolna']['tematy_zablokowane']['niedozwolone']['komunikat']
+    assert wynik['answer'] != komunikat
+    assert wynik.get('powod_ogolna') != 'ogolna_temat'
+
+
+def test_bramka_tematu_dziala_na_tekscie_uzytkownika_mimo_korekty(atrapa_pipeline, monkeypatch):
+    monkeypatch.setattr(pipeline, 'correct', lambda query: {
+        'poprawione': 'Jaka jest bezpieczna dawka tego leku', 'zmieniono': True,
+        'zmiany': [('lekku', 'leku')], 'nieznane': [],
+    })
+    wynik = pipeline.run('Jaka jest bezpieczna dawka tego lekku', strona='kupujacy',
+                         bez_korekty=False, sedzia=False, lang='pl')
+    assert wynik['powod_ogolna'] == 'ogolna_temat'
+    assert atrapa_pipeline.wywolania['ogolna'] == 0
