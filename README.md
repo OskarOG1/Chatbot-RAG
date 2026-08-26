@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/OskarOG1/Chatbot-RAG/actions/workflows/ci.yml/badge.svg)](https://github.com/OskarOG1/Chatbot-RAG/actions/workflows/ci.yml)
 
-Chatbot, który odpowiada na pytania **tylko na podstawie dostarczonych artykułów**, nigdy z ogólnej wiedzy modelu. Każda odpowiedź ma odnośniki do źródeł. Gdy odpowiedzi nie ma w bazie, system odmawia zamiast zmyślać.
+Chatbot, który na pytania o Allegro odpowiada **tylko na podstawie dostarczonych artykułów**, nigdy z ogólnej wiedzy modelu. Każda taka odpowiedź ma odnośniki do źródeł. Gdy odpowiedzi nie ma w bazie, system odmawia zamiast zmyślać. Pytanie spoza domeny Allegro może dostać krótką odpowiedź ogólną bez źródeł, obwarowaną własnym zestawem bramek (trzeci szczebel na diagramie niżej).
 
 **Demo: [ogflow.pl](https://ogflow.pl)**
 
@@ -17,18 +17,28 @@ Baza testowa: 667 artykułów Allegro Pomoc, dwie sekcje (kupujący, sprzedając
 | Co mierzone | Wynik |
 |---|---|
 | Baza wiedzy | 667 artykułów, 3551 fragmentów: PL 353 art./2109 frag., EN 314 art./1442 frag. |
-| Trafność wyszukiwania, top 5 | kupujący PL **0.840** · sprzedaż PL **1.000** · kupujący EN **0.800** · sprzedaż EN **0.947** |
+| Trafność wyszukiwania, top 5 | kupujący PL **0.700** · sprzedaż PL **0.950** · kupujący EN **0.760** · sprzedaż EN **1.000** |
 | Odpowiedź bez odmowy, pełny pipeline (GOLDEN, kupujący PL, 50 pytań) | **49/50** |
 | Oczekiwane źródło w odpowiedzi, pełny pipeline (GOLDEN, kupujący PL, 50 pytań) | **40/50** |
 | Odpowiedź bez odmowy, pełny pipeline (50 realnych pytań z forum Allegro, bez znanego źródła) | **40/50** |
 | Fałszywe odmowy na bramce pokrycia | PL 0/29 · EN 1/50 |
-| Pytania nie na temat złapane | PL 29/29 · EN 29/29 |
-| Testy jednostkowe | **306/306** zielonych, CI na każdym pushu i PR |
-| Model odpowiadający | Bielik-11B, PL (identyfikator ustawia `MODEL` w `.env`) · apertus 8B, EN |
+| Pytania nie na temat złapane, pełny łańcuch | PL **25/26** (próg rerankera 17, sędzia 8) |
+| Testy jednostkowe | **351/351** zielonych, CI na każdym pushu i PR |
+| Model odpowiadający | apertus v1.5 8B, PL · apertus 8B instruct, EN (`MODEL` i `MODEL_EN` w `.env`) |
 
-**Znane ograniczenie.** Trafność kupujący EN (0.800) zostaje około 12 punktów procentowych pod sufitem 0.920, bo artykuły o koncie, logowaniu i RODO nakładają się między sekcją kupujących i sprzedających. Jawny przełącznik strony w interfejsie zamyka tę lukę dla użytkownika, który wie, po której jest stronie.
+**Skąd te liczby.** Pomiar z 2026-08-26 na ścieżce, która faktycznie obsługuje ruch: korekta literówek, embedding, BM25 i FAISS z RRF po obu sekcjach naraz, reranker, rozstrzygnięcie strony przez `strony.rozstrzygnij`. Zestawy: kupujący PL i EN po 50 pytań, sprzedaż PL 20, sprzedaż EN 19, wszystkie ze znanym źródłem (`Pomiary/dane_measure.json` oraz `RAG/golden_*.json`). Wcześniejsze wartości w tym wierszu (kupujący PL 0.840) pochodziły z innej konfiguracji: jedna sekcja zamiast dwóch i `k_surowe` 20 zamiast 6, co odnotowuje docstring `Pomiary/measure.py`. Nie są więc porównywalne i nie oznaczają regresji, ale opisywały układ, którego już nie ma.
 
-**O trzech nowych wierszach.** To pomiar innego rodzaju niż wiersz "Trafność wyszukiwania" powyżej: nie sam retrieval, tylko cały `pipeline.run` (korektor, reranker, sędzia kontekstu, generacja Bielikiem-11B), na dwóch zestawach po 50 pytań. GOLDEN ma znane źródło, więc liczy się i odmowa, i trafienie. 50 pytań realnych to ręcznie odsiane, sensowne pytania o Allegro z `RAG/pytania_realne.jsonl` (5096 wpisów z forum), bez znanego źródła, więc liczy się tylko, czy system w ogóle odpowiedział: 8 odmów sędziego kontekstu, po jednej na bramce rerankera i na "model nie wie". Nie jest to bezpośrednie porównanie z wierszem wyżej (inny model, inna metodologia, brak rozbicia na sprzedaż/EN, bo oryginalny plik z tamtymi zestawami golden nie przetrwał czyszczenia repo, patrz `Pomiary/measure.py`).
+**Znane ograniczenie.** Trafność kupujący PL i EN (0.700 i 0.760) zostaje wyraźnie pod sprzedażową, bo artykuły o koncie, logowaniu i RODO nakładają się między sekcją kupujących i sprzedających. Na zestawie kupujący PL wszystkie sześć przerzutów na sekcję sprzedaży straciło oczekiwane źródło. Zablokowanie przerzutów podnosi ten wynik do 0.780, ale zabiera trafienia użytkownikowi, który stoi na drugiej zakładce, i tam spada ono do zera (`Pomiary/WYNIK_ZLA_ZAKLADKA.json`). Jawny przełącznik strony w interfejsie zamyka tę lukę dla użytkownika, który wie, po której jest stronie.
+
+**O bramkach.** Wiersz "pytania nie na temat" mierzy cały łańcuch na 26 pytaniach spoza bazy (`OOD_SPOZA_TEMATU` 19 plus `OOD_ALLEGRO_POZA_BAZA` 7). Pozostałe 3 pytania z listy `OOD_DO_AUDYTU` pominięto celowo, bo to sensowne pytania sprzedawcy, na które baza ma odpowiedź, więc ich przepuszczenie nie jest błędem. Rozkład pracy między bramkami: próg rerankera zatrzymuje 17, sędzia kontekstu 8, przecieka 1. Fałszywe odmowy na golden: 4/50. Wcześniejsza wartość 29/29 nie jest porównywalna, bo liczyła inny zestaw i inny próg.
+
+**Bramka odmowy stoi na sędzim.** Sam próg rerankera zatrzymuje 17 z 26 pytań spoza bazy, resztę łapie sędzia, czyli wywołanie modelu. Gdy sędzia jest niedostępny, zapytanie idzie dalej i trafia do logu jako `bramki_pominiete`, a przeciek rośnie z 1/26 do 9/26. Progiem tej luki nie da się zamknąć: pytania o Allegro, na które baza nie ma odpowiedzi, dostają od rerankera mediany wyższe niż pytania golden (+2.65 wobec +2.61), bo reranker mierzy podobieństwo tematu, nie obecność odpowiedzi.
+
+**Trafność mierzy sam retrieval, nie odpowiedź.** Pozycje 4 i 5 nie zawierały oczekiwanego źródła ani razu na żadnym zestawie PL, czyli top 3 i top 5 dają ten sam wynik.
+
+**Trzy wiersze niżej zmierzono na Bieliku-11B.** Wiersze o pełnym pipeline (49/50, 40/50, 40/50) pochodzą sprzed przełączenia modelu odpowiadającego na apertusa i nie zostały powtórzone. Opisują ten sam łańcuch z innym modelem generującym, więc traktuj je jako punkt odniesienia, nie jako stan bieżący.
+
+**O trzech nowych wierszach.** To pomiar innego rodzaju niż wiersz "Trafność wyszukiwania" powyżej: nie sam retrieval, tylko cały `pipeline.run` (korektor, reranker, sędzia kontekstu, generacja Bielikiem-11B), na dwóch zestawach po 50 pytań. GOLDEN ma znane źródło, więc liczy się i odmowa, i trafienie. 50 pytań realnych to ręcznie odsiane, sensowne pytania o Allegro z `RAG/pytania_realne.jsonl` (5096 wpisów z forum), bez znanego źródła, więc liczy się tylko, czy system w ogóle odpowiedział: 8 odmów sędziego kontekstu, po jednej na bramce rerankera i na "model nie wie". Nie jest to bezpośrednie porównanie z wierszem wyżej (inny model, inna metodologia, brak rozbicia na sprzedaż/EN), patrz `Pomiary/measure.py`.
 
 ---
 
@@ -46,7 +56,7 @@ flowchart TD
     G1 -- tak --> D1["Odmowa etapu 1"]
     G1 -- nie --> G2{"Bramka 2<br/>sędzia LLM: kontekst i pytanie o tym samym temacie?"}
     G2 -- NIE --> D2["Odmowa etapu 1"]
-    G2 -- TAK --> GEN["Generacja: apertus 8B<br/>system prompt + historia rozmowy + kontekst"]
+    G2 -- TAK --> GEN["Generacja: apertus v1.5 8B<br/>system prompt + historia rozmowy + kontekst"]
     GEN --> C["Mapowanie cytatów [n] → źródło, czyszczenie linków"]
     C --> G3{"Bramka 3<br/>pokrycie poniżej progu, model pisze że nie wie<br/>albo odmawia w pierwszych 160 znakach?"}
     G3 -- tak --> D3["Odmowa etapu 1"]
@@ -55,10 +65,17 @@ flowchart TD
     D2 --> S2
     D3 --> S2
     S2 -- trafiło --> A2["Odpowiedź + Źródła + nota o zamianie sekcji"]
-    S2 -- "znów odmowa" --> D4["Odmowa, powód z etapu 1"]
+    S2 -- "znów odmowa" --> G4{"Bramka 4<br/>pytanie o Allegro, temat zablokowany<br/>albo odmowa padła blisko bazy?"}
+    G4 -- tak --> D4["Odmowa, powód z etapu 1"]
+    G4 -- nie --> OG["Etap 3, warstwa ogólna:<br/>sam model, bez kontekstu z bazy"]
+    OG --> G5{"Bramka 5<br/>odpowiedź pusta, za długa albo zawiera konkret<br/>(kwota, termin, artykuł prawa, adres, telefon, URL)?"}
+    G5 -- tak --> D4
+    G5 -- nie --> A3["Krótka odpowiedź ogólna, bez źródeł"]
 ```
 
 **Trzy niezależne bramki odmowy.** Przed wyszukiwaniem odpadają pytania puste, za krótkie, za długie i próby manipulacji promptem. Przed generacją: jeśli żaden fragment nie pasuje wystarczająco, model w ogóle nie jest wołany, a pytania graniczne ocenia osobne, tanie wywołanie modelu. Po generacji sprawdzane jest, ile ważnych słów odpowiedzi faktycznie występuje w źródłach.
+
+**Trzeci szczebel odpowiada bez bazy, ale nigdy o Allegro.** Gdy obie sekcje odmówią, pytanie trafia do warstwy ogólnej (`src/ogolna.py`, wyłącznik `OGOLNA_ON`). Ta warstwa odrzuca wszystko, co wygląda na pytanie o Allegro, co dotyka tematu zablokowanego albo co odpadło blisko bazy, a wygenerowaną odpowiedź kasuje, jeśli pada w niej jakikolwiek konkret: kwota, termin, artykuł prawa, adres, telefon albo odnośnik. Dzięki temu obietnica z pierwszego akapitu obowiązuje bez wyjątku dla domeny Allegro.
 
 **Sędzia pracuje równolegle z generacją.** Pierwsze 40 tokenów czeka w buforze na jego werdykt, więc bramka nie kosztuje czasu do pierwszego tokenu. Gdy bramka po generacji odrzuci odpowiedź, która już poszła do przeglądarki, klient dostaje zdarzenie `reset` i czyści to, co pokazał.
 
@@ -100,7 +117,7 @@ python chunking.py --lang pl --docs-dir ../RAG/docs_sprzedaz --out ../RAG/chunks
 python scal_korpus.py --lang pl && python embedder.py --lang pl && python vector.py --lang pl
 ```
 
-Podmiana korpusu na działającej instancji wymaga `docker compose restart api`: indeksy BM25 i FAISS wczytują się raz do pamięci procesu i nie mają inwalidacji, mimo że cache odpowiedzi odświeża się sam po zmianie plików.
+Podmiana korpusu na działającej instancji nie wymaga restartu, pod warunkiem że odświeżysz wszystkie trzy artefakty naraz: `chunks_*.json`, `*.bm25` i `*.faiss`. Każdy z nich ma osobny cache w pamięci procesu, unieważniany po znaczniku czasu własnego pliku. Podmiana samych chunków bez przebudowy indeksu nie wywoła błędu, tylko cicho rozjedzie numerację: FAISS zwróci pozycje ze starego indeksu, a odczytane zostaną nowe fragmenty.
 
 Testy:
 
@@ -118,10 +135,10 @@ pytest tests -q
 | Baza wektorowa | FAISS | Lokalna, szybka, wystarcza na tej skali |
 | Wyszukiwanie po słowach | BM25 + lematyzacja + trigramy | Sam embedding gubił pytania zbudowane wokół konkretnych słów |
 | Reranker | mmarco-mMiniLMv2 (118M) | 26x szybszy od bge-v2-m3 przy stracie jednego trafienia, po zmianie okna na 192 i doklejeniu tytułu jeszcze 3,81x szybszy i trafniejszy |
-| Model odpowiadający | apertus 8B | Na pomiarze 25 pytań PL i 25 EN dorównuje lub przewyższa Bielika-11B jakością, bez błędów API, około 3x szybszy |
+| Model odpowiadający | apertus v1.5 8B | Na 11 realnych pytaniach PL szybszy od Bielika-11B w 11 parach na 11, mediana 3.45 s wobec 6.54 s, najgorszy przypadek 6.3 s wobec 22.7 s |
 | Sędzia kontekstu | Bielik-11B (PL), Olmo-3-7B (EN) | Odpięty od modelu odpowiadającego, decyzja TAK/NIE jest lżejsza niż generacja |
 
-**Uwaga o rozbieżności.** `MODEL` w `.env` jest w tej chwili ustawiony na Bielik-11B (patrz `W skrócie` wyżej), nie na apertus opisany w wierszu tabeli. To zmiana z bieżącej sesji pomiarowej, nie ponowna decyzja architektoniczna: pomiar 25 i 25 pytań uzasadniający apertusa (wiersz wyżej) nie został powtórzony bezpośrednio z Bielikiem w roli obu modeli naraz, więc wybór w tabeli wciąż opisuje najlepiej sprawdzoną konfigurację, a nie tę aktualnie wpiętą.
+**Sędzia i mail zostają na Bieliku.** `SEDZIA_MODEL` oraz `EMAIL_MODEL` to osobne zmienne i przełączenie `MODEL` ich nie dotyczy. Sędzia celowo, bo decyzja TAK/NIE jest innym zadaniem niż generacja i nie była mierzona na apertusie. Szkic maila (`agents_mail.py`) czyta `EMAIL_MODEL` na sztywno, więc maile dalej pisze Bielik: to nie jest decyzja poparta pomiarem, tylko stan zastany.
 
 Uzasadnienia z liczbami, razem z wariantami odrzuconymi, są w [DECYZJE.md](DECYZJE.md).
 
@@ -155,7 +172,7 @@ Frontend: **Next.js** (`frontend-next/`). Czat ze streamingiem, klikalne cytaty,
 
 ## Wersja dwujęzyczna i wysyłka maila
 
-Druga, równoległa ścieżka dla klienta anglojęzycznego: własny embedder (`multilingual-e5-base`), własny indeks, własny sędzia i własne progi odmowy (`prog_rerank` −3.6, `prog_pokrycia` 0.35 wobec −5.7 i 0.20 dla polskiego). Językiem steruje detekcja po częstości słów, nie przełącznik, więc pytanie po polsku zawsze dostaje odpowiedź po polsku.
+Druga, równoległa ścieżka dla klienta anglojęzycznego: własny embedder (`multilingual-e5-base`), własny indeks, własny sędzia i własne progi odmowy (`prog_rerank` −3.6, `prog_pokrycia` 0.35 wobec −2.0 i 0.20 dla polskiego). Językiem steruje detekcja po częstości słów, nie przełącznik, więc pytanie po polsku zawsze dostaje odpowiedź po polsku.
 
 Panel edycji maila ma prawdziwy przycisk wysyłki. Treść idzie do stałej demo-skrzynki sprzedawcy, a potwierdzenie z numerem zgłoszenia na adres klienta, przez REST Resend, bez SMTP. Bez skonfigurowanego `RESEND_API_KEY` wysyłka zwraca czytelny błąd konfiguracji, nigdy fałszywy sukces. Log serwera zapisuje tylko numer zgłoszenia, kategorię i wynik, nigdy adresu ani treści.
 
@@ -166,7 +183,7 @@ Panel edycji maila ma prawdziwy przycisk wysyłki. Treść idzie do stałej demo
 ```
 src/            backend: pipeline, bramki, retrieval, agenci, API
 frontend-next/  frontend Next.js, czat i panel analityczny
-tests/          305 testów jednostkowych, bez wywołań modelu
+tests/          351 testów jednostkowych, bez wywołań modelu
 docker/         compose, Dockerfile API, Caddy, skrypty kopii zapasowych
 RAG/            korpus, indeksy i logi (poza gitem)
 ```

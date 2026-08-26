@@ -1,7 +1,8 @@
 services:
-  # Podmiana plikow RAG/chunks_*.json (przebudowa korpusu) wymaga "docker compose restart api":
-  # BM25_CACHE/FAISS_CACHE/CHUNKI_CACHE w rankings.py wczytuja sie raz do pamieci procesu
-  # i nie maja zadnej inwalidacji.
+  # Przebudowa korpusu nie wymaga restartu, o ile odswiezone zostana WSZYSTKIE trzy artefakty:
+  # chunks_*.json, *.bm25 i *.faiss. z_cache w rankings.py uniewaznia kazdy z tych cache
+  # osobno, po mtime jego wlasnego pliku. Podmiana samych chunkow bez przebudowy indeksu
+  # cicho rozjezdza numeracje: FAISS zwraca indeksy do starego indeksu, a chunki sa nowe.
   api:
     build:
       context: ..

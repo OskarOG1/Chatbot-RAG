@@ -20,6 +20,8 @@ LLM_API_KEY = os.getenv('LLM_API_KEY', 'ollama')
 LLM_TIMEOUT = float(os.getenv('LLM_TIMEOUT', '150'))
 SEDZIA_TIMEOUT = float(os.getenv('SEDZIA_TIMEOUT', '20'))
 SEDZIA_ZNAKOW = int(os.getenv('SEDZIA_ZNAKOW', '0'))
+ROUTER_MAX_TOKENS = int(os.getenv('ROUTER_MAX_TOKENS', '12'))
+FALLBACK_UDZIAL = float(os.getenv('FALLBACK_UDZIAL', '0.5'))
 
 
 def nowy_klient(limit_czasu: float | None = None) -> InferenceClient:
@@ -28,6 +30,10 @@ def nowy_klient(limit_czasu: float | None = None) -> InferenceClient:
         api_key=LLM_API_KEY,
         timeout=LLM_TIMEOUT if limit_czasu is None else limit_czasu,
     )
+
+
+def limit_fallbacku(limit_czasu: float | None = None) -> float:
+    return (LLM_TIMEOUT if limit_czasu is None else limit_czasu) * FALLBACK_UDZIAL
 
 
 def czat(nazwa: str, wiadomosci: list[dict], limit_czasu: float | None = None, **kwargy):
@@ -41,8 +47,9 @@ def czat(nazwa: str, wiadomosci: list[dict], limit_czasu: float | None = None, *
             print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), '
                   f'fallback na {MODEL_DOMYSLNY}', flush=True)
             nazwa = MODEL_DOMYSLNY
-            odp = k.chat.completions.create(model=nazwa, messages=wiadomosci,
-                                            stream=False, **kwargy)
+            with nowy_klient(limit_fallbacku(limit_czasu)) as zapasowy:
+                odp = zapasowy.chat.completions.create(model=nazwa, messages=wiadomosci,
+                                                       stream=False, **kwargy)
     tekst = odp.choices[0].message.content if odp.choices else ''
     koszty.dodaj_z_odpowiedzi(nazwa, odp, wiadomosci, tekst)
     return odp

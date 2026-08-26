@@ -6,7 +6,7 @@ from typing import Literal
 import pipeline
 from pipeline import run, run_stream, MODELE, corpus_stamp, redaguj, IDF_DANE, EGZEKUTOR_SEDZIEGO
 from rankings import get_reranker, get_bm25, get_faiss
-from spell import detect_lang, load_dictionary
+from spell import correct, detect_lang, load_dictionary
 from guards import MAX_ZNAKI, normalizuj
 from lang_config import LANG, DOMYSLNY_JEZYK
 from wysylka import wyslij_potwierdzenie, WysylkaCzesciowaError
@@ -72,7 +72,6 @@ SYGNAL_POMINIETE_PROG = float(os.getenv('SYGNAL_POMINIETE_PROG', '0.2'))
 _bramki_pominiete_historia: deque = deque(maxlen=SYGNAL_POMINIETE_OKNO)
 _sygnal_bramki_pominiete_aktywny = False
 
-STATYSTYKI_TTL = float(os.getenv('STATYSTYKI_TTL', '30'))
 _log_cache: dict = {'stempel': None, 'wpisy': [], 'czas': 0.0}
 _statystyki_cache: dict = {'stempel': None, 'czas': 0.0, 'wyniki': {}}
 STATYSTYKI_CACHE_MAX = 64
@@ -380,7 +379,7 @@ def wpisy_logu() -> list[dict]:
     stempel = (stan.st_mtime_ns, stan.st_size)
     teraz = time.time()
     with _zamek:
-        if _log_cache['stempel'] == stempel and teraz - _log_cache['czas'] < STATYSTYKI_TTL:
+        if _log_cache['stempel'] == stempel:
             return _log_cache['wpisy']
     wpisy = statystyki.wczytaj(LOG_ANALYTICS)
     with _zamek:
@@ -404,8 +403,7 @@ def statystyki_z_cache(dni: int | None, lang: str | None, strona: str | None) ->
     stempel = _log_cache['stempel']
     teraz = time.time()
     with _zamek:
-        swiezy = (_statystyki_cache['stempel'] == stempel
-                  and teraz - _statystyki_cache['czas'] < STATYSTYKI_TTL)
+        swiezy = _statystyki_cache['stempel'] == stempel
         if swiezy and klucz in _statystyki_cache['wyniki']:
             return _statystyki_cache['wyniki'][klucz]
     wynik = statystyki.statystyki(statystyki.filtruj(wpisy, dni=dni, lang=lang, strona=strona))
@@ -438,6 +436,7 @@ async def lifespan(app: FastAPI):
             ostrzez_o_rozgrzewce(f'embeddera {lang}', e)
     try:
         load_dictionary()
+        correct('rozgrzewka lematyzatora')
     except Exception as e:
         ostrzez_o_rozgrzewce('slownika literowek', e)
     for lang, agenci in (('pl', AGENCI_ROZGRZEWKA), ('en', AGENCI_ROZGRZEWKA)):

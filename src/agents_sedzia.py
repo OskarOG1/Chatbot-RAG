@@ -1,6 +1,6 @@
 from lang_config import LANG
 from agents_core import (PROMPTY, czat, context, skroc_tekst, KATEGORIE_MAIL,
-                         SEDZIA_TIMEOUT, SEDZIA_ZNAKOW)
+                         SEDZIA_TIMEOUT, SEDZIA_ZNAKOW, ROUTER_MAX_TOKENS)
 import re
 
 
@@ -46,7 +46,8 @@ def sedzia_kategoria_mail(history: list[dict], chunks: list, lang: str = 'pl') -
         )},
     ]
     try:
-        odp = czat(LANG[lang]['router_model'], wiadomosci, stop=['\n'])
+        odp = czat(LANG[lang]['router_model'], wiadomosci, limit_czasu=SEDZIA_TIMEOUT,
+                   stop=['\n'], max_tokens=ROUTER_MAX_TOKENS)
     except Exception as e:
         print(f'router kategorii maila niedostepny ({type(e).__name__}: {e})', flush=True)
         return None

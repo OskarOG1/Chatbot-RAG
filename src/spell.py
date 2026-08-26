@@ -1,6 +1,7 @@
 import json
 import re
 import pickle
+import simplemma
 import unicodedata
 from pathlib import Path
 from collections import Counter
@@ -16,12 +17,27 @@ MIN_CZESTOSC = 1
 MAX_ODLEGLOSC = 2
 PROG_PL = 2.0
 MIN_TOKENY_DETEKCJI = 2
+RDZEN_MIN_DLUGOSC = 5
+RDZEN_MIN_CZESTOSC = 500
+RDZEN_MAKS_OGON = 2
 
 WZORZEC = re.compile(r'[^\W\d_]+', re.UNICODE)
 
 
 def polish_word(slowo: str) -> bool:
     return zipf_frequency(slowo, 'pl') >= PROG_PL
+
+
+def lemat_znany(token: str, slownik: Counter) -> bool:
+    return simplemma.lemmatize(token, lang='pl') in slownik
+
+
+def rdzen_znany(token: str, slownik: Counter) -> bool:
+    najkrotszy = max(RDZEN_MIN_DLUGOSC, len(token) - RDZEN_MAKS_OGON)
+    for dlugosc in range(len(token) - 1, najkrotszy - 1, -1):
+        if slownik.get(token[:dlugosc], 0) >= RDZEN_MIN_CZESTOSC:
+            return True
+    return False
 
 
 def tokenize_words(tekst: str) -> list[str]:
@@ -198,6 +214,9 @@ def correct(query: str) -> dict:
             return token
 
         if polish_word(maly):
+            return token
+
+        if lemat_znany(maly, slownik) or rdzen_znany(maly, slownik):
             return token
 
         kandydat = best_candidate(maly, slownik)
