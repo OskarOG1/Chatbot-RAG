@@ -7,6 +7,7 @@ import unicodedata
 import pickle
 import os
 import simplemma
+import aliasy
 import strony
 from lang_config import LANG
 
@@ -59,7 +60,7 @@ def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl')
     if not linki:
         return []
 
-    pary = [(query, f"{chunk['tytul']}\n{chunk['tekst']}") for chunk, _ in linki]
+    pary = [(query, aliasy.tekst_do_retrievalu(chunk)) for chunk, _ in linki]
     scores = get_reranker().predict(pary, batch_size=RERANKER_BATCH)
     ocenione = [(chunk, float(s)) for (chunk, _), s in zip(linki, scores)]
 
