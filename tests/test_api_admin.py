@@ -16,7 +16,6 @@ def reset_stan_api(monkeypatch, tmp_path):
     monkeypatch.setattr(api, '_cache', OrderedDict())
     monkeypatch.setattr(api, 'LOG_ANALYTICS', tmp_path / 'log_analytics_test.jsonl')
     monkeypatch.setattr(api, '_log_cache', {'stempel': None, 'wpisy': [], 'czas': 0.0})
-    monkeypatch.setattr(api, 'STATYSTYKI_TTL', 0.0)
     monkeypatch.setattr(api, '_oceny', deque())
     monkeypatch.setattr(api, '_statystyki_cache', {'stempel': None, 'czas': 0.0, 'wyniki': {}})
     monkeypatch.setattr(api, '_oceny_ip', OrderedDict())
