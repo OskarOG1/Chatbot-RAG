@@ -312,10 +312,10 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
             stan_sedziego['sedzia_pominiety'] = True
             return True
 
-    def odmowa_sedziego(przerwano: bool):
+    def odmowa_sedziego(przerwano: bool, tokeny_wyslane: int = 0):
         cechy['sedzia_ok'] = False
         cechy['generacja_przerwana'] = przerwano
-        cechy['tokeny_stracone'] = licznik_tokenow if przerwano else 0
+        cechy['tokeny_stracone'] = licznik_tokenow if przerwano else tokeny_wyslane
         if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
         return {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia',
@@ -353,14 +353,20 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         elif ev['typ'] == 'koniec':
             odpowiedz = ev['dane']
 
-    if not przepuszczone or optymistycznie:
+    if not przepuszczone:
         werdykt_pozytywny = werdykt_sedziego(czekaj=True)
-        if not werdykt_pozytywny and not optymistycznie:
+        if not werdykt_pozytywny:
             yield odmowa_sedziego(przerwano=False)
             return
         cechy['sedzia_ok'] = werdykt_pozytywny
         for zbuforowany in bufor:
             yield zbuforowany
+    elif optymistycznie:
+        werdykt_pozytywny = werdykt_sedziego(czekaj=True, limit=SEDZIA_CZEKANIE_KONCOWE)
+        if not werdykt_pozytywny:
+            yield odmowa_sedziego(przerwano=False, tokeny_wyslane=licznik_tokenow)
+            return
+        cechy['sedzia_ok'] = werdykt_pozytywny
 
     if werdykt is not None and stan_sedziego.get('sedzia_pominiety'):
         bramki_pominiete.append('sedzia')
