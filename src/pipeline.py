@@ -418,7 +418,8 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
 
 
 def probuj_ogolna(query: str, history: list[dict], bielik_model: str | None,
-                   lang: str, cfg: dict, powod_rag: str | None = None):
+                   lang: str, cfg: dict, powod_rag: str | None = None,
+                   query_uzytkownika: str | None = None):
     cechy = {'ogolna_temat': None, 'ogolna_domena': False, 'ogolna_znakow': 0,
              'ogolna_konkrety': None}
 
@@ -428,7 +429,8 @@ def probuj_ogolna(query: str, history: list[dict], bielik_model: str | None,
                                             'answer': None, 'cechy': cechy}}
         return
 
-    zablokowany = ogolna.temat_zablokowany(query, lang)
+    zablokowany = ogolna.temat_zablokowany(
+        query if query_uzytkownika is None else query_uzytkownika, lang)
     if zablokowany:
         cechy['ogolna_temat'] = zablokowany
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'ogolna_temat',
@@ -508,6 +510,7 @@ def run_stream(query:str, bielik_model:str | None=None,
                      'doprecyzowanie': None, 'powod_odmowy': f'guard_{nazwa_guardu}'})
         return
     bez_korekty = bez_korekty or lang != 'pl'
+    query_uzytkownika = query
     if bez_korekty:
 
         doprecyzowanie = None
@@ -593,7 +596,8 @@ def run_stream(query:str, bielik_model:str | None=None,
         wynik_ogolnej = None
         if OGOLNA_ON if warstwa_ogolna is None else warstwa_ogolna:
             for ev in probuj_ogolna(query, history, bielik_model, lang, cfg,
-                                     wynik_etapu['powod_odmowy']):
+                                     wynik_etapu['powod_odmowy'],
+                                     query_uzytkownika=query_uzytkownika):
                 if ev['typ'] == 'rezultat':
                     wynik_ogolnej = ev['dane']
                 else:

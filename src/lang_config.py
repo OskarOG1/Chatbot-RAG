@@ -16,7 +16,7 @@ LANG = {
         'suffix': '',
         'model': os.getenv('MODEL', MODEL_DOMYSLNY),
         'sedzia_model': os.getenv('SEDZIA_MODEL', MODEL_11B),
-        'prog_rerank': -1.5,
+        'prog_rerank': -2.75,
         'prog_pokrycia': 0.20,
         'brak_wiedzy': (
             'Nie znalazłem tej informacji w bazie pomocy Allegro. '
@@ -125,9 +125,11 @@ LANG = {
                 },
                 'niedozwolone': {
                     'slowa': {'narkotyki', 'narkotyków', 'broń', 'broni', 'amunicja',
-                              'zhakować', 'włamać', 'podrobić'},
+                              'zhakować', 'podrobić'},
                     'frazy': ('materiały wybuchowe', 'jak zhakować', 'jak podrobić', 'jak oszukać',
-                              'jak obejść zabezpieczenia', 'fałszywe dokumenty'),
+                              'jak obejść zabezpieczenia', 'fałszywe dokumenty',
+                              'jak włamać', 'jak się włamać', 'włamać się na cudze',
+                              'włamać się na czyjeś'),
                     'komunikat': 'W tym nie pomogę. Odpowiadam na pytania o konto, zakupy, '
                                  'płatności i sprzedaż na Allegro.',
                 },
@@ -346,9 +348,10 @@ LANG = {
                                  'I can help with Allegro matters instead.',
                 },
                 'niedozwolone': {
-                    'slowa': {'drugs', 'weapon', 'weapons', 'ammunition', 'hack', 'counterfeit'},
+                    'slowa': {'drugs', 'weapon', 'weapons', 'ammunition', 'counterfeit'},
                     'frazy': ('explosive materials', 'how to hack', 'how to counterfeit',
-                              'how to scam', 'bypass security', 'fake documents'),
+                              'how to scam', 'bypass security', 'fake documents',
+                              'hack into', 'hack someone', 'hack somebody'),
                     'komunikat': "I can't help with that. I answer questions about accounts, "
                                  'shopping, payments, and selling on Allegro.',
                 },
