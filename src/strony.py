@@ -1,5 +1,7 @@
+import os
 import sys
 
+PRZEWAGA_MIN = float(os.getenv('PRZEWAGA_SEKCJI_MIN', '0.5'))
 STRONY = ('kupujacy', 'sprzedajacy')
 STRONA_DO_AGENTA = {'kupujacy': 'kupujacy', 'sprzedajacy': 'sprzedaz'}
 AGENT_DO_STRONY = {'kupujacy': 'kupujacy', 'konto': 'kupujacy', 'zakupy': 'kupujacy',
@@ -23,19 +25,27 @@ def agenci_wszystkich_stron() -> list[str]:
     return [STRONA_DO_AGENTA[s] for s in STRONY]
 
 
-def rozstrzygnij(wyniki: list, strona_uzytkownika: str, k: int) -> tuple[str, list, float | None]:
+def rozstrzygnij(wyniki: list, strona_uzytkownika: str, k: int,
+                 przewaga_min: float | None = None) -> tuple[str, list, float | None]:
     if not wyniki:
         return strona_uzytkownika, [], None
+    prog = PRZEWAGA_MIN if przewaga_min is None else przewaga_min
     najlepsze = {}
     for chunk, ocena in wyniki:
         strona = strona_z_agenta(chunk['agent'])
         if strona not in najlepsze or ocena > najlepsze[strona]:
             najlepsze[strona] = ocena
-    wybrana = max(najlepsze, key=lambda s: (najlepsze[s], s == strona_uzytkownika))
     ocena_uzytkownika = najlepsze.get(strona_uzytkownika)
-    oceny_obce = [ocena for s, ocena in najlepsze.items() if s != strona_uzytkownika]
+    obce = {s: ocena for s, ocena in najlepsze.items() if s != strona_uzytkownika}
+    obca_strona = max(obce, key=lambda s: obce[s]) if obce else None
+    if ocena_uzytkownika is None:
+        wybrana = obca_strona if obca_strona is not None else strona_uzytkownika
+    elif obca_strona is not None and obce[obca_strona] - ocena_uzytkownika > prog:
+        wybrana = obca_strona
+    else:
+        wybrana = strona_uzytkownika
     przewaga = None
-    if ocena_uzytkownika is not None and oceny_obce:
-        przewaga = round(float(abs(ocena_uzytkownika - max(oceny_obce))), 4)
+    if ocena_uzytkownika is not None and obca_strona is not None:
+        przewaga = round(float(abs(ocena_uzytkownika - obce[obca_strona])), 4)
     chunki = [para for para in wyniki if strona_z_agenta(para[0]['agent']) == wybrana][:k]
     return wybrana, chunki, przewaga
