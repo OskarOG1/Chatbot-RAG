@@ -70,7 +70,11 @@ def indeks_artykulow(lang: str) -> dict:
         wzorzec = WZORCE[lang]
         indeks = {}
         klucze = {}
-        for chunk in wczytaj_chunki('all', lang):
+        try:
+            korpus = wczytaj_chunki('all', lang)
+        except OSError:
+            return indeks
+        for chunk in korpus:
             url = chunk.get('url')
             if not url:
                 continue
