@@ -19,6 +19,7 @@ import io
 import os
 import re
 import koszty
+import podpowiedzi
 import secrets
 import statystyki
 import sys
@@ -450,6 +451,10 @@ async def lifespan(app: FastAPI):
                 get_bm25(agent, lang)
             except Exception as e:
                 ostrzez_o_rozgrzewce(f'indeksow {agent} {lang}', e)
+        try:
+            podpowiedzi.indeks_artykulow(lang)
+        except Exception as e:
+            ostrzez_o_rozgrzewce(f'indeksu podpowiedzi {lang}', e)
     yield
     EGZEKUTOR_SEDZIEGO.shutdown(wait=False, cancel_futures=True)
 
@@ -509,6 +514,7 @@ class ChatResponse(BaseModel):
    oferta_kategoria: str | None = None
    kategoria: str | None = None
    naglowek_ui: str | None = None
+   podpowiedzi: list[str] = []
    tryb: Literal['rag', 'email', 'rozmowa', 'ogolna'] = 'rag'
    powod_odmowy: str | None = None
    powod_rag: str | None = None

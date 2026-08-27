@@ -1,11 +1,13 @@
 'use client';
 
-import { type CSSProperties, type KeyboardEvent } from 'react';
+import { useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { useTheme, BODY, MONO } from '@/lib/theme';
 import { type Strona } from '@/lib/chat';
 import { IkonaWyslij } from './Ikony';
 
 const AKCENT_SEGMENT = '#C43E00';
+const WYSOKOSC = 34;
+const PROMIEN = 9;
 
 interface Props {
   value: string;
@@ -36,6 +38,7 @@ export default function Composer({
 }: Props) {
   const th = useTheme();
   const pusty = !value.trim();
+  const nieaktywny = disabled || pusty;
 
   function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -78,26 +81,31 @@ export default function Composer({
           />
           <button
             type="button"
+            className="dc-akcja"
             onClick={onSend}
             disabled={disabled || pusty}
+            aria-label={sendLabel}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 8,
-              padding: '9px 14px',
-              borderRadius: 8,
+              justifyContent: 'center',
+              gap: 7,
+              height: WYSOKOSC,
+              padding: '0 15px',
+              borderRadius: PROMIEN,
               border: 'none',
-              background: AKCENT_SEGMENT,
-              color: '#FFFFFF',
+              background: nieaktywny ? th.raised : AKCENT_SEGMENT,
+              boxShadow: nieaktywny ? `inset 0 0 0 1px ${th.line}` : '0 1px 2px rgba(160, 50, 0, 0.28)',
+              color: nieaktywny ? th.ink3 : '#FFFFFF',
               fontFamily: BODY,
               fontSize: 12.5,
               fontWeight: 600,
-              cursor: disabled || pusty ? 'default' : 'pointer',
-              opacity: disabled || pusty ? 0.5 : 1,
+              lineHeight: 1,
+              cursor: nieaktywny ? 'default' : 'pointer',
             }}
           >
             {sendLabel}
-            <IkonaWyslij color="#FFFFFF" />
+            <IkonaWyslij color={nieaktywny ? th.ink3 : '#FFFFFF'} />
           </button>
         </div>
       </div>
@@ -114,6 +122,7 @@ interface PrzelacznikProps {
 
 function StronaPrzelacznik({ strona, sideBuyingLabel, sideSellingLabel, onSetStrona }: PrzelacznikProps) {
   const th = useTheme();
+  const [hover, setHover] = useState<Strona | null>(null);
   const segmenty: Array<{ klucz: Strona; etykieta: string }> = [
     { klucz: 'kupujacy', etykieta: sideBuyingLabel },
     { klucz: 'sprzedajacy', etykieta: sideSellingLabel },
@@ -122,12 +131,15 @@ function StronaPrzelacznik({ strona, sideBuyingLabel, sideSellingLabel, onSetStr
 
   return (
     <div
+      role="group"
       style={{
         position: 'relative',
         display: 'grid',
         gridTemplateColumns: 'repeat(2, 1fr)',
+        height: WYSOKOSC,
+        boxSizing: 'border-box',
         padding: 3,
-        borderRadius: 9,
+        borderRadius: PROMIEN,
         background: th.raised,
         border: `1px solid ${th.line}`,
       }}
@@ -140,9 +152,9 @@ function StronaPrzelacznik({ strona, sideBuyingLabel, sideSellingLabel, onSetStr
           bottom: 3,
           left: 3,
           width: 'calc((100% - 6px) / 2)',
-          borderRadius: 6,
+          borderRadius: PROMIEN - 3,
           background: AKCENT_SEGMENT,
-          boxShadow: th.shadow,
+          boxShadow: '0 1px 2px rgba(160, 50, 0, 0.28)',
           transform: `translateX(${aktywnyIndeks * 100}%)`,
           transition: 'transform 240ms cubic-bezier(0.4, 0, 0.2, 1), background 200ms ease',
         }}
@@ -151,8 +163,12 @@ function StronaPrzelacznik({ strona, sideBuyingLabel, sideSellingLabel, onSetStr
         <button
           key={s.klucz}
           type="button"
+          className="dc-segment"
+          aria-pressed={strona === s.klucz}
           onClick={() => onSetStrona(s.klucz)}
-          style={segBtn(th, strona === s.klucz, strona === s.klucz)}
+          onMouseEnter={() => setHover(s.klucz)}
+          onMouseLeave={() => setHover(null)}
+          style={segBtn(th, strona === s.klucz, hover === s.klucz)}
         >
           {s.etykieta}
         </button>
@@ -161,24 +177,24 @@ function StronaPrzelacznik({ strona, sideBuyingLabel, sideSellingLabel, onSetStr
   );
 }
 
-function segBtn(th: ReturnType<typeof useTheme>, active: boolean, akcent: boolean): CSSProperties {
+function segBtn(th: ReturnType<typeof useTheme>, akcent: boolean, hover: boolean): CSSProperties {
   return {
     position: 'relative',
     zIndex: 1,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '6px 11px',
+    height: '100%',
+    padding: '0 12px',
     border: 'none',
     background: 'transparent',
-    borderRadius: 6,
+    borderRadius: PROMIEN - 3,
     fontFamily: BODY,
     fontSize: 11.5,
     fontWeight: akcent ? 700 : 600,
     lineHeight: 1,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-    color: akcent ? '#FFFFFF' : active ? th.ink : th.ink3,
-    transition: 'color 200ms ease',
+    color: akcent ? '#FFFFFF' : hover ? th.ink : th.ink3,
   };
 }

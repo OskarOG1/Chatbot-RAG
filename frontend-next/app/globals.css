@@ -117,3 +117,34 @@ body {
     transform: translateX(0);
   }
 }
+
+.dc-akcja {
+  transition: background 160ms ease, box-shadow 160ms ease, transform 120ms ease, opacity 160ms ease;
+}
+
+.dc-akcja:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+.dc-akcja:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.dc-segment {
+  transition: color 180ms ease;
+}
+
+.dc-chip {
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease, transform 120ms ease;
+}
+
+.dc-chip:active {
+  transform: translateY(1px);
+}
+
+.dc-akcja:focus-visible,
+.dc-segment:focus-visible,
+.dc-chip:focus-visible {
+  outline: 2px solid rgba(255, 90, 0, 0.6);
+  outline-offset: 2px;
+}

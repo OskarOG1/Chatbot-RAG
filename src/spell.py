@@ -44,6 +44,11 @@ def tokenize_words(tekst: str) -> list[str]:
     return WZORZEC.findall(tekst.lower())
 
 
+def lematy(tekst: str, lemma_lang: str = 'pl') -> set:
+    return {simplemma.lemmatize(t, lang=lemma_lang)
+            for t in tokenize_words(tekst) if len(t) >= MIN_DLUGOSC}
+
+
 def detect_lang(query: str) -> str | None:
     tokeny = [t for t in tokenize_words(query) if len(t) >= MIN_DLUGOSC]
     if len(tokeny) < MIN_TOKENY_DETEKCJI:

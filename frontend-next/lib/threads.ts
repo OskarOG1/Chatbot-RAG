@@ -38,6 +38,7 @@ export interface Thread {
   historiaApi: Wiadomosc[];
   ostatniAgent: string | null;
   ostatniaKorekta: string | null;
+  podpowiedzi: string[];
   panel: PanelState | null;
   panelOpen: boolean;
 }
@@ -98,6 +99,7 @@ export function nowyThread(lang: Lang): Thread {
     historiaApi: [],
     ostatniAgent: null,
     ostatniaKorekta: null,
+    podpowiedzi: [],
     panel: null,
     panelOpen: false,
   };
@@ -127,6 +129,7 @@ export function wczytajStan(): { threads: Thread[]; activeId: string } | null {
     if (dane.version !== VERSION || !Array.isArray(dane.threads) || dane.threads.length === 0) return null;
     const threads = dane.threads.map((th) => ({
       ...th,
+      podpowiedzi: Array.isArray(th.podpowiedzi) ? th.podpowiedzi : [],
       panel: th.panel ? { ...th.panel, sending: false, odliczanieDo: null } : null,
     }));
     const activeId = threads.some((th) => th.id === dane.activeId) ? dane.activeId : threads[0].id;

@@ -4,9 +4,10 @@ from rankings import search_reranked_multi, normalizacja
 from agents import (answer_stream, answer_ogolna_stream, przepisz_zapytanie,
                     czy_kontekst_odpowiada, napisz_email, sedzia_kategoria_mail)
 from guards import sprawdz
-from spell import correct, tokenize_words, MIN_DLUGOSC
+from spell import correct, tokenize_words, MIN_DLUGOSC, lematy as lematy_lemma
 from lang_config import LANG
 import ogolna
+import podpowiedzi
 import strony
 import rozmowa
 from pathlib import Path
@@ -16,7 +17,6 @@ import math
 import os
 import pickle
 import re
-import simplemma
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
@@ -93,9 +93,7 @@ def jawna_prosba_o_mail(query: str, lang: str = 'pl') -> bool:
 
 
 def lematy(tekst: str, lang: str = 'pl') -> set:
-    lemma_lang = LANG[lang]['lemma_lang']
-    return {simplemma.lemmatize(t, lang=lemma_lang)
-            for t in tokenize_words(tekst) if len(t) >= MIN_DLUGOSC}
+    return lematy_lemma(tekst, LANG[lang]['lemma_lang'])
 
 
 EMBED_CACHE_MAX = int(os.getenv('EMBED_CACHE_MAX', '512'))
@@ -416,6 +414,7 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         'answer': odpowiedz['tekst'],
         'sources': zrodla,
         'citations': cytaty_lub_zrodla(odpowiedz['cytaty'], chunks),
+        'podpowiedzi': podpowiedzi.zbuduj(chunks, query, lang),
         'oferta': oferta,
         'oferta_kategoria': oferta_kategoria,
         'strona': strona_wybrana,
@@ -652,6 +651,7 @@ def run_stream(query:str, bielik_model:str | None=None,
                     'nota_sekcji': nota,
                     'oferta': wynik_etapu['oferta'],
                     'oferta_kategoria': wynik_etapu['oferta_kategoria'],
+                    'podpowiedzi': wynik_etapu.get('podpowiedzi') or [],
                     'tryb': 'rag'}
     dane_sukcesu['cechy'] = wynik_etapu.get('cechy')
     if bramki_pominiete:
