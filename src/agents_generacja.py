@@ -52,7 +52,7 @@ def sfinalizuj(pelna: str, chunks: list, p: dict) -> dict:
 
 def pompuj_strumien(wiadomosci: list[dict], nazwa: str, stop: list[str], maks_tokenow: int,
                      zebrane: dict):
-    klient_strumienia = nowy_klient()
+    klient_strumienia = nowy_klient(model=nazwa)
     klient_zapasowy = None
     pelna = ''
     zaksiegowane = False
@@ -66,7 +66,7 @@ def pompuj_strumien(wiadomosci: list[dict], nazwa: str, stop: list[str], maks_to
         except Exception as e:
             print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_FALLBACK}')
             nazwa = MODEL_FALLBACK
-            klient_zapasowy = nowy_klient(limit_fallbacku())
+            klient_zapasowy = nowy_klient(limit_fallbacku(), model=nazwa)
             kawalki = otworz_strumien(klient_zapasowy, nazwa, wiadomosci, stop, maks_tokenow)
 
         for kawalek in kawalki:
@@ -119,7 +119,7 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
            history:list[dict] | None=None, lang:str='pl', styl:str | None=None) -> dict:
     wiadomosci, stop, nazwa, p = zbuduj_wiadomosci(query, agent, chunks, bielik_model, history, lang, styl)
 
-    with nowy_klient() as k:
+    with nowy_klient(model=nazwa) as k:
         try:
             odp = k.chat.completions.create(
                 model=nazwa, messages=wiadomosci, stream=False, max_tokens=MAX_TOKENS, stop=stop,
@@ -127,7 +127,7 @@ def answer(query: str, agent: str, chunks: list[dict], bielik_model:str | None=N
         except Exception as e:
             print(f'model {nazwa} niedostepny ({type(e).__name__}: {e}), fallback na {MODEL_FALLBACK}')
             nazwa = MODEL_FALLBACK
-            with nowy_klient(limit_fallbacku()) as zapasowy:
+            with nowy_klient(limit_fallbacku(), model=nazwa) as zapasowy:
                 odp = zapasowy.chat.completions.create(
                     model=nazwa, messages=wiadomosci, stream=False, max_tokens=MAX_TOKENS, stop=stop,
                 )
@@ -149,7 +149,7 @@ def przepisz_zapytanie(query: str, history: list[dict] | None, bielik_model: str
         {'role': 'system', 'content': p['przepisz_system']},
         {'role': 'user', 'content': f"{rozmowa}\nuser: {query}\n\n{p['przepisz_label']}:"},
     ]
-    with nowy_klient() as k:
+    with nowy_klient(model=nazwa) as k:
         odp = k.chat.completions.create(
             model=nazwa,
             messages=wiadomosci,
