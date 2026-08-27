@@ -27,6 +27,7 @@ export interface ChatResponse {
   oferta_kategoria: string | null;
   kategoria: string | null;
   naglowek_ui: string | null;
+  podpowiedzi?: string[];
   tryb: Tryb;
 }
 
@@ -74,7 +75,7 @@ interface Teksty {
   threadFallbackTitle: string;
   suggestionsByAgent: Record<string, string[]>;
   welcome: string;
-  connected: string;
+  thinking: string;
   panel: string;
   themeButtonLabel: { light: string; dark: string };
   connectError: string;
@@ -160,7 +161,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     },
     welcome:
       'Witam, jestem Twoim asystentem Allegro. Mogę:\n\n* odpowiadać na pytania na podstawie bazy wiedzy centrum pomocy\n* przygotować wiadomość do sprzedawcy w sprawie reklamacji, zwrotu, faktury lub eskalacji sporu\n\nPrzy oknie wiadomości możesz wybrać, czy pytasz jako kupujący, czy jako sprzedający.\n\nNapisz, w czym mogę pomóc.',
-    connected: 'Połączono z bazą wiedzy',
+    thinking: 'Szukam w centrum pomocy',
     panel: 'Panel statystyk',
     themeButtonLabel: { light: 'Ciemny motyw', dark: 'Jasny motyw' },
     connectError: 'Backend nie odpowiada, spróbuj ponownie za chwilę.',
@@ -236,7 +237,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     },
     welcome:
       "Welcome, I'm the Allegro assistant. I can:\n\n* answer questions using the help center knowledge base\n* prepare a message to the seller about a complaint, return, invoice, or dispute escalation\n\nNext to the message box you can choose whether you're asking as a buyer or as a seller.\n\nTell me what you need help with.",
-    connected: 'Connected to the knowledge base',
+    thinking: 'Searching the help center',
     panel: 'Statistics panel',
     themeButtonLabel: { light: 'Switch to dark theme', dark: 'Switch to light theme' },
     connectError: "The backend isn't responding right now, please try again in a moment.",

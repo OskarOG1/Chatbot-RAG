@@ -331,7 +331,8 @@ export default function ChatApp() {
       } else if (!bezKorekty) {
         ostatniaKorekta = null;
       }
-      return { ...x, historiaApi, ostatniAgent, ostatniaKorekta };
+      const podpowiedzi = dane?.podpowiedzi?.length ? dane.podpowiedzi : [];
+      return { ...x, historiaApi, ostatniAgent, ostatniaKorekta, podpowiedzi };
     });
 
     if (dane?.tryb === 'email') {
@@ -618,23 +619,6 @@ export default function ChatApp() {
                 <IkonaWykres color={th.ink2} />
                 {t.panel}
               </Link>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 7,
-                  padding: '6px 12px',
-                  borderRadius: 100,
-                  border: `1px solid ${th.line}`,
-                  background: th.surface,
-                  fontSize: 11.5,
-                  fontWeight: 500,
-                  color: th.ink2,
-                }}
-              >
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: th.dot, flex: '0 0 auto' }} />
-                {t.connected}
-              </div>
             </div>
           </header>
 
@@ -665,7 +649,7 @@ export default function ChatApp() {
                 </div>
               ))}
               {pokazTyping && streamBuffor && <ChatMessage role="assistant" content={oczyscPodglad(streamBuffor)} lang={lang} />}
-              {pokazTyping && !streamBuffor && <TypingBubble krok={aktualnyKrok} thinking={t.connected} />}
+              {pokazTyping && !streamBuffor && <TypingBubble krok={aktualnyKrok} thinking={t.thinking} />}
             </div>
           </div>
 
@@ -691,7 +675,7 @@ export default function ChatApp() {
                   {t.openDraft}
                 </button>
               )}
-              <Suggestions items={t.suggestionsByAgent[active.ostatniAgent ?? ''] ?? t.suggestionsByAgent.default} onPick={setDraft} />
+              <Suggestions items={active.podpowiedzi.length > 0 ? active.podpowiedzi : t.suggestionsByAgent[active.ostatniAgent ?? ''] ?? t.suggestionsByAgent.default} onPick={setDraft} />
               <Composer
                 value={draft}
                 placeholder={t.placeholder}
