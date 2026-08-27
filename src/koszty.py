@@ -3,7 +3,10 @@ import os
 import sys
 
 CENNIK = {'swiss-ai/apertus-8b-instruct': (0.0, 0.0),
-          'speakleash/Bielik-11B-v3.0-Instruct': (0.0, 0.0)}
+          'speakleash/Bielik-11B-v3.0-Instruct': (0.0, 0.0),
+          'google/gemini-2.5-flash': (0.30, 2.50),
+          'openai/gpt-4o-mini': (0.15, 0.60),
+          'anthropic/claude-haiku-4.5': (1.00, 5.00)}
 DOMYSLNA_STAWKA = (0.0, 0.0)
 ZNAKI_NA_TOKEN = float(os.getenv('ZNAKI_NA_TOKEN', '3.6'))
 
