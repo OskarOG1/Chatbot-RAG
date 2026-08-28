@@ -483,6 +483,10 @@ async def lifespan(app: FastAPI):
             podpowiedzi.indeks_artykulow(lang)
         except Exception as e:
             ostrzez_o_rozgrzewce(f'indeksu podpowiedzi {lang}', e)
+    try:
+        kolejka.wyczysc_przeterminowane_adresy()
+    except OSError as e:
+        ostrzez_o_kolejce(e)
     yield
     EGZEKUTOR_SEDZIEGO.shutdown(wait=False, cancel_futures=True)
 
@@ -753,6 +757,10 @@ def zgloszenie(request: ZgloszenieZadanie, http_request: Request):
         ostrzez_o_kolejce(e)
         raise HTTPException(status_code=503, detail='Zgloszenia sa chwilowo niedostepne, sprobuj ponownie za chwile.')
     print(f'zgloszenie: {ident} id_zapytania={request.id_zapytania} powod={wpis.get("powod")}')
+    try:
+        kolejka.wyczysc_przeterminowane_adresy()
+    except OSError as e:
+        ostrzez_o_kolejce(e)
     return ZgloszenieOdpowiedz(zgloszenie=ident)
 
 
@@ -818,6 +826,9 @@ def admin_kolejka_odpowiedz(request: OdpowiedzKolejkiZadanie, http_request: Requ
         raise HTTPException(status_code=404, detail='Nie znam tego zgloszenia.')
     if zgl['status'] != 'nowe':
         raise HTTPException(status_code=409, detail='To zgloszenie zostalo juz rozstrzygniete.')
+    if request.status == 'odpowiedziano' and zgl.get('email') is None:
+        raise HTTPException(status_code=409,
+                            detail='Adres email tego zgloszenia zostal usuniety zgodnie z retencja danych, zgloszenie mozna juz tylko odrzucic.')
     tresc = request.tresc.strip()
     if request.status == 'odpowiedziano' and not tresc:
         raise HTTPException(status_code=422, detail='Odpowiedz operatora nie moze byc pusta.')
@@ -841,6 +852,10 @@ def admin_kolejka_odpowiedz(request: OdpowiedzKolejkiZadanie, http_request: Requ
                                 detail='Odpowiedz zostala wyslana, ale zapisanie decyzji sie nie udalo. Zamknij to zgloszenie recznie.')
         raise HTTPException(status_code=500, detail='Zapisanie decyzji sie nie udalo, sprobuj ponownie.')
     print(f'kolejka: {request.zgloszenie} status={request.status} etykieta={request.etykieta}')
+    try:
+        kolejka.wyczysc_przeterminowane_adresy()
+    except OSError as e:
+        ostrzez_o_kolejce(e)
     return {'status': request.status, 'ticket': ticket}
 
 

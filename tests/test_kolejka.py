@@ -428,6 +428,115 @@ def test_kolejka_eksport_wymaga_tokenu(client, monkeypatch):
     assert client.get('/admin/kolejka/eksport').status_code == 401
 
 
+def test_czyszczenie_zgloszenie_z_decyzja_traci_adres_zachowuje_reszte(kolejka_w_tmp, monkeypatch):
+    monkeypatch.setattr(kolejka, 'DNI_RETENCJI_EMAIL', 30)
+    zapisz_linie(kolejka_w_tmp, [
+        zgloszenie('AAAAAAAA'),
+        decyzja('AAAAAAAA', status='odpowiedziano'),
+    ])
+    wyczyszczone = kolejka.wyczysc_przeterminowane_adresy()
+    assert wyczyszczone == 1
+    stan = kolejka.zgloszenie_po_id('AAAAAAAA')
+    assert stan['email'] is None
+    assert stan['pytanie'] == 'jak zlozyc polecenie zaplaty'
+    assert stan['powod'] == 'sedzia'
+    assert stan['status'] == 'odpowiedziano'
+
+
+def test_czyszczenie_bez_decyzji_mlodsze_niz_limit_zachowuje_adres(kolejka_w_tmp, monkeypatch):
+    monkeypatch.setattr(kolejka, 'DNI_RETENCJI_EMAIL', 5)
+    swieze = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    zapisz_linie(kolejka_w_tmp, [zgloszenie('BBBBBBBB', czas=swieze)])
+    wyczyszczone = kolejka.wyczysc_przeterminowane_adresy()
+    assert wyczyszczone == 0
+    assert kolejka.zgloszenie_po_id('BBBBBBBB')['email'] == 'jan@example.com'
+
+
+def test_czyszczenie_bez_decyzji_starsze_niz_limit_traci_adres(kolejka_w_tmp, monkeypatch):
+    monkeypatch.setattr(kolejka, 'DNI_RETENCJI_EMAIL', 5)
+    stare = (datetime.now(timezone.utc) - timedelta(days=6)).isoformat()
+    zapisz_linie(kolejka_w_tmp, [zgloszenie('CCCCCCCC', czas=stare)])
+    wyczyszczone = kolejka.wyczysc_przeterminowane_adresy()
+    assert wyczyszczone == 1
+    stan = kolejka.zgloszenie_po_id('CCCCCCCC')
+    assert stan['email'] is None
+    assert stan['status'] == 'nowe'
+
+
+def test_czyszczenie_nie_gubi_wierszy_ani_decyzji(kolejka_w_tmp, monkeypatch):
+    monkeypatch.setattr(kolejka, 'DNI_RETENCJI_EMAIL', 30)
+    stare = (datetime.now(timezone.utc) - timedelta(days=40)).isoformat()
+    zapisz_linie(kolejka_w_tmp, [
+        zgloszenie('DDDDDDDD', czas=stare),
+        zgloszenie('EEEEEEEE'),
+        decyzja('EEEEEEEE', status='odrzucone'),
+        zgloszenie('FFFFFFFF'),
+    ])
+    przed = kolejka.stan_kolejki()
+    statusy_przed = sorted((z['zgloszenie'], z['status']) for z in przed)
+    liczba_wierszy_przed = len(kolejka_w_tmp.read_text(encoding='utf-8').splitlines())
+    kolejka.wyczysc_przeterminowane_adresy()
+    po = kolejka.stan_kolejki()
+    statusy_po = sorted((z['zgloszenie'], z['status']) for z in po)
+    liczba_wierszy_po = len(kolejka_w_tmp.read_text(encoding='utf-8').splitlines())
+    assert statusy_przed == statusy_po
+    assert liczba_wierszy_przed == liczba_wierszy_po
+
+
+def test_czyszczenie_uszkodzony_wiersz_przetrwa(kolejka_w_tmp, monkeypatch):
+    monkeypatch.setattr(kolejka, 'DNI_RETENCJI_EMAIL', 30)
+    stare = (datetime.now(timezone.utc) - timedelta(days=40)).isoformat()
+    zapisz_linie(kolejka_w_tmp, [
+        zgloszenie('GGGGGGGG', czas=stare),
+        '{ to nie jest json',
+        zgloszenie('HHHHHHHH'),
+    ])
+    wyczyszczone = kolejka.wyczysc_przeterminowane_adresy()
+    assert wyczyszczone == 1
+    tekst = kolejka_w_tmp.read_text(encoding='utf-8')
+    assert '{ to nie jest json' in tekst
+    identy = {z['zgloszenie'] for z in kolejka.stan_kolejki()}
+    assert identy == {'GGGGGGGG', 'HHHHHHHH'}
+
+
+def test_kolejka_odpowiedz_bez_adresu_daje_409_i_nie_wysyla_maila(client, kolejka_w_tmp, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+
+    def rzuca(*a, **k):
+        raise AssertionError('adres wygasl, nie wolno wysylac maila')
+
+    monkeypatch.setattr(api, 'wyslij_odpowiedz_operatora', rzuca)
+    zapisz_linie(kolejka_w_tmp, [zgloszenie('AAAAAAAA', email=None)])
+    odp = client.post('/admin/kolejka/odpowiedz', headers={'x-admin-token': 'tajne'},
+                      json={'zgloszenie': 'AAAAAAAA', 'status': 'odpowiedziano', 'tresc': 'odpowiedz operatora'})
+    assert odp.status_code == 409
+    assert kolejka.zgloszenie_po_id('AAAAAAAA')['status'] == 'nowe'
+
+
+def test_kolejka_odrzucenie_bez_adresu_daje_200(client, kolejka_w_tmp, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    zapisz_linie(kolejka_w_tmp, [zgloszenie('AAAAAAAA', email=None)])
+    odp = client.post('/admin/kolejka/odpowiedz', headers={'x-admin-token': 'tajne'},
+                      json={'zgloszenie': 'AAAAAAAA', 'status': 'odrzucone',
+                            'etykieta': 'spam', 'tresc': 'powod odrzucenia'})
+    assert odp.status_code == 200
+    stan = kolejka.zgloszenie_po_id('AAAAAAAA')
+    assert stan['status'] == 'odrzucone'
+    assert stan['email'] is None
+
+
+def test_kolejka_odpowiedz_czysci_adres_z_pliku(client, kolejka_w_tmp, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    monkeypatch.setattr(api, 'wyslij_odpowiedz_operatora', lambda *a, **k: 'TICKET09')
+    zapisz_linie(kolejka_w_tmp, [zgloszenie('AAAAAAAA', email='jan.retencja@example.com')])
+    odp = client.post('/admin/kolejka/odpowiedz', headers={'x-admin-token': 'tajne'},
+                      json={'zgloszenie': 'AAAAAAAA', 'status': 'odpowiedziano',
+                            'tresc': 'odpowiedz operatora'})
+    assert odp.status_code == 200
+    tekst = kolejka_w_tmp.read_text(encoding='utf-8')
+    assert 'jan.retencja@example.com' not in tekst
+
+
 def test_lista_powodow_front_zgodna_z_backendem():
     plik_ts = Path(__file__).resolve().parents[1] / 'frontend-next' / 'lib' / 'chat.ts'
     tekst = plik_ts.read_text(encoding='utf-8')
