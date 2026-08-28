@@ -1,6 +1,8 @@
 import json
+import re
 from collections import OrderedDict, deque
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -237,3 +239,12 @@ def test_zgloszenie_id_spoza_wzorca_daje_422(client):
     wpis_logu(api.LOG_ANALYTICS, powod='sedzia')
     odp = client.post('/zgloszenie', json=cialo(id_zapytania='ZZZZ'))
     assert odp.status_code == 422
+
+
+def test_lista_powodow_front_zgodna_z_backendem():
+    plik_ts = Path(__file__).resolve().parents[1] / 'frontend-next' / 'lib' / 'chat.ts'
+    tekst = plik_ts.read_text(encoding='utf-8')
+    dopasowanie = re.search(r'POWODY_DO_CZLOWIEKA\s*=\s*\[(.*?)\]', tekst, re.S)
+    assert dopasowanie, 'nie znaleziono literalnej listy POWODY_DO_CZLOWIEKA w chat.ts'
+    powody_front = set(re.findall(r"'([^']+)'", dopasowanie.group(1)))
+    assert powody_front == set(kolejka.POWODY_DO_CZLOWIEKA)
