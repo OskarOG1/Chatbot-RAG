@@ -9,7 +9,7 @@ from rankings import get_reranker, get_bm25, get_faiss
 from spell import correct, detect_lang, load_dictionary
 from guards import MAX_ZNAKI, normalizuj
 from lang_config import LANG, DOMYSLNY_JEZYK
-from wysylka import wyslij_potwierdzenie, WysylkaCzesciowaError
+from wysylka import wyslij_potwierdzenie, wyslij_odpowiedz_operatora, WysylkaCzesciowaError
 from collections import deque, OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -528,6 +528,12 @@ class ZgloszenieZadanie(BaseModel):
     lang: Literal['pl', 'en'] | None = None
     strona: Literal['kupujacy', 'sprzedajacy'] | None = None
 
+class OdpowiedzKolejkiZadanie(BaseModel):
+    zgloszenie: str = Field(pattern=r'^[A-F0-9]{8}$')
+    status: Literal['odpowiedziano', 'odrzucone']
+    etykieta: Literal['luka_w_bazie', 'prog_za_wysoki', 'poza_zakresem', 'spam'] | None = None
+    tresc: str = Field(default='', max_length=8000)
+
 class ChatResponse(BaseModel):
    id: str | None = None
    agent: str
@@ -752,6 +758,67 @@ def admin_oceny(http_request: Request, dni: int | None = Query(default=None, ge=
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
     przypadki = statystyki.przypadki_ocen(wpisy_logu(), dni=dni)
     return {'razem': len(przypadki), 'przypadki': przypadki}
+
+
+def sprawdz_admin_token(http_request: Request) -> None:
+    if not ADMIN_TOKEN:
+        raise HTTPException(status_code=503,
+                            detail='Panel kolejki wylaczony, brak ADMIN_TOKEN w konfiguracji.')
+    podany = http_request.headers.get('x-admin-token', '')
+    if not secrets.compare_digest(podany.encode('utf-8'), ADMIN_TOKEN.encode('utf-8')):
+        raise HTTPException(status_code=401, detail='Brak uprawnien do kolejki zgloszen.')
+
+
+@app.get('/admin/kolejka')
+def admin_kolejka(http_request: Request,
+                  dni: int | None = Query(default=None, ge=1, le=3650),
+                  status: Literal['nowe', 'odpowiedziano', 'odrzucone'] | None = None):
+    if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
+                             LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
+    sprawdz_admin_token(http_request)
+    zapytania = {w['id']: w for w in wpisy_logu() if not w.get('typ') and w.get('id')}
+    zgloszenia = []
+    for z in kolejka.stan_kolejki(dni=dni, status=status):
+        slad = zapytania.get(z.get('id_zapytania') or '')
+        zgloszenia.append({
+            **z,
+            'wynik': (slad or {}).get('wynik'),
+            'latencja_s': (slad or {}).get('latencja_s'),
+            'cechy': (slad or {}).get('cechy') or None,
+            'diagnoza': statystyki.diagnoza({'ocena': 'dol'}, slad),
+        })
+    otwarte = sum(1 for z in kolejka.stan_kolejki() if z['status'] == 'nowe')
+    return {'razem': len(zgloszenia), 'otwarte': otwarte, 'zgloszenia': zgloszenia}
+
+
+@app.post('/admin/kolejka/odpowiedz')
+def admin_kolejka_odpowiedz(request: OdpowiedzKolejkiZadanie, http_request: Request):
+    if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
+                             LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
+    sprawdz_admin_token(http_request)
+    zgl = kolejka.zgloszenie_po_id(request.zgloszenie)
+    if zgl is None:
+        raise HTTPException(status_code=404, detail='Nie znam tego zgloszenia.')
+    if zgl['status'] != 'nowe':
+        raise HTTPException(status_code=409, detail='To zgloszenie zostalo juz rozstrzygniete.')
+    tresc = request.tresc.strip()
+    if request.status == 'odpowiedziano' and not tresc:
+        raise HTTPException(status_code=422, detail='Odpowiedz operatora nie moze byc pusta.')
+    ticket = None
+    lang = zgl.get('lang') or DOMYSLNY_JEZYK
+    if request.status == 'odpowiedziano':
+        try:
+            ticket = wyslij_odpowiedz_operatora(zgl['email'], zgl.get('pytanie') or '', tresc,
+                                                request.zgloszenie, lang=lang)
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        except httpx.HTTPError:
+            raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
+    kolejka.zapisz_decyzje(request.zgloszenie, request.status, request.etykieta, tresc, ticket)
+    print(f'kolejka: {request.zgloszenie} status={request.status} etykieta={request.etykieta}')
+    return {'status': request.status, 'ticket': ticket}
 
 
 @app.post('/admin/resetuj-statystyki')
