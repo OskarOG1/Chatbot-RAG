@@ -96,6 +96,7 @@ LIMIT_ZGLOSZEN_IP_MIN = int(os.getenv('LIMIT_ZGLOSZEN_IP_MIN', '2'))
 LIMIT_ZGLOSZEN_IP_DZIEN = int(os.getenv('LIMIT_ZGLOSZEN_IP_DZIEN', '5'))
 _zgloszenia = deque()
 _zgloszenia_ip: OrderedDict = OrderedDict()
+OSTRZEZONO_O_KOLEJCE = False
 
 
 def zglos_bramki_pominiete(bramki_pominiete: list, cache_hit: bool = False) -> None:
@@ -392,6 +393,13 @@ def w_limicie_zgloszen() -> bool:
         return True
 
 
+def ostrzez_o_kolejce(e: OSError) -> None:
+    global OSTRZEZONO_O_KOLEJCE
+    if not OSTRZEZONO_O_KOLEJCE:
+        print(f'UWAGA: nie moge pisac do {kolejka.PLIK_KOLEJKI}: {e}', file=sys.stderr, flush=True)
+        OSTRZEZONO_O_KOLEJCE = True
+
+
 def wpisy_logu() -> list[dict]:
     try:
         stan = LOG_ANALYTICS.stat()
@@ -475,6 +483,10 @@ async def lifespan(app: FastAPI):
             podpowiedzi.indeks_artykulow(lang)
         except Exception as e:
             ostrzez_o_rozgrzewce(f'indeksu podpowiedzi {lang}', e)
+    try:
+        kolejka.wyczysc_przeterminowane_adresy()
+    except OSError as e:
+        ostrzez_o_kolejce(e)
     yield
     EGZEKUTOR_SEDZIEGO.shutdown(wait=False, cancel_futures=True)
 
@@ -512,6 +524,9 @@ class WyslijZadanie(BaseModel):
 
 class WyslijOdpowiedz(BaseModel):
     ticket: str
+
+class ZgloszenieOdpowiedz(BaseModel):
+    zgloszenie: str
 
 class OcenaZadanie(BaseModel):
     ocena: Literal['gora', 'dol']
@@ -708,14 +723,9 @@ def ocena(request: OcenaZadanie, http_request: Request):
     return {'status': 'ok'}
 
 
-@app.post('/zgloszenie')
+@app.post('/zgloszenie', response_model=ZgloszenieOdpowiedz)
 def zgloszenie(request: ZgloszenieZadanie, http_request: Request):
     lang = request.lang or DOMYSLNY_JEZYK
-    if not w_limicie_kolejki(_zgloszenia_ip, adres_klienta(http_request),
-                             LIMIT_ZGLOSZEN_IP_MIN, LIMIT_ZGLOSZEN_IP_DZIEN):
-        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
-    if not w_limicie_zgloszen():
-        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     email = request.email.strip()
     if not EMAIL_WZORZEC.fullmatch(email):
         raise HTTPException(status_code=422, detail=LANG[lang]['bledy']['zly_email'])
@@ -728,17 +738,30 @@ def zgloszenie(request: ZgloszenieZadanie, http_request: Request):
     for z in kolejka.zloz_stan().values():
         if z.get('id_zapytania') == request.id_zapytania:
             raise HTTPException(status_code=409, detail='To zapytanie zostalo juz zgloszone.')
-    ident = kolejka.zapisz_zgloszenie(
-        request.id_zapytania,
-        request.lang or wpis.get('lang') or DOMYSLNY_JEZYK,
-        request.strona or wpis.get('strona'),
-        wpis.get('sekcja'),
-        wpis.get('powod'),
-        wpis.get('pytanie'),
-        email,
-    )
+    if not w_limicie_kolejki(_zgloszenia_ip, adres_klienta(http_request),
+                             LIMIT_ZGLOSZEN_IP_MIN, LIMIT_ZGLOSZEN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
+    if not w_limicie_zgloszen():
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
+    try:
+        ident = kolejka.zapisz_zgloszenie(
+            request.id_zapytania,
+            request.lang or wpis.get('lang') or DOMYSLNY_JEZYK,
+            request.strona or wpis.get('strona'),
+            wpis.get('sekcja'),
+            wpis.get('powod'),
+            wpis.get('pytanie'),
+            email,
+        )
+    except OSError as e:
+        ostrzez_o_kolejce(e)
+        raise HTTPException(status_code=503, detail='Zgloszenia sa chwilowo niedostepne, sprobuj ponownie za chwile.')
     print(f'zgloszenie: {ident} id_zapytania={request.id_zapytania} powod={wpis.get("powod")}')
-    return ident
+    try:
+        kolejka.wyczysc_przeterminowane_adresy()
+    except OSError as e:
+        ostrzez_o_kolejce(e)
+    return ZgloszenieOdpowiedz(zgloszenie=ident)
 
 
 @app.get('/admin/statystyki')
@@ -788,7 +811,7 @@ def admin_kolejka(http_request: Request,
             'cechy': (slad or {}).get('cechy') or None,
             'diagnoza': statystyki.diagnoza({'ocena': 'dol'}, slad),
         })
-    otwarte = sum(1 for z in kolejka.stan_kolejki() if z['status'] == 'nowe')
+    otwarte = sum(1 for z in kolejka.stan_kolejki(dni=dni) if z['status'] == 'nowe')
     return {'razem': len(zgloszenia), 'otwarte': otwarte, 'zgloszenia': zgloszenia}
 
 
@@ -803,6 +826,9 @@ def admin_kolejka_odpowiedz(request: OdpowiedzKolejkiZadanie, http_request: Requ
         raise HTTPException(status_code=404, detail='Nie znam tego zgloszenia.')
     if zgl['status'] != 'nowe':
         raise HTTPException(status_code=409, detail='To zgloszenie zostalo juz rozstrzygniete.')
+    if request.status == 'odpowiedziano' and zgl.get('email') is None:
+        raise HTTPException(status_code=409,
+                            detail='Adres email tego zgloszenia zostal usuniety zgodnie z retencja danych, zgloszenie mozna juz tylko odrzucic.')
     tresc = request.tresc.strip()
     if request.status == 'odpowiedziano' and not tresc:
         raise HTTPException(status_code=422, detail='Odpowiedz operatora nie moze byc pusta.')
@@ -816,8 +842,20 @@ def admin_kolejka_odpowiedz(request: OdpowiedzKolejkiZadanie, http_request: Requ
             raise HTTPException(status_code=503, detail=str(e))
         except httpx.HTTPError:
             raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
-    kolejka.zapisz_decyzje(request.zgloszenie, request.status, request.etykieta, tresc, ticket)
+    try:
+        kolejka.zapisz_decyzje(request.zgloszenie, request.status, request.etykieta, tresc, ticket)
+    except OSError as e:
+        print(f'UWAGA: decyzja dla zgloszenia {request.zgloszenie} (ticket {ticket}) nie zostala zapisana: {e}',
+             file=sys.stderr, flush=True)
+        if request.status == 'odpowiedziano':
+            raise HTTPException(status_code=500,
+                                detail='Odpowiedz zostala wyslana, ale zapisanie decyzji sie nie udalo. Zamknij to zgloszenie recznie.')
+        raise HTTPException(status_code=500, detail='Zapisanie decyzji sie nie udalo, sprobuj ponownie.')
     print(f'kolejka: {request.zgloszenie} status={request.status} etykieta={request.etykieta}')
+    try:
+        kolejka.wyczysc_przeterminowane_adresy()
+    except OSError as e:
+        ostrzez_o_kolejce(e)
     return {'status': request.status, 'ticket': ticket}
 
 

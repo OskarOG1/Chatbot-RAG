@@ -52,7 +52,7 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
     storedText: [
       'Log zapytań: czas, język, sekcja tematyczna, informacja czy padła odpowiedź czy odmowa, czas odpowiedzi, informacja o trafieniu w pamięć podręczną oraz treść pytania po redakcji, czyli z zamaskowanymi adresami email, numerami telefonów, tokenami alfanumerycznymi (np. numerami zamówień) i adresami URL.',
       'Pojedyncze nierozpoznane słowa z pytań, których korektor literówek nie umiał dopasować do słownika, bez treści całego pytania.',
-      'Adres email podany przy przekazaniu pytania człowiekowi: trafia do kolejki zgłoszeń i leży tam do czasu udzielenia odpowiedzi przez operatora, potem jest usuwany. Służy wyłącznie do odesłania odpowiedzi.',
+      'Adres email podany przy przekazaniu pytania człowiekowi trafia do kolejki zgłoszeń. Zostaje usunięty po udzieleniu odpowiedzi przez operatora, a jeśli odpowiedź nie padnie, najpóźniej po 30 dniach od zgłoszenia. Kopie zapasowe kolejki mają rotację 14 dni, więc pełne usunięcie ze wszystkich kopii następuje w tym oknie, nie natychmiast. Adres służy wyłącznie do odesłania odpowiedzi.',
       'Pytanie przekazane człowiekowi trafia do kolejki w postaci zredagowanej, bo backend bierze je z logu zapytań, a nie z Twojej przeglądarki.',
     ],
     notStored: 'Czego nie zapisuję',
@@ -93,7 +93,7 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
     storedText: [
       'A request log: time, language, topic section, whether the request got an answer or a refusal, response time, whether it was served from cache, and the question text after redaction, meaning email addresses, phone numbers, alphanumeric tokens (such as order numbers) and URLs are masked out.',
       'Single unrecognised words from questions that the typo corrector could not match to its dictionary, never the full question text.',
-      'The email address you enter when you pass a question to a person: it goes into the request queue and stays there until an operator answers, then it is deleted. It is used only to send you the answer.',
+      'The email address you enter when you pass a question to a person goes into the request queue. It is deleted once an operator answers, and if no answer ever comes, at the latest 30 days after the request. Queue backups are rotated every 14 days, so full removal from all backup copies happens within that window, not immediately. The address is used only to send you the answer.',
       'A question passed to a person enters the queue in redacted form, because the backend takes it from the request log, not from your browser.',
     ],
     notStored: "What I don't store",

@@ -101,6 +101,14 @@ odtworz() {
     done
 
     tar -xzf "$archiwum" -C "$KATALOG_RAG"
+
+    for plik in "${PLIKI_OPCJONALNE[@]}"; do
+        if [ ! -f "$KATALOG_RAG/$plik" ] && [ -f "$KATALOG_RAG/$plik.przed-odtworzeniem-$znacznik" ]; then
+            mv "$KATALOG_RAG/$plik.przed-odtworzeniem-$znacznik" "$KATALOG_RAG/$plik"
+            echo "archiwum nie zawieralo $plik, przywrocono poprzednia wersje sprzed odtworzenia"
+        fi
+    done
+
     docker compose start api
 
     for plik in "${PLIKI[@]}" "${PLIKI_OPCJONALNE[@]}"; do

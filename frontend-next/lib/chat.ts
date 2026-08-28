@@ -256,7 +256,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     zgloszenieBlad409: 'To pytanie zostało już zgłoszone.',
     zgloszenieBlad429: 'Za dużo zgłoszeń w krótkim czasie, spróbuj ponownie później.',
     zgloszenieBladOgolny: 'Nie udało się wysłać zgłoszenia, spróbuj ponownie.',
-    zgloszeniePrzechowywanieNota: 'Twój adres przechowujemy do czasu udzielenia odpowiedzi, potem go usuwamy.',
+    zgloszeniePrzechowywanieNota: 'Twój adres przechowujemy do czasu udzielenia odpowiedzi, a jeśli nie padnie, usuwamy go najpóźniej po 30 dniach.',
   },
   en: {
     title: 'Allegro Assistant',
@@ -340,7 +340,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     zgloszenieBlad409: 'This question has already been submitted.',
     zgloszenieBlad429: 'Too many requests in a short time, please try again later.',
     zgloszenieBladOgolny: 'Could not send the request, please try again.',
-    zgloszeniePrzechowywanieNota: 'We keep your address until we answer, then we delete it.',
+    zgloszeniePrzechowywanieNota: 'We keep your address until we answer, and if we never do, we delete it after 30 days at the latest.',
   },
 };
 

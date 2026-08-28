@@ -31,6 +31,7 @@ import {
   WykresKosztu,
 } from '@/components/admin/Wykresy';
 import PanelEksportu from '@/components/admin/PanelEksportu';
+import KolejkaZgloszen from '@/components/admin/KolejkaZgloszen';
 
 const OKRESY: { etykieta: string; dni: number | null }[] = [
   { etykieta: '7 dni', dni: 7 },
@@ -51,7 +52,7 @@ const STRONY: { etykieta: string; strona: 'kupujacy' | 'sprzedajacy' | null }[] 
   { etykieta: 'Sprzedający', strona: 'sprzedajacy' },
 ];
 
-const ZAKLADKI = ['Przegląd', 'Jakość i odmowy', 'Pytania', 'Oceny', 'Eksport'] as const;
+const ZAKLADKI = ['Przegląd', 'Jakość i odmowy', 'Pytania', 'Oceny', 'Kolejka', 'Eksport'] as const;
 type Zakladka = (typeof ZAKLADKI)[number];
 
 const PYTANIA_WIDOCZNE = 6;
@@ -650,6 +651,8 @@ export default function PanelAdmina() {
               ) : null}
             </section>
           ) : null}
+
+          {zakladka === 'Kolejka' ? <KolejkaZgloszen dni={filtry.dni} /> : null}
 
           {dane && dane.ogolem.zapytan > 0 && zakladka === 'Eksport' ? (
             <PanelEksportu filtry={filtry} kolumny={dane.kolumny} />
