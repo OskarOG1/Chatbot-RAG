@@ -21,12 +21,9 @@ def nowy_identyfikator() -> str:
 
 
 def dopisz_wiersz(wpis: dict) -> None:
-    try:
-        with _zamek:
-            with open(PLIK_KOLEJKI, 'a', encoding='utf-8') as w:
-                w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
-    except OSError:
-        pass
+    with _zamek:
+        with open(PLIK_KOLEJKI, 'a', encoding='utf-8') as w:
+            w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
 
 
 def zapisz_zgloszenie(id_zapytania: str, lang: str, strona: str, sekcja: str | None,
