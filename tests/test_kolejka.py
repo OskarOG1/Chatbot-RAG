@@ -349,7 +349,7 @@ def test_kolejka_odpowiedz_blad_wysylki_nie_zapisuje_decyzji(client, kolejka_w_t
                             'tresc': 'odpowiedz operatora'})
     assert odp.status_code == 502
     assert kolejka.zgloszenie_po_id('AAAAAAAA')['status'] == 'nowe'
-    wiersze = [json.loads(l) for l in kolejka_w_tmp.read_text(encoding='utf-8').splitlines() if l.strip()]
+    wiersze = [json.loads(linia) for linia in kolejka_w_tmp.read_text(encoding='utf-8').splitlines() if linia.strip()]
     assert all(w.get('typ') != 'decyzja' for w in wiersze)
 
 
