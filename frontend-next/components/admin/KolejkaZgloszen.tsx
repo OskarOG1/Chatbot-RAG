@@ -34,6 +34,7 @@ function czasCzytelny(wartosc: string | null): string {
 
 export default function KolejkaZgloszen({ dni }: Props) {
   const th = useTheme();
+  const [tokenWpisywany, setTokenWpisywany] = useState('');
   const [token, setToken] = useState('');
   const [status, setStatus] = useState<StatusZgloszenia | null>('nowe');
   const [dane, setDane] = useState<Kolejka | null>(null);
@@ -82,6 +83,12 @@ export default function KolejkaZgloszen({ dni }: Props) {
     overflow: 'hidden' as const,
   };
 
+  function wyloguj() {
+    setToken('');
+    setTokenWpisywany('');
+    setDane(null);
+  }
+
   if (!token) {
     return (
       <section style={{ ...ramka, padding: '20px 20px 24px' }}>
@@ -92,13 +99,24 @@ export default function KolejkaZgloszen({ dni }: Props) {
           Wpisz token administratora, żeby zobaczyć zgłoszenia. Bez tokenu lista jest niedostępna, a nie
           pusta.
         </p>
-        <input
-          type="password"
-          value={token}
-          placeholder="token administratora"
-          onChange={(e) => setToken(e.target.value)}
-          style={pole(th)}
-        />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setToken(tokenWpisywany);
+          }}
+          style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}
+        >
+          <input
+            type="password"
+            value={tokenWpisywany}
+            placeholder="token administratora"
+            onChange={(e) => setTokenWpisywany(e.target.value)}
+            style={{ ...pole(th), marginTop: 0, flex: '1 1 220px' }}
+          />
+          <button type="submit" disabled={!tokenWpisywany} style={przyciskGlowny(th, !tokenWpisywany)}>
+            Pokaż kolejkę
+          </button>
+        </form>
       </section>
     );
   }
@@ -148,7 +166,7 @@ export default function KolejkaZgloszen({ dni }: Props) {
               </button>
             );
           })}
-          <button type="button" onClick={() => setToken('')} style={przyciskCichy(th)}>
+          <button type="button" onClick={wyloguj} style={przyciskCichy(th)}>
             Wyloguj token
           </button>
         </div>
