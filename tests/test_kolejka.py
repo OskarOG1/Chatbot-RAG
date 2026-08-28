@@ -241,6 +241,25 @@ def test_zgloszenie_id_spoza_wzorca_daje_422(client):
     assert odp.status_code == 422
 
 
+def test_kolejka_eksport_bez_adresu_email(client, kolejka_w_tmp, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    zapisz_linie(kolejka_w_tmp, [
+        zgloszenie('AAAAAAAA', email='jan.kowalski@example.com'),
+        decyzja('AAAAAAAA', status='odpowiedziano', tresc='Polecenie zaplaty zakladasz w ustawieniach.'),
+    ])
+    odp = client.get('/admin/kolejka/eksport', headers={'x-admin-token': 'tajne'})
+    assert odp.status_code == 200
+    tekst = odp.content.decode('utf-8-sig')
+    assert '@' not in tekst
+    assert 'jan.kowalski' not in tekst
+    assert 'Polecenie zaplaty zakladasz' in tekst
+
+
+def test_kolejka_eksport_wymaga_tokenu(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    assert client.get('/admin/kolejka/eksport').status_code == 401
+
+
 def test_lista_powodow_front_zgodna_z_backendem():
     plik_ts = Path(__file__).resolve().parents[1] / 'frontend-next' / 'lib' / 'chat.ts'
     tekst = plik_ts.read_text(encoding='utf-8')

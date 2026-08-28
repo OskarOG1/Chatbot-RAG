@@ -821,6 +821,35 @@ def admin_kolejka_odpowiedz(request: OdpowiedzKolejkiZadanie, http_request: Requ
     return {'status': request.status, 'ticket': ticket}
 
 
+@app.get('/admin/kolejka/eksport')
+def admin_kolejka_eksport(http_request: Request,
+                          dni: int | None = Query(default=None, ge=1, le=3650),
+                          status: Literal['nowe', 'odpowiedziano', 'odrzucone'] | None = None):
+    if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
+                             LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
+    sprawdz_admin_token(http_request)
+    naglowki_csv = ('czas_zgloszenia', 'pytanie', 'powod_odmowy', 'sekcja', 'jezyk',
+                    'status', 'etykieta', 'odpowiedz_operatora', 'czas_decyzji')
+    pola = ('czas', 'pytanie', 'powod', 'sekcja', 'lang', 'status', 'etykieta',
+            'tresc', 'decyzja_czas')
+    bufor = io.StringIO()
+    pisarz = csv.writer(bufor, delimiter=';', lineterminator='\n')
+    pisarz.writerow(naglowki_csv)
+    for z in kolejka.stan_kolejki(dni=dni, status=status):
+        wiersz = []
+        for pole in pola:
+            wartosc = z.get(pole)
+            if pole in ('czas', 'decyzja_czas'):
+                wartosc = statystyki.formatuj_czas_eksportu(wartosc)
+            wiersz.append(statystyki.bezpieczna_komorka(wartosc))
+        pisarz.writerow(wiersz)
+    stempel = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')
+    tresc = '﻿' + bufor.getvalue()
+    return Response(content=tresc, media_type='text/csv; charset=utf-8',
+                    headers={'content-disposition': f'attachment; filename="kolejka_{stempel}.csv"'})
+
+
 @app.post('/admin/resetuj-statystyki')
 def admin_resetuj_statystyki(http_request: Request):
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),

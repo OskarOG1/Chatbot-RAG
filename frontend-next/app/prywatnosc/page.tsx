@@ -52,11 +52,13 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
     storedText: [
       'Log zapytań: czas, język, sekcja tematyczna, informacja czy padła odpowiedź czy odmowa, czas odpowiedzi, informacja o trafieniu w pamięć podręczną oraz treść pytania po redakcji, czyli z zamaskowanymi adresami email, numerami telefonów, tokenami alfanumerycznymi (np. numerami zamówień) i adresami URL.',
       'Pojedyncze nierozpoznane słowa z pytań, których korektor literówek nie umiał dopasować do słownika, bez treści całego pytania.',
+      'Adres email podany przy przekazaniu pytania człowiekowi: trafia do kolejki zgłoszeń i leży tam do czasu udzielenia odpowiedzi przez operatora, potem jest usuwany. Służy wyłącznie do odesłania odpowiedzi.',
+      'Pytanie przekazane człowiekowi trafia do kolejki w postaci zredagowanej, bo backend bierze je z logu zapytań, a nie z Twojej przeglądarki.',
     ],
     notStored: 'Czego nie zapisuję',
     notStoredText: [
       'Historii rozmów: żyje wyłącznie w pamięci Twojej przeglądarki (localStorage), nigdy nie trafia na serwer.',
-      'Twojego adresu email po wysłaniu wiadomości do sprzedawcy.',
+      'Twojego adresu email po wysłaniu wiadomości do sprzedawcy: wysyłka do sprzedawcy przekazuje go jednorazowo do usługi Resend i nie zapisuje na serwerze.',
       'Treści wygenerowanych odpowiedzi.',
       'Pamięć podręczna odpowiedzi żyje wyłącznie w pamięci procesu serwera, maksymalnie 200 wpisów, i znika po każdym restarcie.',
     ],
@@ -91,11 +93,13 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
     storedText: [
       'A request log: time, language, topic section, whether the request got an answer or a refusal, response time, whether it was served from cache, and the question text after redaction, meaning email addresses, phone numbers, alphanumeric tokens (such as order numbers) and URLs are masked out.',
       'Single unrecognised words from questions that the typo corrector could not match to its dictionary, never the full question text.',
+      'The email address you enter when you pass a question to a person: it goes into the request queue and stays there until an operator answers, then it is deleted. It is used only to send you the answer.',
+      'A question passed to a person enters the queue in redacted form, because the backend takes it from the request log, not from your browser.',
     ],
     notStored: "What I don't store",
     notStoredText: [
       "Conversation history: it lives only in your browser's storage (localStorage) and never reaches the server.",
-      'Your email address after sending a message to the seller.',
+      'Your email address after sending a message to the seller: sending to the seller passes it once to the Resend service and does not store it on the server.',
       'The text of generated answers.',
       "The response cache lives only in the server process's memory, capped at 200 entries, and is cleared on every restart.",
     ],
