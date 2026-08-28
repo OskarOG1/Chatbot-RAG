@@ -287,3 +287,100 @@ export async function pobierzPrzypadki(dni: number | null): Promise<Przypadki> {
   }
   return res.json() as Promise<Przypadki>;
 }
+
+export type StatusZgloszenia = 'nowe' | 'odpowiedziano' | 'odrzucone';
+export type EtykietaZgloszenia = 'luka_w_bazie' | 'prog_za_wysoki' | 'poza_zakresem' | 'spam';
+
+export const NAZWY_STATUSOW_ZGLOSZEN: Record<StatusZgloszenia, string> = {
+  nowe: 'Nowe',
+  odpowiedziano: 'Odpowiedziano',
+  odrzucone: 'Odrzucone',
+};
+
+export const NAZWY_ETYKIET_ZGLOSZEN: Record<EtykietaZgloszenia, string> = {
+  luka_w_bazie: 'Luka w bazie',
+  prog_za_wysoki: 'Próg za wysoki',
+  poza_zakresem: 'Poza zakresem',
+  spam: 'Spam',
+};
+
+export interface CechyZgloszenia {
+  rerank_top1?: number | null;
+  pokrycie?: number | null;
+  zrodlo_top1?: string | null;
+  strona_wybrana?: string | null;
+}
+
+export interface ZgloszenieKolejki {
+  zgloszenie: string;
+  czas: string | null;
+  id_zapytania: string | null;
+  lang: string | null;
+  strona: string | null;
+  sekcja: string | null;
+  powod: string | null;
+  pytanie: string | null;
+  email: string | null;
+  status: StatusZgloszenia;
+  etykieta: EtykietaZgloszenia | null;
+  tresc: string | null;
+  ticket: string | null;
+  decyzja_czas: string | null;
+  wynik: string | null;
+  latencja_s: number | null;
+  cechy: CechyZgloszenia | null;
+  diagnoza: string;
+}
+
+export interface Kolejka {
+  razem: number;
+  otwarte: number;
+  zgloszenia: ZgloszenieKolejki[];
+}
+
+export interface OdpowiedzKolejki {
+  zgloszenie: string;
+  status: 'odpowiedziano' | 'odrzucone';
+  etykieta?: EtykietaZgloszenia | null;
+  tresc: string;
+}
+
+export async function pobierzKolejke(
+  token: string,
+  dni: number | null,
+  status: StatusZgloszenia | null,
+): Promise<Kolejka> {
+  const params = new URLSearchParams();
+  if (dni !== null) {
+    params.set('dni', String(dni));
+  }
+  if (status !== null) {
+    params.set('status', status);
+  }
+  const res = await fetch(`/api/admin/kolejka?${params.toString()}`, {
+    cache: 'no-store',
+    headers: { 'x-admin-token': token },
+  });
+  if (!res.ok) {
+    const tresc = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(tresc?.detail ?? `Błąd pobierania kolejki: ${res.status}`);
+  }
+  return res.json() as Promise<Kolejka>;
+}
+
+export async function odpowiedzZgloszenie(
+  token: string,
+  dane: OdpowiedzKolejki,
+): Promise<{ status: string; ticket: string | null }> {
+  const res = await fetch('/api/admin/kolejka/odpowiedz', {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { 'content-type': 'application/json', 'x-admin-token': token },
+    body: JSON.stringify(dane),
+  });
+  if (!res.ok) {
+    const tresc = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(tresc?.detail ?? `Błąd zapisu odpowiedzi: ${res.status}`);
+  }
+  return res.json() as Promise<{ status: string; ticket: string | null }>;
+}
