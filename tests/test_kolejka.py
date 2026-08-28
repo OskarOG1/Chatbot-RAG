@@ -1,8 +1,11 @@
 import json
+from collections import OrderedDict, deque
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from fastapi.testclient import TestClient
 
+import api
 import kolejka
 
 
@@ -135,3 +138,102 @@ def test_zapisz_decyzje_domyka_zgloszenie(kolejka_w_tmp):
     assert stan['status'] == 'odrzucone'
     assert stan['etykieta'] == 'spam'
     assert kolejka.stan_kolejki(status='nowe') == []
+
+
+ID_LOGU = 'c43ecf3bdcc4f7ab'
+
+
+@pytest.fixture
+def client(monkeypatch, tmp_path):
+    monkeypatch.setattr(api, 'LOG_ANALYTICS', tmp_path / 'log_analytics_test.jsonl')
+    monkeypatch.setattr(api, '_log_cache', {'stempel': None, 'wpisy': [], 'czas': 0.0})
+    monkeypatch.setattr(api, '_zgloszenia', deque())
+    monkeypatch.setattr(api, '_zgloszenia_ip', OrderedDict())
+    monkeypatch.setattr(api, '_oceny_ip', OrderedDict())
+    monkeypatch.setattr(api, 'LIMIT_ZGLOSZEN_MIN', 100)
+    monkeypatch.setattr(api, 'LIMIT_ZGLOSZEN_DZIEN', 1000)
+    monkeypatch.setattr(api, 'LIMIT_ZGLOSZEN_IP_MIN', 100)
+    monkeypatch.setattr(api, 'LIMIT_ZGLOSZEN_IP_DZIEN', 1000)
+    return TestClient(api.app)
+
+
+def wpis_logu(sciezka, ident=ID_LOGU, powod='sedzia', **nad):
+    rekord = {
+        'czas': '2026-08-23T16:03:56.504779+00:00', 'id': ident, 'lang': 'pl',
+        'strona': 'kupujacy', 'sekcja': 'kupujacy', 'wynik': 'odmowa', 'powod': powod,
+        'pytanie': 'jak zlozyc nowe polecenie zaplaty',
+    }
+    rekord.update(nad)
+    with open(sciezka, 'a', encoding='utf-8') as w:
+        w.write(json.dumps(rekord, ensure_ascii=False) + '\n')
+
+
+def cialo(**nad):
+    dane = {'id_zapytania': ID_LOGU, 'email': 'jan@example.com', 'lang': 'pl', 'strona': 'kupujacy'}
+    dane.update(nad)
+    return dane
+
+
+@pytest.mark.parametrize('powod', list(kolejka.POWODY_DO_CZLOWIEKA))
+def test_zgloszenie_powod_kwalifikujacy_zwraca_identyfikator(client, powod):
+    wpis_logu(api.LOG_ANALYTICS, powod=powod)
+    odp = client.post('/zgloszenie', json=cialo())
+    assert odp.status_code == 200
+    ident = odp.json()
+    assert len(ident) == 8
+    assert all(z in '0123456789ABCDEF' for z in ident)
+    assert kolejka.zgloszenie_po_id(ident)['status'] == 'nowe'
+
+
+@pytest.mark.parametrize('powod', [
+    'guard_dlugosc', 'nie_zrozumialem', 'mail_doprecyzuj', 'pytanie_o_strone',
+    'odpowiedz', 'rozmowa', 'ogolna',
+])
+def test_zgloszenie_powod_odrzucajacy_nie_daje_200(client, powod):
+    wpis_logu(api.LOG_ANALYTICS, powod=powod)
+    odp = client.post('/zgloszenie', json=cialo())
+    assert odp.status_code == 422
+    assert kolejka.stan_kolejki() == []
+
+
+def test_zgloszenie_powod_null_nie_daje_200(client):
+    wpis_logu(api.LOG_ANALYTICS, powod=None)
+    odp = client.post('/zgloszenie', json=cialo())
+    assert odp.status_code == 422
+    assert kolejka.stan_kolejki() == []
+
+
+def test_zgloszenie_nieznane_id_daje_404(client):
+    wpis_logu(api.LOG_ANALYTICS, ident='ffffffffffffffff', powod='sedzia')
+    odp = client.post('/zgloszenie', json=cialo(id_zapytania='0000000000000000'))
+    assert odp.status_code == 404
+
+
+def test_zgloszenie_drugie_do_tego_samego_id_daje_409(client):
+    wpis_logu(api.LOG_ANALYTICS, powod='sedzia')
+    assert client.post('/zgloszenie', json=cialo()).status_code == 200
+    odp = client.post('/zgloszenie', json=cialo())
+    assert odp.status_code == 409
+
+
+def test_zgloszenie_pytanie_z_logu_nie_z_ciala(client):
+    wpis_logu(api.LOG_ANALYTICS, powod='sedzia')
+    odp = client.post('/zgloszenie', json=cialo(pytanie='PODMIENIONA TRESC OD KLIENTA'))
+    assert odp.status_code == 200
+    ident = odp.json()
+    stan = kolejka.zgloszenie_po_id(ident)
+    assert stan['pytanie'] == 'jak zlozyc nowe polecenie zaplaty'
+    tekst_pliku = kolejka.PLIK_KOLEJKI.read_text(encoding='utf-8')
+    assert 'PODMIENIONA TRESC OD KLIENTA' not in tekst_pliku
+
+
+def test_zgloszenie_zly_email_daje_422(client):
+    wpis_logu(api.LOG_ANALYTICS, powod='sedzia')
+    odp = client.post('/zgloszenie', json=cialo(email='to-nie-jest-email'))
+    assert odp.status_code == 422
+
+
+def test_zgloszenie_id_spoza_wzorca_daje_422(client):
+    wpis_logu(api.LOG_ANALYTICS, powod='sedzia')
+    odp = client.post('/zgloszenie', json=cialo(id_zapytania='ZZZZ'))
+    assert odp.status_code == 422
