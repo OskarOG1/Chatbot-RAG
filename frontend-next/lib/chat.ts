@@ -28,7 +28,22 @@ export interface ChatResponse {
   kategoria: string | null;
   naglowek_ui: string | null;
   podpowiedzi?: string[];
+  powod_odmowy?: string | null;
+  powod_rag?: string | null;
   tryb: Tryb;
+}
+
+export const POWODY_DO_CZLOWIEKA = [
+  'prog_rerank',
+  'sedzia',
+  'pokrycie',
+  'model_nie_wie',
+  'jawna_odmowa',
+  'brak_generacji',
+] as const;
+
+export function czyKwalifikujeDoCzlowieka(odp: ChatResponse): boolean {
+  return odp.powod_odmowy != null && (POWODY_DO_CZLOWIEKA as readonly string[]).includes(odp.powod_odmowy);
 }
 
 export interface WyslijZadanie {
@@ -42,6 +57,17 @@ export interface WyslijZadanie {
 
 export interface WyslijOdpowiedz {
   ticket: string;
+}
+
+export interface ZgloszenieZadanie {
+  id_zapytania: string;
+  email: string;
+  lang: Lang;
+  strona: Strona;
+}
+
+export interface ZgloszenieOdpowiedz {
+  zgloszenie: string;
 }
 
 export type SseEvent =
@@ -129,6 +155,14 @@ interface Teksty {
   ocenaBlad: string;
   ocenaTak: string;
   ocenaNie: string;
+  zgloszenieZacheta: string;
+  zgloszenieEmailLabel: string;
+  zgloszeniePrzycisk: string;
+  zgloszeniePotwierdzenie: (numer: string) => string;
+  zgloszenieBlad409: string;
+  zgloszenieBlad429: string;
+  zgloszenieBladOgolny: string;
+  zgloszeniePrzechowywanieNota: string;
 }
 
 function odmianaRozmow(n: number): string {
@@ -215,6 +249,14 @@ export const TEKSTY: Record<Lang, Teksty> = {
     ocenaBlad: 'Nie udało się zapisać oceny',
     ocenaTak: 'Odpowiedź pomogła',
     ocenaNie: 'Odpowiedź nie pomogła',
+    zgloszenieZacheta: 'Nie znalazłem tego w bazie wiedzy. Mogę przekazać Twoje pytanie człowiekowi, odpowiedź dostaniesz mailem.',
+    zgloszenieEmailLabel: 'Twój adres email',
+    zgloszeniePrzycisk: 'Przekaż pytanie człowiekowi',
+    zgloszeniePotwierdzenie: (numer) => `Zgłoszenie przyjęte, numer ${numer}. Odpowiedź wyślemy na podany adres.`,
+    zgloszenieBlad409: 'To pytanie zostało już zgłoszone.',
+    zgloszenieBlad429: 'Za dużo zgłoszeń w krótkim czasie, spróbuj ponownie później.',
+    zgloszenieBladOgolny: 'Nie udało się wysłać zgłoszenia, spróbuj ponownie.',
+    zgloszeniePrzechowywanieNota: 'Twój adres przechowujemy do czasu udzielenia odpowiedzi, potem go usuwamy.',
   },
   en: {
     title: 'Allegro Assistant',
@@ -291,6 +333,14 @@ export const TEKSTY: Record<Lang, Teksty> = {
     ocenaBlad: 'Could not save the rating',
     ocenaTak: 'The answer helped',
     ocenaNie: 'The answer did not help',
+    zgloszenieZacheta: 'I could not find this in the knowledge base. I can pass your question to a person, you will get the answer by email.',
+    zgloszenieEmailLabel: 'Your email address',
+    zgloszeniePrzycisk: 'Pass the question to a person',
+    zgloszeniePotwierdzenie: (numer) => `Request received, number ${numer}. We will send the answer to the address you provided.`,
+    zgloszenieBlad409: 'This question has already been submitted.',
+    zgloszenieBlad429: 'Too many requests in a short time, please try again later.',
+    zgloszenieBladOgolny: 'Could not send the request, please try again.',
+    zgloszeniePrzechowywanieNota: 'We keep your address until we answer, then we delete it.',
   },
 };
 

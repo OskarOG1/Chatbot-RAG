@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import ChatMessage from '@/components/ChatMessage';
+import type { WynikZgloszenia } from '@/components/PytanieDoCzlowieka';
 import Composer from '@/components/Composer';
 import Suggestions from '@/components/Suggestions';
 import TypingBubble from '@/components/TypingBubble';
@@ -15,6 +16,7 @@ import { czytajSse } from '@/lib/sse';
 import { ThemeContext, THEMES, BODY, DISPLAY, MONO, type ThemeName } from '@/lib/theme';
 import {
   TEKSTY,
+  czyKwalifikujeDoCzlowieka,
   jestNegacja,
   rozdzielSzkic,
   zbudujZadanie,
@@ -382,6 +384,8 @@ export default function ChatApp() {
               sekcja: dane?.agent && dane.agent !== 'email' ? dane.agent : null,
               ocena: null,
               idZapytania: dane?.id ?? null,
+              zgloszenieMozliwe: dane ? czyKwalifikujeDoCzlowieka(dane) : false,
+              zgloszenieNumer: null,
             },
           ],
         };
@@ -423,6 +427,31 @@ export default function ChatApp() {
     } catch {
       ustaw(null);
       pokazToast(t.ocenaBlad);
+    }
+  }
+
+  async function zglosDoCzlowieka(tid: string, msgId: number, email: string): Promise<WynikZgloszenia> {
+    const thread = threadsRef.current.find((x) => x.id === tid);
+    const msg = thread?.messages.find((x) => x.id === msgId);
+    if (!msg || msg.zgloszenieNumer || !msg.idZapytania) return 'blad';
+
+    try {
+      const res = await fetch('/api/zgloszenie', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id_zapytania: msg.idZapytania, email, lang, strona }),
+      });
+      if (res.status === 409) return 'konflikt';
+      if (res.status === 429) return 'limit';
+      if (!res.ok) return 'blad';
+      const dane = (await res.json()) as { zgloszenie: string };
+      updateThread(tid, (x) => ({
+        ...x,
+        messages: x.messages.map((mm) => (mm.id === msgId ? { ...mm, zgloszenieNumer: dane.zgloszenie } : mm)),
+      }));
+      return 'ok';
+    } catch {
+      return 'blad';
     }
   }
 
@@ -638,6 +667,13 @@ export default function ChatApp() {
                     onOcena={
                       m.role === 'assistant' && m.sekcja && m.pytanie
                         ? (wybor) => ocenOdpowiedz(activeId, m.id, wybor)
+                        : undefined
+                    }
+                    zgloszenieMozliwe={m.zgloszenieMozliwe}
+                    zgloszenieNumer={m.zgloszenieNumer}
+                    onZglos={
+                      m.role === 'assistant' && m.zgloszenieMozliwe
+                        ? (email) => zglosDoCzlowieka(activeId, m.id, email)
                         : undefined
                     }
                   />

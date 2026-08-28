@@ -12,6 +12,8 @@ export interface WiadomoscUi {
   sekcja?: string | null;
   ocena?: 'gora' | 'dol' | null;
   idZapytania?: string | null;
+  zgloszenieMozliwe?: boolean;
+  zgloszenieNumer?: string | null;
 }
 
 export interface PanelState {

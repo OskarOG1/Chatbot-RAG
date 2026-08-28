@@ -90,6 +90,10 @@ CHUNKI = [({'tekst': 'Treść artykułu pomocy o koncie.', 'tytul': 'Konto Alleg
             'naglowek': '', 'url': 'https://allegro.pl/pomoc/artykul-konto-1',
             'agent': 'kupujacy'}, 0.9)]
 
+# Nazwa modelu bez prefiksu OpenRouter, zeby nowy_klient trafil na podmieniony
+# LLM_BASE_URL (atrape), a nie na prawdziwy OpenRouter wynikajacy z .env.
+MODEL_ATRAPY = 'atrapa-local'
+
 
 def polaczenia_do_atrapy(port):
     # Pula huggingface_hub jest wspolna dla calego procesu, wiec przy pelnym
@@ -105,7 +109,8 @@ def test_przerwanie_zamyka_polaczenie(stan_czysty, serwer_atrapy):
     import koszty
 
     koszty.zacznij()
-    strumien = agents_generacja.answer_stream('pytanie testowe', 'konto', CHUNKI)
+    strumien = agents_generacja.answer_stream('pytanie testowe', 'konto', CHUNKI,
+                                              bielik_model=MODEL_ATRAPY)
     odebrane = 0
     for zdarzenie in strumien:
         if zdarzenie['typ'] == 'token':
@@ -134,7 +139,8 @@ def test_pelny_przebieg_nie_zostawia_polaczenia(stan_czysty, serwer_atrapy):
 
     STAN_ATRAPY['szybko'] = True
     koszty.zacznij()
-    zdarzenia = list(agents_generacja.answer_stream('inne pytanie testowe', 'konto', CHUNKI))
+    zdarzenia = list(agents_generacja.answer_stream('inne pytanie testowe', 'konto', CHUNKI,
+                                                    bielik_model=MODEL_ATRAPY))
 
     assert zdarzenia[-1]['typ'] == 'koniec'
     assert polaczenia_do_atrapy(serwer_atrapy) == []

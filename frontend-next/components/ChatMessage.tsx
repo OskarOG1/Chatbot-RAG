@@ -5,6 +5,7 @@ import { przygotujOdpowiedz } from '@/lib/zrodla';
 import { TEKSTY, type Cytat, type Lang } from '@/lib/chat';
 import SourceList from './SourceList';
 import InfoBanner from './InfoBanner';
+import PytanieDoCzlowieka, { type WynikZgloszenia } from './PytanieDoCzlowieka';
 import { IkonaKciukGora, IkonaKciukDol } from './Ikony';
 
 interface Props {
@@ -17,6 +18,9 @@ interface Props {
   onAction?: (tekst: string) => void;
   ocena?: 'gora' | 'dol' | null;
   onOcena?: (ocena: 'gora' | 'dol') => void;
+  zgloszenieMozliwe?: boolean;
+  zgloszenieNumer?: string | null;
+  onZglos?: (email: string) => Promise<WynikZgloszenia>;
 }
 
 export default function ChatMessage({
@@ -29,6 +33,9 @@ export default function ChatMessage({
   onAction,
   ocena = null,
   onOcena,
+  zgloszenieMozliwe = false,
+  zgloszenieNumer = null,
+  onZglos,
 }: Props) {
   const th = useTheme();
   const t = TEKSTY[lang];
@@ -169,6 +176,10 @@ export default function ChatMessage({
             );
           })}
         </div>
+      )}
+
+      {zgloszenieMozliwe && onZglos && (
+        <PytanieDoCzlowieka lang={lang} numer={zgloszenieNumer} onZglos={onZglos} />
       )}
 
       {action && onAction && (
