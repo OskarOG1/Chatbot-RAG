@@ -18,6 +18,7 @@ import httpx
 import io
 import os
 import re
+import kolejka
 import koszty
 import podpowiedzi
 import secrets
@@ -88,6 +89,13 @@ _oceny = deque()
 _oceny_ip: OrderedDict = OrderedDict()
 _admin_ip: OrderedDict = OrderedDict()
 OSTRZEZONO_O_LOGU_OCEN = False
+
+LIMIT_ZGLOSZEN_MIN = int(os.getenv('LIMIT_ZGLOSZEN_MIN', '3'))
+LIMIT_ZGLOSZEN_DZIEN = int(os.getenv('LIMIT_ZGLOSZEN_DZIEN', '30'))
+LIMIT_ZGLOSZEN_IP_MIN = int(os.getenv('LIMIT_ZGLOSZEN_IP_MIN', '2'))
+LIMIT_ZGLOSZEN_IP_DZIEN = int(os.getenv('LIMIT_ZGLOSZEN_IP_DZIEN', '5'))
+_zgloszenia = deque()
+_zgloszenia_ip: OrderedDict = OrderedDict()
 
 
 def zglos_bramki_pominiete(bramki_pominiete: list, cache_hit: bool = False) -> None:
@@ -372,6 +380,18 @@ def w_limicie_ocen() -> bool:
         return True
 
 
+def w_limicie_zgloszen() -> bool:
+    teraz = time.time()
+    with _zamek:
+        while _zgloszenia and _zgloszenia[0] < teraz - 86400:
+            _zgloszenia.popleft()
+        ostatnia_minuta = sum(1 for t in _zgloszenia if t > teraz - 60)
+        if ostatnia_minuta >= LIMIT_ZGLOSZEN_MIN or len(_zgloszenia) >= LIMIT_ZGLOSZEN_DZIEN:
+            return False
+        _zgloszenia.append(teraz)
+        return True
+
+
 def wpisy_logu() -> list[dict]:
     try:
         stan = LOG_ANALYTICS.stat()
@@ -499,6 +519,12 @@ class OcenaZadanie(BaseModel):
     pytanie: str = Field(min_length=1, max_length=MAX_ZNAKI * 2)
     odpowiedz: str = Field(default='', max_length=MAX_ZNAKI_WPISU)
     sekcja: str | None = Field(default=None, max_length=40)
+    lang: Literal['pl', 'en'] | None = None
+    strona: Literal['kupujacy', 'sprzedajacy'] | None = None
+
+class ZgloszenieZadanie(BaseModel):
+    id_zapytania: str = Field(pattern=r'^[0-9a-f]{16}$')
+    email: str = Field(min_length=3, max_length=254)
     lang: Literal['pl', 'en'] | None = None
     strona: Literal['kupujacy', 'sprzedajacy'] | None = None
 
@@ -674,6 +700,39 @@ def ocena(request: OcenaZadanie, http_request: Request):
     loguj_ocene(request.ocena, request.pytanie, request.odpowiedz,
                 request.sekcja, lang, request.strona, request.id_zapytania)
     return {'status': 'ok'}
+
+
+@app.post('/zgloszenie')
+def zgloszenie(request: ZgloszenieZadanie, http_request: Request):
+    lang = request.lang or DOMYSLNY_JEZYK
+    if not w_limicie_kolejki(_zgloszenia_ip, adres_klienta(http_request),
+                             LIMIT_ZGLOSZEN_IP_MIN, LIMIT_ZGLOSZEN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
+    if not w_limicie_zgloszen():
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
+    email = request.email.strip()
+    if not EMAIL_WZORZEC.fullmatch(email):
+        raise HTTPException(status_code=422, detail=LANG[lang]['bledy']['zly_email'])
+    wpis = next((w for w in wpisy_logu()
+                 if w.get('id') == request.id_zapytania and not w.get('typ')), None)
+    if wpis is None:
+        raise HTTPException(status_code=404, detail='Nie znam tego zapytania.')
+    if wpis.get('powod') not in kolejka.POWODY_DO_CZLOWIEKA:
+        raise HTTPException(status_code=422, detail='To zapytanie nie kwalifikuje sie do zgloszenia.')
+    for z in kolejka.zloz_stan().values():
+        if z.get('id_zapytania') == request.id_zapytania:
+            raise HTTPException(status_code=409, detail='To zapytanie zostalo juz zgloszone.')
+    ident = kolejka.zapisz_zgloszenie(
+        request.id_zapytania,
+        request.lang or wpis.get('lang') or DOMYSLNY_JEZYK,
+        request.strona or wpis.get('strona'),
+        wpis.get('sekcja'),
+        wpis.get('powod'),
+        wpis.get('pytanie'),
+        email,
+    )
+    print(f'zgloszenie: {ident} id_zapytania={request.id_zapytania} powod={wpis.get("powod")}')
+    return ident
 
 
 @app.get('/admin/statystyki')
