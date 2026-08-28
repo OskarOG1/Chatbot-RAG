@@ -7,6 +7,7 @@ KATALOG_KOPII="${KATALOG_KOPII:-/opt/backup/rag}"
 DNI_PRZECHOWYWANIA="${DNI_PRZECHOWYWANIA:-14}"
 MIN_ROZMIAR_ARCHIWUM=40
 PLIKI=(log_analytics.jsonl trudne.jsonl)
+PLIKI_OPCJONALNE=(kolejka.jsonl)
 WZORZEC_ARCHIWUM='log_analytics.jsonl.przed-resetem-*'
 
 policz_linie() {
@@ -20,7 +21,14 @@ policz_linie() {
 
 zbierz_do_archiwum() {
     DO_ARCHIWUM=("${PLIKI[@]}")
-    local sciezka
+    ILE_OPCJONALNYCH=0
+    local sciezka plik
+    for plik in "${PLIKI_OPCJONALNE[@]}"; do
+        if [ -f "$KATALOG_RAG/$plik" ]; then
+            DO_ARCHIWUM+=("$plik")
+            ILE_OPCJONALNYCH=$(( ILE_OPCJONALNYCH + 1 ))
+        fi
+    done
     for sciezka in "$KATALOG_RAG"/$WZORZEC_ARCHIWUM; do
         if [ -f "$sciezka" ]; then
             DO_ARCHIWUM+=("$(basename "$sciezka")")
@@ -44,12 +52,12 @@ zrob_kopie() {
     mkdir -p "$KATALOG_KOPII"
     sprawdz_zrodla
 
-    local data archiwum rozmiar linie_log linie_trudne ile_archiwow
+    local data archiwum rozmiar linie_log linie_trudne linie_kolejka ile_archiwow
     data="$(date -u +%Y-%m-%d)"
     archiwum="$KATALOG_KOPII/rag-$data.tar.gz"
 
     zbierz_do_archiwum
-    ile_archiwow=$(( ${#DO_ARCHIWUM[@]} - ${#PLIKI[@]} ))
+    ile_archiwow=$(( ${#DO_ARCHIWUM[@]} - ${#PLIKI[@]} - ILE_OPCJONALNYCH ))
 
     tar -czf "$archiwum.tmp" -C "$KATALOG_RAG" "${DO_ARCHIWUM[@]}"
     mv "$archiwum.tmp" "$archiwum"
@@ -64,10 +72,11 @@ zrob_kopie() {
 
     linie_log="$(policz_linie "$KATALOG_RAG/log_analytics.jsonl")"
     linie_trudne="$(policz_linie "$KATALOG_RAG/trudne.jsonl")"
+    linie_kolejka="$(policz_linie "$KATALOG_RAG/kolejka.jsonl")"
 
-    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $archiwum ${rozmiar}B log_analytics=$linie_log trudne=$linie_trudne archiwa_resetu=$ile_archiwow" \
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) $archiwum ${rozmiar}B log_analytics=$linie_log trudne=$linie_trudne kolejka=$linie_kolejka archiwa_resetu=$ile_archiwow" \
         >> "$KATALOG_KOPII/historia.log"
-    echo "zapisano $archiwum (${rozmiar}B, log_analytics=$linie_log, trudne=$linie_trudne, archiwa resetu=$ile_archiwow)"
+    echo "zapisano $archiwum (${rozmiar}B, log_analytics=$linie_log, trudne=$linie_trudne, kolejka=$linie_kolejka, archiwa resetu=$ile_archiwow)"
 }
 
 odtworz() {
@@ -84,7 +93,7 @@ odtworz() {
     cd "$KATALOG_SKRYPTU"
     docker compose stop api
 
-    for plik in "${PLIKI[@]}"; do
+    for plik in "${PLIKI[@]}" "${PLIKI_OPCJONALNE[@]}"; do
         if [ -f "$KATALOG_RAG/$plik" ]; then
             mv "$KATALOG_RAG/$plik" "$KATALOG_RAG/$plik.przed-odtworzeniem-$znacznik"
             echo "odlozono $plik.przed-odtworzeniem-$znacznik"
@@ -94,8 +103,10 @@ odtworz() {
     tar -xzf "$archiwum" -C "$KATALOG_RAG"
     docker compose start api
 
-    for plik in "${PLIKI[@]}"; do
-        echo "odtworzono $plik: $(policz_linie "$KATALOG_RAG/$plik") linii"
+    for plik in "${PLIKI[@]}" "${PLIKI_OPCJONALNE[@]}"; do
+        if [ -f "$KATALOG_RAG/$plik" ]; then
+            echo "odtworzono $plik: $(policz_linie "$KATALOG_RAG/$plik") linii"
+        fi
     done
 }
 
