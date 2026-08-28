@@ -163,6 +163,17 @@ LANG = {
                 '{klauzula}'
             ),
             'klauzula': 'Informacja: to demo nie przechowuje Twojego adresu ani treści wiadomości po wysyłce.',
+            'temat_odpowiedz': 'Odpowiedź na zgłoszenie {zgloszenie}',
+            'tresc_odpowiedz': (
+                'Twoje pytanie:\n{pytanie}\n\n'
+                'Odpowiedź:\n{odpowiedz}\n\n'
+                'Numer zgłoszenia: {zgloszenie}\n\n'
+                '{klauzula}'
+            ),
+            'klauzula_odpowiedz': (
+                'Informacja: Twój adres trafił do kolejki zgłoszeń w chwili wysłania pytania '
+                'i posłużył wyłącznie do przekazania tej odpowiedzi.'
+            ),
             'brak_kategorii': 'brak',
         },
         'zaimki': {'to', 'tego', 'tym', 'tam', 'ten', 'ta', 'te', 'nim', 'niej', 'nich'},
@@ -385,6 +396,17 @@ LANG = {
                 '{klauzula}'
             ),
             'klauzula': "Note: this demo doesn't store your address or message content after sending.",
+            'temat_odpowiedz': 'Reply to request {zgloszenie}',
+            'tresc_odpowiedz': (
+                'Your question:\n{pytanie}\n\n'
+                'Answer:\n{odpowiedz}\n\n'
+                'Request number: {zgloszenie}\n\n'
+                '{klauzula}'
+            ),
+            'klauzula_odpowiedz': (
+                'Note: your address entered the request queue when you sent the question '
+                'and was used only to deliver this reply.'
+            ),
             'brak_kategorii': 'none',
         },
         'zaimki': {'it', 'that', 'this', 'those', 'them', 'one'},

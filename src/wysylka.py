@@ -57,3 +57,34 @@ def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: s
             raise WysylkaCzesciowaError(ticket, e) from e
 
     return ticket
+
+
+def wyslij_odpowiedz_operatora(email: str, pytanie: str, odpowiedz: str, zgloszenie: str,
+                               lang: str = 'pl') -> str:
+    klucz = os.getenv('RESEND_API_KEY')
+    nadawca = os.getenv('RESEND_FROM_EMAIL')
+    if not klucz or not nadawca:
+        raise RuntimeError(
+            'Wysyłka nie jest skonfigurowana, brakuje RESEND_API_KEY lub RESEND_FROM_EMAIL.'
+        )
+
+    t = LANG[lang]['wysylka']
+    ticket = secrets.token_hex(4).upper()
+    naglowki = {'Authorization': f'Bearer {klucz}', 'Content-Type': 'application/json'}
+    temat = t['temat_odpowiedz'].format(zgloszenie=zgloszenie).replace('\r', ' ').replace('\n', ' ')
+
+    wiadomosc = {
+        'from': nadawca,
+        'to': email,
+        'subject': temat,
+        'text': t['tresc_odpowiedz'].format(
+            zgloszenie=zgloszenie, pytanie=pytanie, odpowiedz=odpowiedz,
+            klauzula=t['klauzula_odpowiedz'],
+        ),
+    }
+
+    with httpx.Client(timeout=10.0) as klient:
+        wynik = klient.post(RESEND_URL, headers=naglowki, json=wiadomosc)
+        wynik.raise_for_status()
+
+    return ticket
