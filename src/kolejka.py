@@ -156,7 +156,7 @@ def wyczysc_przeterminowane_adresy() -> int:
         try:
             with open(PLIK_KOLEJKI, encoding='utf-8') as f:
                 linie = f.readlines()
-        except OSError:
+        except FileNotFoundError:
             return 0
         surowe: list[tuple[str, dict | None]] = []
         decyzje_ident: set[str] = set()

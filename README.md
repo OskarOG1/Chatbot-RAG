@@ -93,6 +93,8 @@ cp docker/.env.example docker/.env
 
 Uzupełnij w `docker/.env` co najmniej `LLM_BASE_URL`, `LLM_API_KEY`, `MODEL` i `DOMAIN`, potem:
 
+`ADMIN_TOKEN` jest osobną sprawą: bez niego panel kolejki zgłoszeń i reset statystyk odpowiadają kodem 503, a same zgłoszenia od użytkowników zapisują się dalej. Pusty token wyłącza więc odczyt kolejki, nie jej zbieranie.
+
 ```bash
 docker compose -f docker/docker-compose.yml up -d --build
 ```
