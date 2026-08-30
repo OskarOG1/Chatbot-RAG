@@ -184,18 +184,40 @@ def pokrycie_idf(tekst: str, chunks: list, lang: str = 'pl') -> float:
     return licznik / mianownik if mianownik else 0.0
 
 
-def model_nie_wie(tekst: str, lang: str = 'pl') -> bool:
-    low = tekst.lower()
-    return any(fraza in low for fraza in LANG[lang]['nie_wiem_zwroty'])
+@lru_cache(maxsize=None)
+def wzorce_fraz(frazy: tuple, wtracenia: tuple) -> tuple:
+    wstawka = '(?:%s)' % '|'.join(re.escape(w) for w in wtracenia)
+    wzorce = []
+    for fraza in frazy:
+        slowa = [re.escape(s) for s in fraza.split()]
+        warianty = [r'\s+'.join(slowa)]
+        for i in range(1, len(slowa)):
+            warianty.append(r'\s+'.join(slowa[:i] + [wstawka] + slowa[i:]))
+        wzorce.append(re.compile('(?:%s)' % '|'.join(warianty)))
+    return tuple(wzorce)
+
+
+def frazy_odmowy(lang: str, klucz: str) -> tuple:
+    return tuple(normalizacja(fraza) for fraza in LANG[lang][klucz])
 
 
 def jawna_odmowa_frazy(lang: str) -> tuple:
-    return tuple(normalizacja(fraza) for fraza in LANG[lang]['jawna_odmowa_zwroty'])
+    return frazy_odmowy(lang, 'jawna_odmowa_zwroty')
+
+
+def wzorce_odmowy(lang: str, klucz: str) -> tuple:
+    return wzorce_fraz(frazy_odmowy(lang, klucz),
+                       tuple(normalizacja(w) for w in LANG[lang]['wtracenia_odmowy']))
+
+
+def model_nie_wie(tekst: str, lang: str = 'pl') -> bool:
+    tekst = normalizacja(tekst)
+    return any(wzorzec.search(tekst) for wzorzec in wzorce_odmowy(lang, 'nie_wiem_zwroty'))
 
 
 def jawna_odmowa_na_starcie(tekst: str, lang: str = 'pl') -> bool:
     okno = normalizacja(tekst[:OKNO_JAWNEJ_ODMOWY].replace('’', "'"))
-    return any(fraza in okno for fraza in jawna_odmowa_frazy(lang))
+    return any(wzorzec.search(okno) for wzorzec in wzorce_odmowy(lang, 'jawna_odmowa_zwroty'))
 
 
 def skazone_tokeny(query: str) -> set:

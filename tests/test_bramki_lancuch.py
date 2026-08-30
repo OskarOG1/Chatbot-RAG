@@ -451,3 +451,58 @@ def test_cechy_przy_sukcesie_drugiej_sekcji(monkeypatch, atrapa_pipeline, chunk)
     assert wynik['agent'] == 'sprzedaz'
     assert wynik['cechy']['etap'] == 1
     assert wynik['cechy']['pokrycie'] == 1.0
+
+
+# Grupa H: frazy odmowy dopasowywane z tolerancja na jedno wtracone slowo
+# (Pomiary/measure_frazy_odmowy.py). Dopasowanie doslowne przepuszczalo kazda odmowe, w ktorej
+# model wstawil okreslnik miedzy czasownik a dopelnienie: "Nie mam TEJ informacji" nie pasowalo
+# do frazy "nie mam informacji" i szlo do uzytkownika jako odpowiedz bez cytatow.
+
+
+def test_model_nie_wie_lapie_odmowe_z_wtraconym_okreslnikiem():
+    for tekst in ('Nie mam tej informacji. Skontaktuj się z obsługą Allegro.',
+                  'Nie mam takiej informacji w bazie pomocy.',
+                  'Przepraszam, ale nie mam wystarczających informacji na ten temat.',
+                  'Baza nie zawiera tej informacji.'):
+        assert pipeline.model_nie_wie(tekst, 'pl') is True, tekst
+
+
+def test_model_nie_wie_lapie_tekst_bez_znakow_diakrytycznych():
+    assert pipeline.model_nie_wie('Ten artykul nie zawiera informacji o zwrotach.', 'pl') is True
+    assert pipeline.model_nie_wie('Nie znalazlem w materialach nic na ten temat.', 'pl') is True
+    assert pipeline.model_nie_wie('Nie znalazlem tego w materialach.', 'pl') is True
+
+
+def test_jawna_odmowa_lapie_wtracone_slowo():
+    assert pipeline.jawna_odmowa_na_starcie('Nie mogę niestety udzielić odpowiedzi.', 'pl') is True
+    assert pipeline.jawna_odmowa_na_starcie("I can't really answer this question.", 'en') is True
+
+
+def test_model_nie_wie_lapie_wtracenie_en():
+    assert pipeline.model_nie_wie('I do not have that information.', 'en') is True
+
+
+# Druga strona kontraktu: wtracenie tolerujemy tylko dla zamknietej listy okreslnikow. Dowolne
+# slowo w luce zamienia zdanie merytoryczne w odmowe, a to kasuje dobra odpowiedz.
+
+
+def test_wtracenie_spoza_listy_nie_robi_z_odpowiedzi_odmowy():
+    for tekst in ('Formularz zwrotu nie zawiera pola informacji o numerze konta, wpisz je ręcznie.',
+                  'W regulaminie nie ma osobnej informacji o tym terminie, ale jest tabela.',
+                  'Nie mam nic przeciwko, informacji szukaj w zakładce Moje zakupy.'):
+        assert pipeline.model_nie_wie(tekst, 'pl') is False, tekst
+
+
+def test_wtracenie_spoza_listy_nie_robi_z_odpowiedzi_odmowy_en():
+    tekst = 'The form does not have any information field, so fill it in manually.'
+    assert pipeline.model_nie_wie(tekst, 'en') is False
+
+
+def test_tolerancja_obejmuje_najwyzej_jedno_slowo():
+    assert pipeline.model_nie_wie('Nie mam tej takiej informacji.', 'pl') is False
+
+
+def test_wzorce_odmowy_nadazaja_za_lang_config(monkeypatch):
+    monkeypatch.setitem(pipeline.LANG['pl'], 'wtracenia_odmowy', ('zupelnie',))
+    assert pipeline.model_nie_wie('Nie mam zupelnie informacji na ten temat.', 'pl') is True
+    assert pipeline.model_nie_wie('Nie mam tej informacji.', 'pl') is False
