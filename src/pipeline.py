@@ -43,7 +43,9 @@ EGZEKUTOR_SEDZIEGO = ThreadPoolExecutor(max_workers=SEDZIA_ROWNOLEGLE,
                                         thread_name_prefix='sedzia')
 SEDZIA_ON = os.getenv('SEDZIA_ON', 'true').lower() in ('1', 'true', 'yes')
 OGOLNA_ON = os.getenv('OGOLNA_ON', 'true').lower() in ('1', 'true', 'yes')
+ETAP2_ON = os.getenv('ETAP2_ON', 'true').lower() in ('1', 'true', 'yes')
 POWODY_BLISKO_BAZY = ('pokrycie', 'model_nie_wie', 'jawna_odmowa', 'brak_generacji')
+POWODY_DRUGA_PROBA = ('sedzia', 'pokrycie', 'model_nie_wie')
 KATALOG_RAG = Path(__file__).resolve().parent.parent / 'RAG'
 LOG_TRUDNE = KATALOG_RAG / 'trudne.jsonl'
 PII_WZORCE = (
@@ -339,7 +341,8 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
         return {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia',
-                                             'bramki_pominiete': bramki_pominiete, 'cechy': cechy}}
+                                             'bramki_pominiete': bramki_pominiete, 'cechy': cechy,
+                                             'wyniki': wyniki}}
 
     strumien = answer_stream(query, agent_odp, chunks, bielik_model, history, lang, styl=styl)
     for ev in strumien:
@@ -407,12 +410,14 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         cechy['pokrycie'] = round(float(wartosc_pokrycia), 4)
         if wartosc_pokrycia < cfg['prog_pokrycia']:
             yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'pokrycie',
-                                                'bramki_pominiete': bramki_pominiete, 'cechy': cechy}}
+                                                'bramki_pominiete': bramki_pominiete, 'cechy': cechy,
+                                                'wyniki': wyniki}}
             return
 
     if not odpowiedz['cytaty'] and model_nie_wie(odpowiedz['tekst'], lang):
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'model_nie_wie',
-                                            'bramki_pominiete': bramki_pominiete, 'cechy': cechy}}
+                                            'bramki_pominiete': bramki_pominiete, 'cechy': cechy,
+                                            'wyniki': wyniki}}
         return
 
     if jawna_odmowa_na_starcie(odpowiedz['tekst'], lang):
@@ -443,6 +448,113 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         'bramki_pominiete': bramki_pominiete,
         'cechy': cechy,
     })
+
+
+def probuj_druga_sekcje(zapytanie_ret: str, query: str, history: list[dict],
+                         bielik_model: str | None, sedzia: bool | None, lang: str, cfg: dict,
+                         wynik_etapu: dict, tokeny_wyslane: bool, styl: str | None = None):
+    wyniki = wynik_etapu.get('wyniki') or []
+    strona_odrzucona = (wynik_etapu.get('cechy') or {}).get('strona_wybrana')
+    druga_strona = next((s for s in strony.STRONY if s != strona_odrzucona), None)
+
+    bramki_pominiete = []
+    cechy = {'rerank_top1': None, 'chunkow': 0, 'zrodlo_top1': None,
+             'sedzia_ok': None, 'pokrycie': None, 'etap': 2,
+             'strona_wybrana': druga_strona, 'przewaga_sekcji': None}
+
+    chunks = [para for para in wyniki
+              if strony.strona_z_agenta(para[0]['agent']) == druga_strona][:K_CHUNKOW_SEKCJI]
+    cechy['chunkow'] = len(chunks)
+    if chunks:
+        cechy['rerank_top1'] = round(float(chunks[0][1]), 4)
+        cechy['zrodlo_top1'] = chunks[0][0]['url']
+
+    def rezultat_odmowy(powod):
+        return {'typ': 'rezultat', 'dane': {'powod_odmowy': powod,
+                                            'bramki_pominiete': bramki_pominiete, 'cechy': cechy}}
+
+    if not chunks or chunks[0][1] < cfg['prog_rerank']:
+        yield rezultat_odmowy('druga_sekcja_prog')
+        return
+
+    agent_odp = chunks[0][0]['agent']
+
+    if SEDZIA_ON if sedzia is None else sedzia:
+        yield {'typ': 'krok', 'tekst': cfg['kroki']['sprawdzam_kontekst']}
+        stan_sedziego = {}
+        try:
+            werdykt = bool(czy_kontekst_odpowiada(
+                zapytanie_ret, chunks[:SEDZIA_CHUNKOW], None, lang, stan_sedziego))
+        except Exception as e:
+            print(f'sedzia drugiej sekcji zawiodl ({type(e).__name__}: {e}), przepuszczam dalej',
+                  flush=True)
+            werdykt = True
+            bramki_pominiete.append('sedzia')
+        if not werdykt:
+            cechy['sedzia_ok'] = False
+            yield rezultat_odmowy('sedzia')
+            return
+        cechy['sedzia_ok'] = True
+
+    etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
+    yield {'typ': 'krok', 'tekst': cfg['kroki']['generuje_odpowiedz'].format(agent=etykieta_sekcji)}
+
+    if tokeny_wyslane:
+        yield {'typ': 'reset'}
+
+    odpowiedz = None
+    for ev in answer_stream(query, agent_odp, chunks, bielik_model, history, lang, styl=styl):
+        if ev['typ'] == 'token':
+            yield ev
+        elif ev['typ'] == 'koniec':
+            odpowiedz = ev['dane']
+
+    if odpowiedz is None:
+        yield rezultat_odmowy('brak_generacji')
+        return
+
+    _, _, idf_ok = IDF_DANE[lang]
+    if not idf_ok:
+        bramki_pominiete.append('pokrycie')
+    else:
+        wartosc_pokrycia = pokrycie_idf(odpowiedz['tekst'], chunks, lang)
+        cechy['pokrycie'] = round(float(wartosc_pokrycia), 4)
+        if wartosc_pokrycia < cfg['prog_pokrycia']:
+            yield rezultat_odmowy('pokrycie')
+            return
+
+    if not odpowiedz['cytaty'] and model_nie_wie(odpowiedz['tekst'], lang):
+        yield rezultat_odmowy('model_nie_wie')
+        return
+
+    if jawna_odmowa_na_starcie(odpowiedz['tekst'], lang):
+        yield rezultat_odmowy('jawna_odmowa')
+        return
+
+    oferta = None
+    oferta_kategoria = None
+    artykuly_maila = {kat['artykul'] for kat in cfg['mail_kategorie'].values()}
+    if sygnal_maila(query, lang) or (chunks[0][0]['url'] and
+                                      any(art in chunks[0][0]['url'] for art in artykuly_maila)):
+        kategoria = sedzia_kategoria_mail(history + [{'role': 'user', 'content': query}], chunks, lang)
+        if kategoria:
+            oferta = cfg['mail_kategorie'][kategoria]['oferta']
+            oferta_kategoria = kategoria
+
+    zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
+    yield {'typ': 'rezultat', 'dane': {
+        'powod_odmowy': None,
+        'agent': agent_odp,
+        'answer': odpowiedz['tekst'],
+        'sources': zrodla,
+        'citations': cytaty_lub_zrodla(odpowiedz['cytaty'], chunks),
+        'podpowiedzi': podpowiedzi.zbuduj(chunks, query, lang),
+        'oferta': oferta,
+        'oferta_kategoria': oferta_kategoria,
+        'strona': druga_strona,
+        'bramki_pominiete': bramki_pominiete,
+        'cechy': cechy,
+    }}
 
 
 def probuj_ogolna(query: str, history: list[dict], bielik_model: str | None,
@@ -506,7 +618,8 @@ def probuj_ogolna(query: str, history: list[dict], bielik_model: str | None,
 def run_stream(query:str, bielik_model:str | None=None,
                history:list[dict] | None=None, agent_poprzedni:str | None=None,
                przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
-               lang:str='pl', strona:str | None=None, warstwa_ogolna:bool | None=None):
+               lang:str='pl', strona:str | None=None, warstwa_ogolna:bool | None=None,
+               etap2:bool | None=None):
 
     cfg = LANG[lang]
 
@@ -610,6 +723,22 @@ def run_stream(query:str, bielik_model:str | None=None,
                 wyslane_tokeny = True
             yield ev
 
+    if (wynik_etapu['powod_odmowy'] in POWODY_DRUGA_PROBA
+            and (ETAP2_ON if etap2 is None else etap2)):
+        wynik_drugiej = None
+        for ev in probuj_druga_sekcje(zapytanie_ret, query, history, bielik_model,
+                                       sedzia, lang, cfg, wynik_etapu, wyslane_tokeny, styl=styl):
+            if ev['typ'] == 'rezultat':
+                wynik_drugiej = ev['dane']
+            else:
+                if ev['typ'] == 'reset':
+                    wyslane_tokeny = False
+                elif ev['typ'] == 'token':
+                    wyslane_tokeny = True
+                yield ev
+        if wynik_drugiej is not None and not wynik_drugiej['powod_odmowy']:
+            wynik_etapu = wynik_drugiej
+
     bramki_pominiete = list(wynik_etapu.get('bramki_pominiete') or [])
     strona_wybrana = wynik_etapu.get('strona') or strona
     nota = None
@@ -684,11 +813,12 @@ def run_stream(query:str, bielik_model:str | None=None,
 def run(query:str, bielik_model:str | None=None,
         history:list[dict] | None=None, agent_poprzedni:str | None=None,
         przepisz:bool=False, bez_korekty:bool=False, sedzia:bool | None=None,
-        lang:str='pl', strona:str | None=None, warstwa_ogolna:bool | None=None) -> dict:
+        lang:str='pl', strona:str | None=None, warstwa_ogolna:bool | None=None,
+        etap2:bool | None=None) -> dict:
     dane = {}
     for ev in run_stream(query, bielik_model, history,
                          agent_poprzedni, przepisz, bez_korekty, sedzia, lang, strona,
-                         warstwa_ogolna):
+                         warstwa_ogolna, etap2):
         if ev['typ'] == 'wynik':
             dane = ev['dane']
     return dane
