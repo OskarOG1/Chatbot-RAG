@@ -61,6 +61,11 @@ LANG = {
             'nie mogę udzielić odpowiedzi',
             'nie mogę odpowiedzieć na to pytanie',
         ),
+        'wtracenia_odmowy': (
+            'tej', 'tego', 'takiej', 'takich', 'tych', 'żadnej', 'żadnych', 'tam', 'tu',
+            'dokładnej', 'konkretnej', 'szczegółowych', 'wystarczających', 'pełnych',
+            'niestety',
+        ),
         'rozmowa': {
             'powitanie': 'Cześć, w czym mogę pomóc? Odpowiadam na pytania o konto, zakupy, '
                          'płatności i sprzedaż na Allegro.',
@@ -302,6 +307,10 @@ LANG = {
         'jawna_odmowa_zwroty': (
             "i can't answer this question",
             'i cannot answer this question',
+        ),
+        'wtracenia_odmowy': (
+            'this', 'that', 'such', 'any', 'enough', 'specific', 'detailed', 'the',
+            'exact', 'really', 'unfortunately',
         ),
         'rozmowa': {
             'powitanie': "Hi, how can I help? I answer questions about accounts, shopping, "
