@@ -1,3 +1,7 @@
+import json
+
+import pytest
+
 import petla
 
 
@@ -115,3 +119,71 @@ def test_odrzucone_i_nowe_sa_liczone_ale_nie_wchodza_do_przegladu():
     assert [w['zgloszenie'] for w in wynik['do_przegladu']] == ['AAA']
     assert wynik['podsumowanie']['status'] == {
         'nowe': 1, 'odpowiedziano': 1, 'odrzucone': 1, 'inne': 0}
+
+
+def test_cli_nie_nadpisuje_pliku_z_wypelniona_decyzja(tmp_path):
+    katalog = tmp_path / 'petla'
+    katalog.mkdir()
+    plik = katalog / petla.NAZWA_DO_PRZEGLADU
+    plik.write_text(json.dumps([
+        {'zgloszenie': 'AAA', 'decyzja': 'artykul', 'url': 'https://allegro.pl/pomoc/x'},
+    ]), encoding='utf-8')
+
+    wynik = {'do_przegladu': [{'zgloszenie': 'BBB'}], 'bez_logu': [], 'strony_nieznane': []}
+    with pytest.raises(SystemExit):
+        petla.zapisz_wynik(wynik, katalog)
+
+    zapisane = json.loads(plik.read_text(encoding='utf-8'))
+    assert zapisane[0]['decyzja'] == 'artykul'
+
+
+def test_cli_nadpisuje_plik_bez_wypelnionej_decyzji(tmp_path):
+    katalog = tmp_path / 'petla'
+    katalog.mkdir()
+    plik = katalog / petla.NAZWA_DO_PRZEGLADU
+    plik.write_text(json.dumps([
+        {'zgloszenie': 'AAA', 'decyzja': None, 'url': None},
+    ]), encoding='utf-8')
+
+    wynik = {
+        'do_przegladu': [{'zgloszenie': 'BBB', 'decyzja': None, 'url': None}],
+        'bez_logu': [],
+        'strony_nieznane': [],
+    }
+    petla.zapisz_wynik(wynik, katalog)
+
+    zapisane = json.loads(plik.read_text(encoding='utf-8'))
+    assert [w['zgloszenie'] for w in zapisane] == ['BBB']
+
+
+def test_cli_tworzy_katalog_wyjscia_i_plik_bez_logu(tmp_path):
+    katalog = tmp_path / 'brak' / 'petla'
+    wynik = {
+        'do_przegladu': [{'zgloszenie': 'BBB', 'decyzja': None, 'url': None}],
+        'bez_logu': [{'zgloszenie': 'CCC', 'decyzja': None, 'url': None}],
+        'strony_nieznane': [],
+    }
+    petla.zapisz_wynik(wynik, katalog)
+
+    assert (katalog / petla.NAZWA_DO_PRZEGLADU).exists()
+    bez_logu = json.loads((katalog / petla.NAZWA_BEZ_LOGU).read_text(encoding='utf-8'))
+    assert [w['zgloszenie'] for w in bez_logu] == ['CCC']
+
+
+def test_plik_do_przegladu_nie_zawiera_adresu_email(tmp_path):
+    stan = {'AAA': zgloszenie('AAA', id_zapytania='q1')}
+    wynik = petla.klasyfikuj(stan, [wpis_logu('q1')])
+    petla.zapisz_wynik(wynik, tmp_path / 'petla')
+
+    tekst = (tmp_path / 'petla' / petla.NAZWA_DO_PRZEGLADU).read_text(encoding='utf-8')
+    assert 'example.com' not in tekst
+    assert 'email' not in tekst
+
+
+def test_cli_na_pustej_kolejce_konczy_sie_komunikatem_a_nie_wyjatkiem(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(petla.kolejka, 'zloz_stan', dict)
+    kod = petla.main(['--log', str(tmp_path / 'brak.jsonl'), '--wyjscie', str(tmp_path / 'petla')])
+
+    assert kod == 0
+    assert 'Brak odpowiedzianych zgloszen' in capsys.readouterr().out
+    assert not (tmp_path / 'petla' / petla.NAZWA_DO_PRZEGLADU).exists()
