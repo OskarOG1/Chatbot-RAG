@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ChatMessage from '@/components/ChatMessage';
 import type { WynikZgloszenia } from '@/components/PytanieDoCzlowieka';
 import Composer from '@/components/Composer';
@@ -43,6 +43,7 @@ import { oczyscPodglad } from '@/lib/zrodla';
 
 const EMAIL_WZORZEC = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OKNO_COFNIECIA_MS = 15000;
+const PROG_PRZYKLEJENIA_PX = 80;
 
 function formatCzas(ts: number): string {
   const d = new Date(ts);
@@ -83,9 +84,9 @@ export default function ChatApp() {
   const [threads, setThreads] = useState<Thread[]>(seed.threads);
   const [activeId, setActiveId] = useState<string>(seed.activeId);
   const [draft, setDraft] = useState('');
-  const [streamBuffor, setStreamBuffor] = useState('');
+  const [streamBufory, setStreamBufory] = useState<Record<string, string>>({});
   const [sendingIds, setSendingIds] = useState<Set<string>>(new Set());
-  const [aktualnyKrok, setAktualnyKrok] = useState<string | null>(null);
+  const [kroki, setKroki] = useState<Record<string, string | null>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -96,9 +97,22 @@ export default function ChatApp() {
   const abortControllers = useRef<Map<string, AbortController>>(new Map());
   const wysylkaTimery = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const threadsRef = useRef<Thread[]>(threads);
+  const kontenerRef = useRef<HTMLDivElement | null>(null);
+  const przyDoleRef = useRef(true);
   useEffect(() => {
     threadsRef.current = threads;
   }, [threads]);
+
+  function przewinNaDol() {
+    const el = kontenerRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  function odnotujPrzewijanie() {
+    const el = kontenerRef.current;
+    if (!el) return;
+    przyDoleRef.current = el.scrollHeight - el.scrollTop - el.clientHeight <= PROG_PRZYKLEJENIA_PX;
+  }
 
   function oznaczWysylke(id: string, wysyla: boolean) {
     setSendingIds((ids) => {
@@ -107,6 +121,37 @@ export default function ChatApp() {
       else kopia.delete(id);
       return kopia;
     });
+  }
+
+  function wyczyscStrumien(id: string) {
+    setStreamBufory((mapa) => {
+      const kopia = { ...mapa };
+      delete kopia[id];
+      return kopia;
+    });
+    setKroki((mapa) => {
+      const kopia = { ...mapa };
+      delete kopia[id];
+      return kopia;
+    });
+  }
+
+  function przerwijPrace(id: string) {
+    const controller = abortControllers.current.get(id);
+    if (controller) {
+      controller.abort();
+      abortControllers.current.delete(id);
+    }
+    const timer = wysylkaTimery.current.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      wysylkaTimery.current.delete(id);
+    }
+  }
+
+  function przytnijStrumienie(zachowane: Set<string>) {
+    setStreamBufory((mapa) => Object.fromEntries(Object.entries(mapa).filter(([id]) => zachowane.has(id))));
+    setKroki((mapa) => Object.fromEntries(Object.entries(mapa).filter(([id]) => zachowane.has(id))));
   }
   const t = TEKSTY[lang];
   const th = THEMES[themeName];
@@ -131,6 +176,19 @@ export default function ChatApp() {
   }
 
   const active = threads.find((x) => x.id === activeId) ?? null;
+  const liczbaWiadomosci = active?.messages.length ?? 0;
+  const trwaWysylka = sendingIds.has(activeId);
+  const streamBuffor = streamBufory[activeId] ?? '';
+  const aktualnyKrok = kroki[activeId] ?? null;
+
+  useLayoutEffect(() => {
+    przyDoleRef.current = true;
+    przewinNaDol();
+  }, [activeId]);
+
+  useLayoutEffect(() => {
+    if (przyDoleRef.current) przewinNaDol();
+  }, [liczbaWiadomosci, streamBuffor, aktualnyKrok, trwaWysylka]);
 
   function nextMsgId(): number {
     msgCounter.current += 1;
@@ -152,7 +210,6 @@ export default function ChatApp() {
     setThreads((ts) => [th0, ...ts]);
     setActiveId(th0.id);
     setDraft('');
-    setStreamBuffor('');
     pokazToast(t.newChatToast);
   }
 
@@ -160,16 +217,19 @@ export default function ChatApp() {
     if (id === activeId) return;
     setActiveId(id);
     setDraft('');
-    setStreamBuffor('');
   }
 
   function usunPozostale(pozostale: Thread[], usuwanyAktywny: boolean) {
+    const pozostaleId = new Set(pozostale.map((x) => x.id));
+    threads.forEach((x) => {
+      if (!pozostaleId.has(x.id)) przerwijPrace(x.id);
+    });
     if (pozostale.length === 0) {
       const th0 = nowyThread(lang);
       setThreads([th0]);
       setActiveId(th0.id);
       setDraft('');
-      setStreamBuffor('');
+      przytnijStrumienie(new Set([th0.id]));
       setSelectedIds(new Set());
       setSelectMode(false);
       return;
@@ -179,16 +239,14 @@ export default function ChatApp() {
       const najnowszy = [...pozostale].sort((a, b) => b.updatedAt - a.updatedAt)[0];
       setActiveId(najnowszy.id);
       setDraft('');
-      setStreamBuffor('');
     }
-    const pozostaleId = new Set(pozostale.map((x) => x.id));
+    przytnijStrumienie(pozostaleId);
     const przyciete = new Set([...selectedIds].filter((id) => pozostaleId.has(id)));
     setSelectedIds(przyciete);
     if (przyciete.size === 0) setSelectMode(false);
   }
 
   function usunThread(id: string) {
-    if (sendingIds.has(id)) return;
     usunPozostale(usunWatki(threads, new Set([id])), id === activeId);
   }
 
@@ -242,11 +300,11 @@ export default function ChatApp() {
       } else {
         for await (const ev of czytajSse(res.body)) {
           if (ev.typ === 'krok') {
-            if (tid === activeId) setAktualnyKrok(ev.tekst);
+            setKroki((mapa) => ({ ...mapa, [tid]: ev.tekst }));
           } else if (ev.typ === 'token') {
-            if (tid === activeId) setStreamBuffor((b) => b + ev.tekst);
+            setStreamBufory((mapa) => ({ ...mapa, [tid]: (mapa[tid] ?? '') + ev.tekst }));
           } else if (ev.typ === 'reset') {
-            if (tid === activeId) setStreamBuffor('');
+            setStreamBufory((mapa) => ({ ...mapa, [tid]: '' }));
           } else if (ev.typ === 'wynik') {
             dane = ev.dane;
           } else if (ev.typ === 'blad') {
@@ -273,15 +331,14 @@ export default function ChatApp() {
     const controller = new AbortController();
     abortControllers.current.set(tid, controller);
     oznaczWysylke(tid, true);
-    if (tid === activeId) {
-      setAktualnyKrok(null);
-      setStreamBuffor('');
-    }
+    wyczyscStrumien(tid);
+    przyDoleRef.current = true;
     setDraft('');
 
     if (!pomijDymkeUzytkownika) {
+      const idPytania = nextMsgId();
       updateThread(tid, (x) => {
-        const messages = [...x.messages, { id: nextMsgId(), role: 'user' as const, content: promptUser }];
+        const messages = [...x.messages, { id: idPytania, role: 'user' as const, content: promptUser }];
         const title = x.title ?? tytulZWiadomosci(messages, t.threadFallbackTitle);
         return { ...x, messages, title };
       });
@@ -299,10 +356,7 @@ export default function ChatApp() {
 
     abortControllers.current.delete(tid);
     oznaczWysylke(tid, false);
-    if (tid === activeId) {
-      setAktualnyKrok(null);
-      setStreamBuffor('');
-    }
+    wyczyscStrumien(tid);
 
     updateThread(tid, (x) => {
       let historiaApi = x.historiaApi;
@@ -341,6 +395,7 @@ export default function ChatApp() {
       const rozdzielone = rozdzielSzkic(dane.answer);
       const temat = rozdzielone.temat || dane.naglowek_ui || '';
       const tresc = rozdzielone.tresc;
+      const idPanelu = nextMsgId();
       updateThread(tid, (x) => ({
         ...x,
         panel: {
@@ -358,9 +413,10 @@ export default function ChatApp() {
           odliczanieDo: null,
         },
         panelOpen: true,
-        messages: [...x.messages, { id: nextMsgId(), role: 'assistant', content: t.panelOpened }],
+        messages: [...x.messages, { id: idPanelu, role: 'assistant', content: t.panelOpened }],
       }));
     } else {
+      const idOdpowiedzi = nextMsgId();
       updateThread(tid, (x) => {
         const poprzednia = x.messages[x.messages.length - 1];
         const powtorzonaDoprecyzacja =
@@ -373,7 +429,7 @@ export default function ChatApp() {
           messages: [
             ...x.messages,
             {
-              id: nextMsgId(),
+              id: idOdpowiedzi,
               role: 'assistant',
               content: dane?.answer ?? bladTekst ?? t.noResponse,
               citations: dane?.citations ?? [],
@@ -509,12 +565,13 @@ export default function ChatApp() {
         const dane: WyslijOdpowiedz = await res.json();
         pokazToast(t.toastSent(dane.ticket));
         const tekstWiadomosci = ticketKorekty ? t.correctedMessage(dane.ticket) : t.sentMessage(dane.ticket);
+        const idPotwierdzenia = nextMsgId();
         updateThread(tid, (x) =>
           x.panel
             ? {
                 ...x,
                 panel: { ...x.panel, wyslano: { ticket: dane.ticket, czas: Date.now() }, edytujPoWyslaniu: false },
-                messages: [...x.messages, { id: nextMsgId(), role: 'assistant' as const, content: tekstWiadomosci }],
+                messages: [...x.messages, { id: idPotwierdzenia, role: 'assistant' as const, content: tekstWiadomosci }],
               }
             : x
         );
@@ -588,7 +645,7 @@ export default function ChatApp() {
     }));
 
   const panelOtwarty = active.panelOpen && active.panel !== null;
-  const pokazTyping = sendingIds.has(activeId);
+  const pokazTyping = trwaWysylka;
   const wysylkiWInnychWatkach = threads.filter((x) => x.id !== activeId && x.panel?.odliczanieDo != null);
 
   return (
@@ -651,7 +708,11 @@ export default function ChatApp() {
             </div>
           </header>
 
-          <div style={{ flex: '1 1 auto', overflowY: 'auto', padding: '32px 32px 8px' }}>
+          <div
+            ref={kontenerRef}
+            onScroll={odnotujPrzewijanie}
+            style={{ flex: '1 1 auto', overflowY: 'auto', padding: '32px 32px 8px' }}
+          >
             <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 30 }}>
               {active.messages.map((m) => (
                 <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

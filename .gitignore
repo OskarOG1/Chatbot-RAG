@@ -23,6 +23,7 @@ pytest.ini
 confest.py
 measure.py
 measure_*.py
+measure_*.mjs
 Pomiary/zbierz_pytania.py
 Pomiary/fixtures_pytania/
 Pomiary/log_*.txt
