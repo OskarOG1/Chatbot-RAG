@@ -50,17 +50,20 @@ def wiersz_do_przegladu(zgloszenie: dict, wpis: dict | None) -> dict:
     }
 
 
-def klasyfikuj(stan: dict[str, dict], wpisy_logu: list[dict]) -> dict:
+def klasyfikuj(stan: dict[str, dict], wpisy_logu: list[dict],
+               uwzglednij_nowe: bool = False) -> dict:
     indeks = indeks_logu(wpisy_logu)
     do_przegladu: list[dict] = []
     bez_logu: list[dict] = []
     strony_nieznane: list[dict] = []
+    nowe_wlaczone: list[dict] = []
     liczniki_status = {'nowe': 0, 'odpowiedziano': 0, 'odrzucone': 0, 'inne': 0}
     liczniki_etykiet: dict[str, int] = {}
     for zgloszenie in stan.values():
         status = zgloszenie.get('status')
         liczniki_status[status if status in liczniki_status else 'inne'] += 1
-        if status != 'odpowiedziano':
+        czy_nowe = status == 'nowe'
+        if status != 'odpowiedziano' and not (uwzglednij_nowe and czy_nowe):
             continue
         etykieta = zgloszenie.get('etykieta')
         klucz_etykiety = etykieta if etykieta is not None else 'brak_etykiety'
@@ -76,6 +79,12 @@ def klasyfikuj(stan: dict[str, dict], wpisy_logu: list[dict]) -> dict:
             bez_logu.append(wiersz)
         else:
             do_przegladu.append(wiersz)
+        if czy_nowe:
+            nowe_wlaczone.append({
+                'zgloszenie': zgloszenie.get('zgloszenie'),
+                'powod': zgloszenie.get('powod'),
+                'pytanie': zgloszenie.get('pytanie'),
+            })
     podsumowanie = {
         'status': liczniki_status,
         'etykiety_odpowiedziano': liczniki_etykiet,
@@ -83,11 +92,13 @@ def klasyfikuj(stan: dict[str, dict], wpisy_logu: list[dict]) -> dict:
         'bez_logu': len(bez_logu),
         'wymaga_decyzji_czlowieka': liczniki_etykiet.get('brak_etykiety', 0),
         'strona_nieznana': len(strony_nieznane),
+        'nowe_wlaczone': len(nowe_wlaczone),
     }
     return {
         'do_przegladu': do_przegladu,
         'bez_logu': bez_logu,
         'strony_nieznane': strony_nieznane,
+        'nowe_wlaczone': nowe_wlaczone,
         'podsumowanie': podsumowanie,
     }
 
@@ -159,6 +170,12 @@ def wypisz_podsumowanie(wynik: dict) -> None:
             f"UWAGA: zgloszenie {wpis['zgloszenie']} ma strone {wpis['strona']!r} spoza mapy "
             f"agentow, pole agent zostaje puste",
             file=sys.stderr, flush=True)
+    nowe = wynik.get('nowe_wlaczone') or []
+    if nowe:
+        print(f"Wlaczono zgloszen bez odpowiedzi operatora: {len(nowe)}, "
+              f"pola etykieta i odpowiedz_operatora sa puste, decyduj z powodu:")
+        for wpis in nowe:
+            print(f"  {wpis['zgloszenie']} powod {wpis['powod']}: {wpis['pytanie']}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -172,15 +189,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         '--wyjscie', type=Path, default=KATALOG_WYJSCIA,
         help='katalog na plik do_przegladu.json')
+    parser.add_argument(
+        '--uwzglednij-nowe', action='store_true', dest='uwzglednij_nowe',
+        help='wpuszcza tez zgloszenia bez odpowiedzi operatora, do przegladu w pojedynke '
+             'bez panelu, z pustymi polami etykieta i odpowiedz_operatora')
     args = parser.parse_args(argv)
 
     stan = kolejka.zloz_stan()
     wpisy_logu = wczytaj_jsonl(args.log)
-    wynik = klasyfikuj(stan, wpisy_logu)
+    wynik = klasyfikuj(stan, wpisy_logu, uwzglednij_nowe=args.uwzglednij_nowe)
     wypisz_podsumowanie(wynik)
 
     if not wynik['do_przegladu'] and not wynik['bez_logu']:
-        print('Brak odpowiedzianych zgloszen, nie zapisuje pliku.')
+        print('Brak zgloszen do przegladu, nie zapisuje pliku.')
         return 0
 
     plik = zapisz_wynik(wynik, args.wyjscie)
