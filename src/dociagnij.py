@@ -12,6 +12,9 @@ RAG_DIR = ROOT / 'RAG'
 WZORZEC_ADRESU = re.compile(
     r'^https://allegro\.pl/pomoc/[a-z][a-z-]*/[a-z0-9][a-z0-9-]*/[A-Za-z0-9-]+$'
 )
+WZORZEC_ADRESU_SPRZEDAZ = re.compile(
+    r'^https://help\.allegro\.com/(pl|en)/sell/a/[A-Za-z0-9-]+$'
+)
 
 KATALOGI = {
     ('kupujacy', 'pl'): 'docs',
@@ -22,7 +25,12 @@ KATALOGI = {
 
 
 def poprawny_adres_pomocy(url: str) -> bool:
-    return bool(WZORZEC_ADRESU.match(url or ''))
+    url = url or ''
+    return bool(WZORZEC_ADRESU.match(url) or WZORZEC_ADRESU_SPRZEDAZ.match(url))
+
+
+def adres_sprzedazowy(url: str) -> bool:
+    return bool(WZORZEC_ADRESU_SPRZEDAZ.match(url or ''))
 
 
 def rodzina_agenta(agent: str) -> str:
@@ -32,6 +40,12 @@ def rodzina_agenta(agent: str) -> str:
 def katalog_dokumentow(agent: str, lang: str, rag_dir: Path = RAG_DIR) -> Path:
     nazwa = KATALOGI[(rodzina_agenta(agent), lang)]
     return rag_dir / nazwa
+
+
+def plik_linkow(agent: str, lang: str, rag_dir: Path = RAG_DIR) -> tuple[Path, str]:
+    if rodzina_agenta(agent) == 'sprzedaz':
+        return rag_dir / f'links_sprzedaz_{lang}.json', 'sprzedaz'
+    return rag_dir / 'links.json', agent
 
 
 def sciezka_pliku_artykulu(artykul: dict, docs_dir: Path) -> Path:
@@ -59,11 +73,13 @@ def dopisz_link(sciezka_links: Path, agent: str, url: str) -> bool:
 def pobierz_z_sieci(url: str, agent: str) -> dict | None:
     import httpx
 
-    import links_scraping
-
     async def uruchom():
         async with httpx.AsyncClient(
                 headers=links_wspolne.HEADER, timeout=15, follow_redirects=True) as client:
+            if adres_sprzedazowy(url):
+                import links_scraping_sprzedaz
+                return await links_scraping_sprzedaz.pobierz_tresc(client, url, 'sell')
+            import links_scraping
             return await links_scraping.pobierz_tresc(client, url, agent)
 
     return asyncio.run(uruchom())
@@ -72,11 +88,12 @@ def pobierz_z_sieci(url: str, agent: str) -> dict | None:
 def wykonaj(url: str, agent: str, lang: str, rag_dir: Path = RAG_DIR, pobieracz=pobierz_z_sieci) -> int:
     if not poprawny_adres_pomocy(url):
         raise SystemExit(
-            f'Adres {url} nie pasuje do wzorca artykulu pomocy '
-            f'https://allegro.pl/pomoc/<dzial>/<kategoria>/<artykul>. Nic nie pobieram.')
+            f'Adres {url} nie pasuje do zadnego wzorca artykulu pomocy: '
+            f'https://allegro.pl/pomoc/<dzial>/<kategoria>/<artykul> ani '
+            f'https://help.allegro.com/<pl|en>/sell/a/<artykul>. Nic nie pobieram.')
 
     docs_dir = katalog_dokumentow(agent, lang, rag_dir)
-    links_json = rag_dir / 'links.json'
+    sciezka_links, klucz_links = plik_linkow(agent, lang, rag_dir)
 
     artykul = pobieracz(url, agent)
     if artykul is None:
@@ -91,10 +108,10 @@ def wykonaj(url: str, agent: str, lang: str, rag_dir: Path = RAG_DIR, pobieracz=
         print(f'Zapisuje nowy artykul {docelowy}.')
     links_wspolne.zapisz_md(artykul, docs_dir)
 
-    if dopisz_link(links_json, agent, url):
-        print(f'Dopisano adres do {links_json} pod agentem {agent}.')
+    if dopisz_link(sciezka_links, klucz_links, url):
+        print(f'Dopisano adres do {sciezka_links} pod kluczem {klucz_links}.')
     else:
-        print(f'Adres jest juz w {links_json} pod agentem {agent}, pomijam dopisanie.')
+        print(f'Adres jest juz w {sciezka_links} pod kluczem {klucz_links}, pomijam dopisanie.')
     return 0
 
 
