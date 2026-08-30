@@ -536,6 +536,7 @@ def test_kolejka_odpowiedz_czysci_adres_z_pliku(client, kolejka_w_tmp, monkeypat
     tekst = kolejka_w_tmp.read_text(encoding='utf-8')
     assert 'jan.retencja@example.com' not in tekst
 
+
 def test_lista_powodow_front_zgodna_z_backendem():
     plik_ts = Path(__file__).resolve().parents[1] / 'frontend-next' / 'lib' / 'chat.ts'
     tekst = plik_ts.read_text(encoding='utf-8')
