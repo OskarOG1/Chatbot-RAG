@@ -119,6 +119,16 @@ python chunking.py --lang pl --docs-dir ../RAG/docs_sprzedaz --out ../RAG/chunks
 python scal_korpus.py --lang pl && python embedder.py --lang pl && python vector.py --lang pl
 ```
 
+Pełne przeliczenie embeddingów zajmuje na zwykłym CPU około trzech godzin: pomiar na 2121 chunkach dał 220 minut. Po dociągnięciu pojedynczego artykułu nie ma po co liczyć całości. Skopiuj `RAG/chunks*.json` i `RAG/embeddings*.npy` do osobnego katalogu **przed** przebudową, a po niej złóż macierz ze starej:
+
+```bash
+python embedder.py --lang pl --stary ../RAG/przed-dociagnieciem
+```
+
+Chunk, którego tekst retrievalowy jest identyczny jak w starym korpusie, dostaje swój stary wiersz. Liczone są tylko teksty nowe oraz wszystkie chunki z aliasem, bo o tych drugich nie da się orzec, czy stary wektor powstał już z aliasem. Pomiar na prawdziwym korpusie (`Pomiary/measure_zloz_embeddings.py`): 2095 wierszy przepisanych bit w bit, 26 policzonych, kosinus z pełnym przeliczeniem równy 1,000, całość w 162 sekundy zamiast 220 minut. Jeśli chunków o nowym tekście wyjdzie więcej niż `--limit-nowych` (domyślnie 40), skrypt przerywa, bo zmieniło się wtedy więcej niż jeden dociągnięty artykuł.
+
+Do tego celu nie używaj `--dopisz`. Liczy on wektory wyłącznie dla chunków za końcem istniejącej macierzy i dokleja je na końcu, więc nowy artykuł kupującego, który po `scal_korpus.py` ląduje w środku pliku, po cichu rozjeżdża wektory z chunkami. Asercja w `embedder.py` porównuje same liczby wierszy, więc tego nie złapie.
+
 Podmiana korpusu na działającej instancji nie wymaga restartu, pod warunkiem że odświeżysz wszystkie trzy artefakty naraz: `chunks_*.json`, `*.bm25` i `*.faiss`. Każdy z nich ma osobny cache w pamięci procesu, unieważniany po znaczniku czasu własnego pliku. Podmiana samych chunków bez przebudowy indeksu nie wywoła błędu, tylko cicho rozjedzie numerację: FAISS zwróci pozycje ze starego indeksu, a odczytane zostaną nowe fragmenty.
 
 Testy:
