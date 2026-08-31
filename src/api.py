@@ -9,7 +9,8 @@ from rankings import get_reranker, get_bm25, get_faiss
 from spell import correct, detect_lang, load_dictionary
 from guards import MAX_ZNAKI, normalizuj
 from lang_config import LANG, DOMYSLNY_JEZYK
-from wysylka import wyslij_potwierdzenie, wyslij_odpowiedz_operatora, WysylkaCzesciowaError
+from wysylka import (wyslij_potwierdzenie, wyslij_odpowiedz_operatora, WysylkaCzesciowaError,
+                     powod_resend)
 from collections import deque, OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -77,6 +78,7 @@ _sygnal_bramki_pominiete_aktywny = False
 _log_cache: dict = {'stempel': None, 'wpisy': [], 'czas': 0.0}
 _statystyki_cache: dict = {'stempel': None, 'czas': 0.0, 'wyniki': {}}
 STATYSTYKI_CACHE_MAX = 64
+WZORZEC_DATY = r'^\d{4}-\d{2}-\d{2}$'
 
 LIMIT_OCEN_MIN = int(os.getenv('LIMIT_OCEN_MIN', '30'))
 LIMIT_OCEN_DZIEN = int(os.getenv('LIMIT_OCEN_DZIEN', '500'))
@@ -426,16 +428,18 @@ def kolumny_eksportu(kolumny: str | None) -> tuple:
     return zgodne or statystyki.KOLUMNY_DOMYSLNE
 
 
-def statystyki_z_cache(dni: int | None, lang: str | None, strona: str | None) -> dict:
+def statystyki_z_cache(dni: int | None, lang: str | None, strona: str | None,
+                       od: str | None = None, do: str | None = None) -> dict:
     wpisy = wpisy_logu()
-    klucz = (dni, lang, strona)
+    klucz = (dni, lang, strona, od, do)
     stempel = _log_cache['stempel']
     teraz = time.time()
     with _zamek:
         swiezy = _statystyki_cache['stempel'] == stempel
         if swiezy and klucz in _statystyki_cache['wyniki']:
             return _statystyki_cache['wyniki'][klucz]
-    wynik = statystyki.statystyki(statystyki.filtruj(wpisy, dni=dni, lang=lang, strona=strona))
+    wynik = statystyki.statystyki(statystyki.filtruj(wpisy, dni=dni, lang=lang, strona=strona,
+                                                    od=od, do=do))
     with _zamek:
         if _statystyki_cache['stempel'] != stempel or not swiezy:
             _statystyki_cache['stempel'] = stempel
@@ -767,11 +771,13 @@ def zgloszenie(request: ZgloszenieZadanie, http_request: Request):
 @app.get('/admin/statystyki')
 def admin_statystyki(http_request: Request, dni: int | None = Query(default=None, ge=1, le=3650),
                      lang: Literal['pl', 'en'] | None = None,
-                     strona: Literal['kupujacy', 'sprzedajacy'] | None = None):
+                     strona: Literal['kupujacy', 'sprzedajacy'] | None = None,
+                     od: str | None = Query(default=None, pattern=WZORZEC_DATY),
+                     do: str | None = Query(default=None, pattern=WZORZEC_DATY)):
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
-    return statystyki_z_cache(dni, lang, strona)
+    return statystyki_z_cache(dni, lang, strona, od, do)
 
 
 @app.get('/admin/oceny')
@@ -840,6 +846,10 @@ def admin_kolejka_odpowiedz(request: OdpowiedzKolejkiZadanie, http_request: Requ
                                                 request.zgloszenie, lang=lang)
         except RuntimeError as e:
             raise HTTPException(status_code=503, detail=str(e))
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=502,
+                                detail=f"{LANG[lang]['bledy']['wysylka_nieudana']} "
+                                       f"Resend: {powod_resend(e.response)}")
         except httpx.HTTPError:
             raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
     try:
@@ -921,12 +931,15 @@ def admin_eksport(http_request: Request, format: Literal['csv', 'json'] = 'csv',
                   kolumny: str | None = None,
                   dni: int | None = Query(default=None, ge=1, le=3650),
                   lang: Literal['pl', 'en'] | None = None,
-                  strona: Literal['kupujacy', 'sprzedajacy'] | None = None):
+                  strona: Literal['kupujacy', 'sprzedajacy'] | None = None,
+                  od: str | None = Query(default=None, pattern=WZORZEC_DATY),
+                  do: str | None = Query(default=None, pattern=WZORZEC_DATY)):
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
     wybrane = kolumny_eksportu(kolumny)
-    wpisy = [w for w in statystyki.filtruj(wpisy_logu(), dni=dni, lang=lang, strona=strona)
+    wpisy = [w for w in statystyki.filtruj(wpisy_logu(), dni=dni, lang=lang, strona=strona,
+                                           od=od, do=do)
              if not w.get('typ')]
     stempel = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')
     if format == 'json':

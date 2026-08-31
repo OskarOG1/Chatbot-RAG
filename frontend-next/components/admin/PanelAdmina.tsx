@@ -24,6 +24,7 @@ import Karta from '@/components/admin/Karta';
 import SekcjaZwijana from '@/components/admin/SekcjaZwijana';
 import {
   Ramka,
+  BrakTrendu,
   WykresDzienny,
   WykresPoziomy,
   WykresStron,
@@ -31,10 +32,11 @@ import {
   WykresKosztu,
 } from '@/components/admin/Wykresy';
 import PanelEksportu from '@/components/admin/PanelEksportu';
+import WyborZakresu from '@/components/admin/WyborZakresu';
 import KolejkaZgloszen from '@/components/admin/KolejkaZgloszen';
 
 const OKRESY: { etykieta: string; dni: number | null }[] = [
-  { etykieta: '7 dni', dni: 7 },
+  { etykieta: 'Ostatnie 7 dni', dni: 7 },
   { etykieta: '30 dni', dni: 30 },
   { etykieta: '90 dni', dni: 90 },
   { etykieta: 'Wszystko', dni: null },
@@ -59,7 +61,7 @@ const PYTANIA_WIDOCZNE = 6;
 
 export default function PanelAdmina() {
   const [themeName, setThemeName] = useState<ThemeName>('light');
-  const [filtry, setFiltry] = useState<Filtry>({ dni: 30, lang: null, strona: null });
+  const [filtry, setFiltry] = useState<Filtry>({ dni: 7, od: null, do: null, lang: null, strona: null });
   const [dane, setDane] = useState<Statystyki | null>(null);
   const [ladowanie, setLadowanie] = useState(true);
   const [blad, setBlad] = useState<string | null>(null);
@@ -305,12 +307,18 @@ export default function PanelAdmina() {
               <button
                 key={opcja.etykieta}
                 type="button"
-                onClick={() => setFiltry((f) => ({ ...f, dni: opcja.dni }))}
-                style={pigulka(filtry.dni === opcja.dni)}
+                onClick={() => setFiltry((f) => ({ ...f, dni: opcja.dni, od: null, do: null }))}
+                style={pigulka(filtry.od === null && filtry.dni === opcja.dni)}
               >
                 {opcja.etykieta}
               </button>
             ))}
+            <WyborZakresu
+              od={filtry.od}
+              do={filtry.do}
+              aktywny={filtry.od !== null}
+              onZmiana={(od, doDnia) => setFiltry((f) => ({ ...f, od, do: doDnia }))}
+            />
             {rozdzielacz}
             <span style={etykietaGrupy}>Język</span>
             {JEZYKI.map((opcja) => (
@@ -358,45 +366,51 @@ export default function PanelAdmina() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
                 <Karta
-                  tytul="Zapytania"
+                  tytul="Zadane pytania"
                   wartosc={String(dane.ogolem.zapytan)}
-                  podpis={`${dane.ogolem.unikalne_pytania} unikalnych pytań`}
+                  podpis={`${dane.ogolem.unikalne_pytania} różnych pytań`}
                 />
                 <Karta
-                  tytul="Trafność"
-                  wartosc={procent(dane.ogolem.trafnosc)}
+                  tytul="Udzielone odpowiedzi"
+                  wartosc={String(dane.ogolem.odpowiedzi)}
                   akcent
-                  podpis={`${dane.ogolem.odpowiedzi} odpowiedzi, ${dane.ogolem.odmowy} odmów`}
+                  podpis={`${procent(dane.ogolem.trafnosc)} wszystkich pytań`}
                 />
                 <Karta
-                  tytul="Odmowy"
+                  tytul="Bez odpowiedzi"
                   wartosc={String(dane.ogolem.odmowy)}
-                  podpis={udzialOdmow !== null ? procent(udzialOdmow) : 'brak danych'}
+                  podpis={udzialOdmow !== null ? `${procent(udzialOdmow)} wszystkich pytań` : 'brak danych'}
                 />
                 <Karta
-                  tytul="Mediana latencji"
+                  tytul="Typowy czas odpowiedzi"
                   wartosc={sekundy(dane.latencja.mediana)}
+                  podpis="połowa odpowiedzi przychodzi szybciej"
                 />
               </div>
 
+              <p style={{ margin: 0, fontFamily: BODY, fontSize: 12.5, color: th.ink3, lineHeight: 1.5 }}>
+                Bez odpowiedzi oznacza świadome wstrzymanie się: pytanie wykraczało poza bazę wiedzy
+                albo poza tematykę Allegro. Asystent nie zgaduje, kiedy nie ma pokrycia w artykułach.
+              </p>
+
               <SekcjaZwijana
-                tytul="Pozostałe metryki"
+                tytul="Pozostałe liczby"
                 otwarta={pozostaleOtwarte}
                 onToggle={() => setPozostaleOtwarte((v) => !v)}
               >
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
                   <Karta
-                    tytul="Ocena użytkowników"
+                    tytul="Kciuki w górę"
                     wartosc={dane.oceny.razem === 0 ? 'brak ocen' : procent(dane.oceny.trafnosc)}
-                    podpis={`${dane.oceny.razem} ocen, pokrycie ${procent(dane.oceny.pokrycie)}`}
+                    podpis={`${dane.oceny.razem} ocen, oceniono ${procent(dane.oceny.pokrycie)} odpowiedzi`}
                   />
                   <Karta
-                    tytul="Trafienia cache"
+                    tytul="Odpowiedzi z pamięci"
                     wartosc={procent(dane.ogolem.cache_hit)}
-                    podpis={`bez cache ${sekundy(dane.latencja.mediana_bez_cache)}`}
+                    podpis={`bez pamięci ${sekundy(dane.latencja.mediana_bez_cache)}`}
                   />
                   <Karta
-                    tytul="Koszt tokenów"
+                    tytul="Koszt modelu"
                     wartosc={dane.koszty.pokrycie === 0 ? 'brak danych' : `$${dane.koszty.koszt_usd.toFixed(4)}`}
                   />
                   <Karta
@@ -407,7 +421,7 @@ export default function PanelAdmina() {
                 </div>
               </SekcjaZwijana>
 
-              <SekcjaZwijana tytul="Ruch dzienny" otwarta={ruchOtwarty} onToggle={() => setRuchOtwarty((v) => !v)}>
+              <SekcjaZwijana tytul="Pytania dzień po dniu" otwarta={ruchOtwarty} onToggle={() => setRuchOtwarty((v) => !v)}>
                 <div style={{ width: '100%', height: 260 }}>
                   <WykresDzienny dane={dane.dzienne} />
                 </div>
@@ -415,7 +429,7 @@ export default function PanelAdmina() {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: 16 }}>
                 <SekcjaZwijana
-                  tytul="Sekcje odpowiedzi"
+                  tytul="Tematy pytań"
                   otwarta={sekcjeOtwarte}
                   onToggle={() => setSekcjeOtwarte((v) => !v)}
                 >
@@ -424,8 +438,8 @@ export default function PanelAdmina() {
                   </div>
                 </SekcjaZwijana>
                 <SekcjaZwijana
-                  tytul="Kupujący kontra sprzedający"
-                  opis={`${kupujacy} / ${sprzedajacy}`}
+                  tytul="Kto pyta"
+                  opis={`kupujący ${kupujacy}, sprzedający ${sprzedajacy}`}
                   otwarta={stronyOtwarte}
                   onToggle={() => setStronyOtwarte((v) => !v)}
                 >
@@ -436,7 +450,7 @@ export default function PanelAdmina() {
               </div>
 
               <SekcjaZwijana
-                tytul="Rozkład latencji"
+                tytul="Jak szybko przychodzą odpowiedzi"
                 otwarta={latencjaOtwarta}
                 onToggle={() => setLatencjaOtwarta((v) => !v)}
               >
@@ -458,14 +472,14 @@ export default function PanelAdmina() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
                 <Karta
-                  tytul="Odmowy łącznie"
+                  tytul="Pytania bez odpowiedzi"
                   wartosc={String(dane.ogolem.odmowy)}
-                  podpis={udzialOdmow !== null ? `${procent(udzialOdmow)} wszystkich zapytań` : 'brak danych'}
+                  podpis={udzialOdmow !== null ? `${procent(udzialOdmow)} wszystkich pytań` : 'brak danych'}
                 />
                 <Karta
-                  tytul="Ocena użytkowników"
+                  tytul="Kciuki w górę"
                   wartosc={dane.oceny.razem === 0 ? 'brak ocen' : procent(dane.oceny.trafnosc)}
-                  podpis={`${dane.oceny.razem} ocen, pokrycie ${procent(dane.oceny.pokrycie)}`}
+                  podpis={`${dane.oceny.razem} ocen, oceniono ${procent(dane.oceny.pokrycie)} odpowiedzi`}
                 />
                 <div
                   style={{
@@ -481,24 +495,27 @@ export default function PanelAdmina() {
                   }}
                 >
                   <span style={{ fontFamily: BODY, fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: th.accentInk }}>
-                    Do naprawy najpierw
+                    Najczęstsza przyczyna
                   </span>
                   <span style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 700, lineHeight: 1.25, color: th.accentInk }}>
                     {topPowod ? etykieta(NAZWY_POWODOW, topPowod.powod) : 'brak odmów w okresie'}
                   </span>
                   {topPowod ? (
                     <span style={{ fontFamily: BODY, fontSize: 12, color: th.accentInk }}>
-                      {topPowod.ile} odmów, {procent(topPowod.udzial)}
+                      {topPowod.ile} razy, {procent(topPowod.udzial)} pytań bez odpowiedzi
                     </span>
                   ) : null}
                 </div>
               </div>
 
-              <Ramka tytul="Powody odmowy">
+              <Ramka
+                tytul="Dlaczego asystent nie odpowiedział"
+                opis="Wstrzymanie się jest zamierzone: bez pokrycia w artykułach asystent nie zgaduje."
+              >
                 {dane.powody.length > 0 ? (
                   <WykresPoziomy dane={dane.powody as unknown as Record<string, unknown>[]} mapa={NAZWY_POWODOW} pole="powod" />
                 ) : (
-                  <p style={{ color: th.ink2, fontSize: 13 }}>Brak odmów w wybranym zakresie.</p>
+                  <BrakTrendu tekst="W tym okresie asystent odpowiedział na każde pytanie." />
                 )}
               </Ramka>
             </div>
@@ -519,7 +536,7 @@ export default function PanelAdmina() {
                   Najczęstsze pytania
                 </h2>
                 <span style={{ fontFamily: BODY, fontSize: 12.5, color: th.ink2 }}>
-                  {dane.ogolem.unikalne_pytania} unikalnych · pokazane {pytaniaWidoczne.length}
+                  {dane.ogolem.unikalne_pytania} różnych pytań · widocznych {pytaniaWidoczne.length}
                 </span>
               </div>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: BODY, fontSize: 13 }}>
@@ -588,7 +605,7 @@ export default function PanelAdmina() {
 
               {!bladPrzypadkow && przypadki && przypadki.razem === 0 ? (
                 <p style={{ padding: '0 18px 16px', color: th.ink2, fontSize: 13 }}>
-                  Brak ocen w wybranym okresie. Kciuk pod odpowiedzią zapisuje przypadek do tej tabeli.
+                  Brak ocen w wybranym okresie. Kciuk pod odpowiedzią dopisuje wiersz do tej tabeli.
                 </p>
               ) : null}
 
@@ -597,7 +614,7 @@ export default function PanelAdmina() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: BODY, fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderTop: `1px solid ${th.lineSoft}` }}>
-                        {['Czas', 'Ocena', 'Diagnoza', 'Do poprawy', 'Sekcja', 'Pytanie', 'Rerank top1', 'Pokrycie', 'Etap', 'Wybrana strona', 'Przewaga sekcji'].map((naglowek) => (
+                        {['Kiedy', 'Ocena', 'Co zawiodło', 'Co poprawić', 'Temat', 'Pytanie', 'Dopasowanie artykułu', 'Oparcie w źródłach', 'Poziom odpowiedzi', 'Rola użytkownika', 'Pewność wyboru tematu'].map((naglowek) => (
                           <th
                             key={naglowek}
                             style={{ padding: '10px 18px', textAlign: 'left', color: th.ink3, fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase' as const, whiteSpace: 'nowrap' }}
@@ -614,7 +631,7 @@ export default function PanelAdmina() {
                             {p.czas ? p.czas.slice(0, 16).replace('T', ' ') : '—'}
                           </td>
                           <td style={{ padding: '10px 18px', color: th.ink2, whiteSpace: 'nowrap' }}>
-                            {p.ocena === 'gora' ? 'w górę' : 'w dół'}
+                            {p.ocena === 'gora' ? 'kciuk w górę' : 'kciuk w dół'}
                           </td>
                           <td style={{ padding: '10px 18px', color: th.ink }}>
                             {ETYKIETY_DIAGNOZ[p.diagnoza] ?? p.diagnoza}

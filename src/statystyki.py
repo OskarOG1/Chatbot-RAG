@@ -104,18 +104,39 @@ def normalizuj_strone(wartosc) -> str:
     return wartosc if wartosc in STRONY else 'nieznana'
 
 
+def granica_daty(wartosc: str | None, koniec_dnia: bool) -> datetime | None:
+    if not wartosc:
+        return None
+    try:
+        dzien = datetime.strptime(wartosc[:10], '%Y-%m-%d')
+    except ValueError:
+        return None
+    if koniec_dnia:
+        dzien = dzien + timedelta(days=1)
+    return dzien.replace(tzinfo=timezone.utc)
+
+
 def filtruj(wpisy: list[dict], dni: int | None = None, lang: str | None = None,
-            strona: str | None = None) -> list[dict]:
+            strona: str | None = None, od: str | None = None,
+            do: str | None = None) -> list[dict]:
     granica = datetime.now(timezone.utc) - timedelta(days=dni) if dni else None
+    poczatek = granica_daty(od, False)
+    koniec = granica_daty(do, True)
     wynik = []
     for w in wpisy:
         if lang and w.get('lang') != lang:
             continue
         if strona and w.get('typ') != 'wysylka' and normalizuj_strone(w.get('strona')) != strona:
             continue
-        if granica is not None:
+        if granica is not None or poczatek is not None or koniec is not None:
             czas = czas_wpisu(w)
-            if czas is None or czas < granica:
+            if czas is None:
+                continue
+            if granica is not None and czas < granica:
+                continue
+            if poczatek is not None and czas < poczatek:
+                continue
+            if koniec is not None and czas >= koniec:
                 continue
         wynik.append(w)
     return wynik

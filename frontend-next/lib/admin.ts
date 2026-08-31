@@ -109,13 +109,21 @@ export interface Statystyki {
 
 export interface Filtry {
   dni: number | null;
+  od: string | null;
+  do: string | null;
   lang: 'pl' | 'en' | null;
   strona: 'kupujacy' | 'sprzedajacy' | null;
 }
 
 export function parametryFiltrow(filtry: Filtry): string {
   const params = new URLSearchParams();
-  if (filtry.dni !== null) {
+  if (filtry.od !== null) {
+    params.set('od', filtry.od);
+  }
+  if (filtry.do !== null) {
+    params.set('do', filtry.do);
+  }
+  if (filtry.dni !== null && filtry.od === null && filtry.do === null) {
     params.set('dni', String(filtry.dni));
   }
   if (filtry.lang !== null) {
@@ -138,14 +146,15 @@ export async function pobierzStatystyki(filtry: Filtry): Promise<Statystyki> {
 }
 
 export const ETYKIETY_KOLUMN: Record<string, string> = {
-  czas: 'Czas',
+  czas: 'Data i godzina',
   lang: 'Język',
-  strona: 'Strona',
-  sekcja: 'Sekcja',
+  strona: 'Rola użytkownika',
+  sekcja: 'Temat',
   wynik: 'Wynik',
-  powod: 'Powód',
-  latencja_s: 'Latencja (s)',
-  cache_hit: 'Trafienie cache',
+  powod: 'Powód braku odpowiedzi',
+  powod_ogolna: 'Powód odmowy bez bazy wiedzy',
+  latencja_s: 'Czas odpowiedzi (s)',
+  cache_hit: 'Odpowiedź z pamięci',
   pytanie: 'Pytanie',
   tokeny_we: 'Tokeny wejściowe',
   tokeny_wy: 'Tokeny wyjściowe',
@@ -168,23 +177,41 @@ export const NAZWY_STRON: Record<string, string> = {
 };
 
 export const NAZWY_POWODOW: Record<string, string> = {
-  prog_rerank: 'Za słabe dopasowanie w bazie',
-  sedzia: 'Sędzia odrzucił kontekst',
-  brak_generacji: 'Model nie wygenerował odpowiedzi',
-  pokrycie: 'Odpowiedź za słabo oparta na źródłach',
-  model_nie_wie: 'Model przyznał, że nie wie',
-  jawna_odmowa: 'Jawna odmowa modelu',
+  prog_rerank: 'Nie znaleziono pasującego artykułu',
+  sedzia: 'Znalezione artykuły nie pasowały do pytania',
+  brak_generacji: 'Asystent nie ułożył odpowiedzi',
+  pokrycie: 'Odpowiedź za słabo oparta na artykułach',
+  model_nie_wie: 'Asystent przyznał, że nie wie',
+  jawna_odmowa: 'Asystent odmówił odpowiedzi',
   nie_zrozumialem: 'Pytanie niezrozumiałe',
-  mail_doprecyzuj: 'Wymaga doprecyzowania do maila',
+  mail_doprecyzuj: 'Trzeba dopytać przed wysłaniem wiadomości',
   guard_za_krotkie: 'Pytanie za krótkie',
   guard_za_dlugie: 'Pytanie za długie',
-  guard_nie_rozumiem: 'Guard nie rozpoznał pytania',
-  guard_zly_alfabet: 'Niedozwolony alfabet',
-  guard_injekcja: 'Wykryto próbę wstrzyknięcia promptu',
-  brak_danych: 'Brak danych źródłowych',
-  pytanie_o_strone: 'Pytanie o inną rolę (stary automatyczny routing)',
-  odmowa: 'Odmowa bez podanego powodu',
-  brak_wyniku: 'Pipeline nie zwrócił wyniku',
+  guard_nie_rozumiem: 'Nie rozpoznano treści pytania',
+  guard_zly_alfabet: 'Pytanie w niedozwolonym alfabecie',
+  guard_injekcja: 'Próba manipulacji asystentem',
+  brak_danych: 'Brak materiałów w bazie wiedzy',
+  pytanie_o_strone: 'Pytanie do innej roli (dawne kierowanie automatyczne)',
+  odmowa: 'Brak odpowiedzi bez podanego powodu',
+  brak_wyniku: 'Awaria przetwarzania',
+  ogolna_temat: 'Pytanie spoza tematyki Allegro',
+  ogolna_domena: 'Pytanie spoza obsługiwanej dziedziny',
+  ogolna_blisko_bazy: 'Pytanie zbyt bliskie bazie, by odpowiadać z ogólnej wiedzy',
+  ogolna_konkrety: 'Odpowiedź ogólna wchodziła w szczegóły Allegro',
+  ogolna_pusta: 'Pusta odpowiedź ogólna',
+  ogolna_dluga: 'Odpowiedź ogólna za długa',
+  ogolna_model_nie_wie: 'Asystent nie znał odpowiedzi także bez bazy',
+  ogolna_jawna_odmowa: 'Odmowa także bez bazy wiedzy',
+  ogolna_brak_generacji: 'Brak odpowiedzi także bez bazy wiedzy',
+};
+
+export const NAZWY_CECH: Record<string, string> = {
+  rerank_top1: 'Dopasowanie artykułu',
+  pokrycie: 'Oparcie w źródłach',
+  zrodlo_top1: 'Najlepiej dopasowany artykuł',
+  strona_wybrana: 'Rola wybrana przez użytkownika',
+  przewaga_sekcji: 'Pewność wyboru tematu',
+  etap: 'Poziom odpowiedzi',
 };
 
 export function etykieta(mapa: Record<string, string>, klucz: string): string {
@@ -251,29 +278,31 @@ export interface Przypadki {
 
 export const ETYKIETY_DIAGNOZ: Record<string, string> = {
   ok: 'Dobra odpowiedź',
-  tresc: 'Zła treść przy dobrym kontekście',
-  retrieval: 'Brak trafienia w wyszukiwaniu',
-  sedzia: 'Sędzia odrzucił kontekst',
-  pokrycie: 'Za niskie pokrycie odpowiedzi',
-  generacja: 'Model nie odpowiedział',
-  guard: 'Zatrzymane przez guard',
+  tresc: 'Dobre materiały, słaba odpowiedź',
+  retrieval: 'Wyszukiwarka nie znalazła artykułu',
+  sedzia: 'Materiały odrzucone jako niepasujące',
+  pokrycie: 'Odpowiedź za słabo oparta na artykułach',
+  generacja: 'Asystent nie ułożył odpowiedzi',
+  guard: 'Zatrzymane przez zabezpieczenia',
   literowki: 'Nierozpoznane słowa',
-  doprecyzowanie: 'Pytanie o stronę',
-  rozmowa: 'Tura rozmowy',
+  doprecyzowanie: 'Dopytanie o rolę',
+  ogolna: 'Odpowiedź bez bazy wiedzy',
+  rozmowa: 'Zwykła wymiana zdań',
   inna: 'Inna przyczyna',
-  brak_sladu: 'Brak śladu zapytania',
+  brak_sladu: 'Brak zapisu przebiegu zapytania',
 };
 
 export const LEKARSTWA_DIAGNOZ: Record<string, string> = {
-  tresc: 'prompt generacji',
-  retrieval: 'korpus, chunking, aliasy',
-  sedzia: 'próg sędziego',
-  pokrycie: 'próg pokrycia',
-  generacja: 'prompt generacji',
-  guard: 'reguły guardów',
-  literowki: 'słownik korektora',
-  doprecyzowanie: 'treść doprecyzowania',
-  brak_sladu: 'ocena sprzed wdrożenia identyfikatorów',
+  tresc: 'instrukcja dla asystenta',
+  retrieval: 'baza artykułów i słownictwo',
+  sedzia: 'czułość oceny materiałów',
+  pokrycie: 'wymóg oparcia w artykułach',
+  generacja: 'instrukcja dla asystenta',
+  guard: 'reguły zabezpieczeń',
+  literowki: 'słownik poprawek',
+  doprecyzowanie: 'treść dopytania',
+  ogolna: 'reguły odpowiedzi bez bazy',
+  brak_sladu: 'ocena sprzed wprowadzenia identyfikatorów',
 };
 
 export async function pobierzPrzypadki(dni: number | null): Promise<Przypadki> {

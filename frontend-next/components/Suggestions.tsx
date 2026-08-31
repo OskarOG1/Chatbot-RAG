@@ -19,20 +19,22 @@ export default function Suggestions({ items, onPick }: Props) {
         <button
           key={label}
           type="button"
+          className="dc-chip"
           onClick={() => onPick(label)}
           onMouseEnter={() => setHover(i)}
           onMouseLeave={() => setHover(null)}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            padding: '7px 12px',
+            padding: '8px 14px',
             borderRadius: 100,
             border: `1px solid ${hover === i ? th.accentLine : th.line}`,
-            background: th.surface,
+            background: hover === i ? th.accentSoft : th.surface,
             color: hover === i ? th.accentInk : th.ink2,
+            boxShadow: hover === i ? 'none' : th.shadow,
             fontFamily: BODY,
-            fontSize: 12,
-            fontWeight: 500,
+            fontSize: 12.5,
+            fontWeight: 600,
             lineHeight: 1.35,
             cursor: 'pointer',
           }}

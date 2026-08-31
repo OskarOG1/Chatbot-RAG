@@ -21,6 +21,23 @@ import { etykieta, NAZWY_STRON } from '@/lib/admin';
 
 export const WYSOKOSC = 260;
 
+export const PALETA = [
+  '#FF5A00',
+  '#2D7FF9',
+  '#12A594',
+  '#8B5CF6',
+  '#F5A524',
+  '#E5484D',
+  '#0EA5E9',
+  '#84CC16',
+];
+
+export const KOLOR_ODMOWY = '#E5484D';
+export const KOLOR_KUPUJACY = '#2D7FF9';
+export const KOLOR_SPRZEDAJACY = '#FF5A00';
+
+const KOLORY_LATENCJI = ['#12A594', '#84CC16', '#F5A524', '#F97316', '#E5484D'];
+
 export function stylTooltipa(th: ThemeTokens) {
   return {
     background: th.surface,
@@ -41,7 +58,7 @@ export function osie(th: ThemeTokens) {
   };
 }
 
-export function Ramka({ tytul, children }: { tytul: string; children: React.ReactNode }) {
+export function Ramka({ tytul, opis, children }: { tytul: string; opis?: string; children: React.ReactNode }) {
   const th = useTheme();
 
   return (
@@ -55,17 +72,52 @@ export function Ramka({ tytul, children }: { tytul: string; children: React.Reac
         minWidth: 0,
       }}
     >
-      <h2 style={{ margin: '0 0 12px', fontFamily: DISPLAY, fontSize: 15, fontWeight: 700, color: th.ink }}>
+      <h2 style={{ margin: '0 0 4px', fontFamily: DISPLAY, fontSize: 15, fontWeight: 700, color: th.ink }}>
         {tytul}
       </h2>
+      {opis ? (
+        <p style={{ margin: '0 0 12px', fontFamily: BODY, fontSize: 12, color: th.ink3 }}>{opis}</p>
+      ) : (
+        <div style={{ height: 12 }} />
+      )}
       <div style={{ width: '100%', height: WYSOKOSC }}>{children}</div>
     </section>
+  );
+}
+
+export function BrakTrendu({ tekst }: { tekst: string }) {
+  const th = useTheme();
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        padding: 20,
+        borderRadius: 12,
+        border: `1px dashed ${th.line}`,
+        background: th.raised,
+        fontFamily: BODY,
+        fontSize: 13,
+        color: th.ink3,
+      }}
+    >
+      {tekst}
+    </div>
   );
 }
 
 export function WykresDzienny({ dane }: { dane: PozycjaDzienna[] }) {
   const th = useTheme();
   const os = osie(th);
+
+  if (dane.length < 2) {
+    return <BrakTrendu tekst="Za mało dni, żeby pokazać trend. Wróć po kolejnym dniu z ruchem." />;
+  }
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -75,8 +127,16 @@ export function WykresDzienny({ dane }: { dane: PozycjaDzienna[] }) {
         <YAxis allowDecimals={false} tick={os.tick} axisLine={os.axisLine} tickLine={os.tickLine} />
         <Tooltip contentStyle={stylTooltipa(th)} cursor={{ stroke: th.line }} />
         <Legend wrapperStyle={{ fontFamily: BODY, fontSize: 12, color: th.ink2 }} />
-        <Line type="monotone" dataKey="zapytan" name="Zapytania" stroke={th.accent} strokeWidth={2} dot={false} />
-        <Line type="monotone" dataKey="odmowy" name="Odmowy" stroke={th.ink3} strokeWidth={2} dot={false} />
+        <Line type="monotone" dataKey="zapytan" name="Pytania" stroke={PALETA[0]} strokeWidth={2.5} dot={false} />
+        <Line
+          type="monotone"
+          dataKey="odmowy"
+          name="Bez odpowiedzi"
+          stroke={KOLOR_ODMOWY}
+          strokeWidth={2}
+          strokeDasharray="5 4"
+          dot={false}
+        />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -106,13 +166,17 @@ export function WykresPoziomy({
         <YAxis
           type="category"
           dataKey="nazwa"
-          width={168}
+          width={220}
           tick={os.tick}
           axisLine={os.axisLine}
           tickLine={os.tickLine}
         />
         <Tooltip contentStyle={stylTooltipa(th)} cursor={{ fill: th.lineSoft }} />
-        <Bar dataKey="ile" name="Liczba" fill={th.accent} radius={[0, 6, 6, 0]} />
+        <Bar dataKey="ile" name="Liczba" radius={[0, 6, 6, 0]} barSize={18}>
+          {dopasowane.map((d, i) => (
+            <Cell key={d.nazwa} fill={PALETA[i % PALETA.length]} />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );
@@ -121,9 +185,8 @@ export function WykresPoziomy({
 export function WykresStron({ dane }: { dane: { strona: string; ile: number }[] }) {
   const th = useTheme();
   const kolor = (strona: string) => {
-    if (strona === 'kupujacy') return th.accent;
-    if (strona === 'sprzedajacy') return th.accentInk;
-    if (strona === 'nieznana') return th.line;
+    if (strona === 'kupujacy') return KOLOR_KUPUJACY;
+    if (strona === 'sprzedajacy') return KOLOR_SPRZEDAJACY;
     return th.ink3;
   };
   const dopasowane = dane.map((d) => ({ ...d, nazwa: etykieta(NAZWY_STRON, d.strona) }));
@@ -137,6 +200,7 @@ export function WykresStron({ dane }: { dane: { strona: string; ile: number }[] 
           nameKey="nazwa"
           innerRadius={55}
           outerRadius={88}
+          paddingAngle={2}
           stroke={th.surface}
           strokeWidth={2}
         >
@@ -155,6 +219,10 @@ export function WykresKosztu({ dane }: { dane: PozycjaDzienna[] }) {
   const th = useTheme();
   const os = osie(th);
 
+  if (dane.length < 2) {
+    return <BrakTrendu tekst="Za mało dni, żeby pokazać koszt w czasie." />;
+  }
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={dane}>
@@ -172,9 +240,9 @@ export function WykresKosztu({ dane }: { dane: PozycjaDzienna[] }) {
         <Line
           type="monotone"
           dataKey="koszt_usd"
-          name="Koszt (USD)"
-          stroke={th.accent}
-          strokeWidth={2}
+          name="Koszt dzienny (USD)"
+          stroke={PALETA[3]}
+          strokeWidth={2.5}
           dot={false}
         />
       </LineChart>
@@ -193,7 +261,11 @@ export function WykresLatencji({ dane }: { dane: Latencja['histogram'] }) {
         <XAxis dataKey="zakres" tick={os.tick} axisLine={os.axisLine} tickLine={os.tickLine} />
         <YAxis allowDecimals={false} tick={os.tick} axisLine={os.axisLine} tickLine={os.tickLine} />
         <Tooltip contentStyle={stylTooltipa(th)} cursor={{ fill: th.lineSoft }} />
-        <Bar dataKey="ile" name="Zapytania" fill={th.accent} radius={[6, 6, 0, 0]} />
+        <Bar dataKey="ile" name="Pytania" radius={[6, 6, 0, 0]}>
+          {dane.map((d, i) => (
+            <Cell key={d.zakres} fill={KOLORY_LATENCJI[i % KOLORY_LATENCJI.length]} />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

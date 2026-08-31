@@ -97,9 +97,11 @@ interface Teksty {
   possibleSourcesLabel: string;
   hintBuying: string;
   hintSelling: string;
+  enterHint: string;
   newChatToast: string;
   threadFallbackTitle: string;
   suggestionsByAgent: Record<string, string[]>;
+  suggestionsBySide: Record<'kupujacy' | 'sprzedajacy', string[]>;
   welcome: string;
   thinking: string;
   panel: string;
@@ -185,6 +187,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     possibleSourcesLabel: 'Powiązane strony centrum pomocy',
     hintBuying: 'Pytasz jako kupujący',
     hintSelling: 'Pytasz jako sprzedający',
+    enterHint: 'Enter wysyła, Shift plus Enter dodaje nową linię',
     newChatToast: 'Rozpoczęto nową rozmowę',
     threadFallbackTitle: 'Nowa rozmowa',
     suggestionsByAgent: {
@@ -192,6 +195,10 @@ export const TEKSTY: Record<Lang, Teksty> = {
       konto: ['Jak zresetować hasło?', 'Jak zmienić dane konta?', 'Podejrzewam włamanie na konto, co robić?'],
       zakupy: ['Jak zgłosić brak dostawy?', 'Ile mam czasu na zwrot?', 'Jak sprawdzić historię zakupów?'],
       platnosci: ['Kiedy dostanę pieniądze za zwrot?', 'Jak sprawdzić status płatności?', 'Jak zapłacić przez Allegro Pay?'],
+    },
+    suggestionsBySide: {
+      kupujacy: ['Jak zgłosić brak dostawy?', 'Ile mam czasu na zwrot?', 'Kiedy dostanę pieniądze?'],
+      sprzedajacy: ['Ile wynosi prowizja od sprzedaży?', 'Jak wystawić ofertę?', 'Jak odpowiedzieć na dyskusję z kupującym?'],
     },
     welcome:
       'Witam, jestem Twoim asystentem Allegro. Mogę:\n\n* odpowiadać na pytania na podstawie bazy wiedzy centrum pomocy\n* przygotować wiadomość do sprzedawcy w sprawie reklamacji, zwrotu, faktury lub eskalacji sporu\n\nPrzy oknie wiadomości możesz wybrać, czy pytasz jako kupujący, czy jako sprzedający.\n\nNapisz, w czym mogę pomóc.',
@@ -269,6 +276,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     possibleSourcesLabel: 'Possibly related help center pages',
     hintBuying: 'Asking as a buyer',
     hintSelling: 'Asking as a seller',
+    enterHint: 'Enter sends, Shift plus Enter adds a new line',
     newChatToast: 'Started a new conversation',
     threadFallbackTitle: 'New conversation',
     suggestionsByAgent: {
@@ -276,6 +284,10 @@ export const TEKSTY: Record<Lang, Teksty> = {
       konto: ['How do I reset my password?', 'How do I change my account details?', 'I suspect my account was hacked, what should I do?'],
       zakupy: ['How do I report an order that never arrived?', 'How long do I have to return an item?', 'How do I check my order history?'],
       platnosci: ['When will I get my refund?', 'How do I check the status of a payment?', 'How do I pay with Allegro Pay?'],
+    },
+    suggestionsBySide: {
+      kupujacy: ['How do I report an order that never arrived?', 'How long do I have to return an item?', 'When will I get my money back?'],
+      sprzedajacy: ['How much is the selling commission?', 'How do I list an item?', 'How do I reply to a buyer dispute?'],
     },
     welcome:
       "Welcome, I'm the Allegro assistant. I can:\n\n* answer questions using the help center knowledge base\n* prepare a message to the seller about a complaint, return, invoice, or dispute escalation\n\nNext to the message box you can choose whether you're asking as a buyer or as a seller.\n\nTell me what you need help with.",

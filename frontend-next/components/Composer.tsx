@@ -5,14 +5,15 @@ import { useTheme, BODY, MONO } from '@/lib/theme';
 import { type Strona } from '@/lib/chat';
 import { IkonaWyslij } from './Ikony';
 
-const AKCENT_SEGMENT = '#C43E00';
-const WYSOKOSC = 34;
-const PROMIEN = 9;
+const AKCENT_GRADIENT = 'linear-gradient(180deg, #FF6A1F 0%, #D94600 100%)';
+const WYSOKOSC = 36;
+const PROMIEN = 100;
 
 interface Props {
   value: string;
   placeholder: string;
   hint: string;
+  enterHint: string;
   sendLabel: string;
   disabled: boolean;
   strona: Strona;
@@ -27,6 +28,7 @@ export default function Composer({
   value,
   placeholder,
   hint,
+  enterHint,
   sendLabel,
   disabled,
   strona,
@@ -48,7 +50,46 @@ export default function Composer({
   }
 
   return (
-    <div style={{ border: `1px solid ${th.line}`, borderRadius: 14, background: th.surface, boxShadow: th.shadow, overflow: 'hidden' }}>
+    <div
+      style={{
+        border: `1px solid ${th.line}`,
+        borderRadius: 16,
+        background: th.surface,
+        boxShadow: th.shadow,
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
+          padding: '10px 14px',
+          background: th.raised,
+          borderBottom: `1px solid ${th.line}`,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: BODY,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '.07em',
+            textTransform: 'uppercase',
+            color: th.ink3,
+          }}
+        >
+          {hint}
+        </span>
+        <StronaPrzelacznik
+          strona={strona}
+          sideBuyingLabel={sideBuyingLabel}
+          sideSellingLabel={sideSellingLabel}
+          onSetStrona={onSetStrona}
+        />
+      </div>
+
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -70,44 +111,49 @@ export default function Composer({
           maxHeight: 140,
         }}
       />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px 11px 17px' }}>
-        <span style={{ fontFamily: MONO, fontSize: 10.5, color: th.ink3, minWidth: 0 }}>{hint}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
-          <StronaPrzelacznik
-            strona={strona}
-            sideBuyingLabel={sideBuyingLabel}
-            sideSellingLabel={sideSellingLabel}
-            onSetStrona={onSetStrona}
-          />
-          <button
-            type="button"
-            className="dc-akcja"
-            onClick={onSend}
-            disabled={disabled || pusty}
-            aria-label={sendLabel}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 7,
-              height: WYSOKOSC,
-              padding: '0 15px',
-              borderRadius: PROMIEN,
-              border: 'none',
-              background: nieaktywny ? th.raised : AKCENT_SEGMENT,
-              boxShadow: nieaktywny ? `inset 0 0 0 1px ${th.line}` : '0 1px 2px rgba(160, 50, 0, 0.28)',
-              color: nieaktywny ? th.ink3 : '#FFFFFF',
-              fontFamily: BODY,
-              fontSize: 12.5,
-              fontWeight: 600,
-              lineHeight: 1,
-              cursor: nieaktywny ? 'default' : 'pointer',
-            }}
-          >
-            {sendLabel}
-            <IkonaWyslij color={nieaktywny ? th.ink3 : '#FFFFFF'} />
-          </button>
-        </div>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          padding: '6px 12px 12px 17px',
+        }}
+      >
+        <span style={{ fontFamily: MONO, fontSize: 10.5, color: th.ink3, minWidth: 0 }}>
+          {enterHint}
+        </span>
+        <button
+          type="button"
+          className="dc-akcja"
+          onClick={onSend}
+          disabled={disabled || pusty}
+          aria-label={sendLabel}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            height: WYSOKOSC,
+            padding: '0 20px',
+            borderRadius: PROMIEN,
+            border: 'none',
+            background: nieaktywny ? th.raised : AKCENT_GRADIENT,
+            boxShadow: nieaktywny
+              ? `inset 0 0 0 1px ${th.line}`
+              : '0 1px 2px rgba(160, 50, 0, 0.30), 0 6px 16px -8px rgba(160, 50, 0, 0.55)',
+            color: nieaktywny ? th.ink3 : '#FFFFFF',
+            fontFamily: BODY,
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: '.01em',
+            lineHeight: 1,
+            cursor: nieaktywny ? 'default' : 'pointer',
+          }}
+        >
+          {sendLabel}
+          <IkonaWyslij color={nieaktywny ? th.ink3 : '#FFFFFF'} />
+        </button>
       </div>
     </div>
   );
@@ -135,13 +181,14 @@ function StronaPrzelacznik({ strona, sideBuyingLabel, sideSellingLabel, onSetStr
       style={{
         position: 'relative',
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
+        gridTemplateColumns: 'repeat(2, minmax(104px, 1fr))',
         height: WYSOKOSC,
         boxSizing: 'border-box',
         padding: 3,
         borderRadius: PROMIEN,
-        background: th.raised,
+        background: th.surface,
         border: `1px solid ${th.line}`,
+        boxShadow: `inset 0 1px 2px ${th.lineSoft}`,
       }}
     >
       <div
@@ -152,9 +199,9 @@ function StronaPrzelacznik({ strona, sideBuyingLabel, sideSellingLabel, onSetStr
           bottom: 3,
           left: 3,
           width: 'calc((100% - 6px) / 2)',
-          borderRadius: PROMIEN - 3,
-          background: AKCENT_SEGMENT,
-          boxShadow: '0 1px 2px rgba(160, 50, 0, 0.28)',
+          borderRadius: PROMIEN,
+          background: AKCENT_GRADIENT,
+          boxShadow: '0 1px 2px rgba(160, 50, 0, 0.30)',
           transform: `translateX(${aktywnyIndeks * 100}%)`,
           transition: 'transform 240ms cubic-bezier(0.4, 0, 0.2, 1), background 200ms ease',
         }}
@@ -185,16 +232,16 @@ function segBtn(th: ReturnType<typeof useTheme>, akcent: boolean, hover: boolean
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    padding: '0 12px',
+    padding: '0 14px',
     border: 'none',
     background: 'transparent',
-    borderRadius: PROMIEN - 3,
+    borderRadius: PROMIEN,
     fontFamily: BODY,
-    fontSize: 11.5,
+    fontSize: 12.5,
     fontWeight: akcent ? 700 : 600,
     lineHeight: 1,
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-    color: akcent ? '#FFFFFF' : hover ? th.ink : th.ink3,
+    color: akcent ? '#FFFFFF' : hover ? th.ink : th.ink2,
   };
 }

@@ -279,3 +279,59 @@ def test_czesciowa_wysylka_zachowuje_ticket_sprzedawcy(monkeypatch, resend_env):
         api.send_email(zadanie)
     assert wyjatek.value.status_code == 502
     assert 'klient@example.com' in api._wysylki_adres
+
+
+# Przy odmowie Resend raise_for_status gubi tresc odpowiedzi, wiec operator panelu widzial
+# tylko ogolne "wysylka sie nie powiodla" i nie mial jak odroznic niezweryfikowanej domeny
+# od zlego adresu. Powod ma trafic do logu serwera, ale bez adresu odbiorcy, bo adresy
+# zgloszen podlegaja retencji i nie moga wyciekac do logu kontenera na stale.
+def test_odmowa_resend_trafia_do_logu_bez_adresu_odbiorcy(monkeypatch, resend_env, capsys):
+    import httpx
+    import wysylka
+
+    class OdmowaResend:
+        status_code = 403
+
+        def json(self):
+            return {'statusCode': 403, 'name': 'validation_error',
+                    'message': 'The ogflow.pl domain is not verified.'}
+
+        def raise_for_status(self):
+            raise httpx.HTTPStatusError('403', request=None, response=self)
+
+    class KlientOdmawiajacy:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def post(self, url, headers=None, json=None):
+            return OdmowaResend()
+
+    monkeypatch.setattr(wysylka.httpx, 'Client', lambda *a, **k: KlientOdmawiajacy())
+
+    with pytest.raises(httpx.HTTPStatusError):
+        wysylka.wyslij_odpowiedz_operatora('pytajacy@example.com', 'pytanie', 'odpowiedz',
+                                           '2E248855')
+
+    log = capsys.readouterr().err
+    assert 'validation_error' in log
+    assert 'domain is not verified' in log
+    assert '2E248855' in log
+    assert 'pytajacy@example.com' not in log
+
+
+def test_powod_resend_znosi_odpowiedz_bez_json():
+    import wysylka
+
+    class BezJson:
+        status_code = 502
+        text = 'Bad gateway' * 100
+
+        def json(self):
+            raise ValueError('to nie jest json')
+
+    powod = wysylka.powod_resend(BezJson())
+    assert powod.startswith('Bad gateway')
+    assert len(powod) <= 200
