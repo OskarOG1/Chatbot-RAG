@@ -87,7 +87,7 @@ def test_sciezka_udana_zapisuje_md_i_dopisuje_link(tmp_path):
 
 
 def test_agent_sprzedaz_i_lang_en_trafia_do_wlasciwego_katalogu(tmp_path):
-    url = 'https://allegro.pl/pomoc/dla-sprzedajacych/oferty/jak-wystawic-oferte-xy99ZZ'
+    url = 'https://help.allegro.com/en/sell/a/jak-wystawic-oferte-xy99ZZ'
     pobierz = pobieracz_zwraca(artykul_atrapa(url=url, agent='sprzedaz'))
 
     dociagnij.wykonaj(url, 'sprzedaz', 'en', rag_dir=tmp_path, pobieracz=pobierz)
@@ -169,3 +169,37 @@ def test_nowy_link_ladnie_dokleja_sie_na_koncu_listy_agenta(tmp_path):
         'https://allegro.pl/pomoc/dla-kupujacych/konto/stary-aa11',
         WZOR_URL,
     ]
+
+
+def test_polski_adres_z_lang_en_nie_zapisuje_nic(tmp_path):
+    pobierz = pobieracz_zwraca(artykul_atrapa())
+
+    with pytest.raises(SystemExit) as wyjscie:
+        dociagnij.wykonaj(WZOR_URL, 'zakupy', 'en', rag_dir=tmp_path, pobieracz=pobierz)
+
+    assert wyjscie.value.code
+    assert pobierz.wywolania == []
+    assert not list(tmp_path.glob('docs*/**/*.md'))
+
+
+def test_adres_sprzedazowy_w_innym_jezyku_niz_lang_jest_odrzucany(tmp_path):
+    url = 'https://help.allegro.com/pl/sell/a/jak-wystawic-oferte-xy99ZZ'
+    pobierz = pobieracz_zwraca(artykul_atrapa(url=url, agent='sprzedaz'))
+
+    with pytest.raises(SystemExit):
+        dociagnij.wykonaj(url, 'sprzedaz', 'en', rag_dir=tmp_path, pobieracz=pobierz)
+
+    assert pobierz.wywolania == []
+
+
+def test_pusta_tresc_nie_zapisuje_pliku_ani_linku(tmp_path):
+    pusty = artykul_atrapa()
+    pusty['tresc'] = '\n  \n'
+    pobierz = pobieracz_zwraca(pusty)
+
+    with pytest.raises(SystemExit) as wyjscie:
+        dociagnij.wykonaj(WZOR_URL, 'zakupy', 'pl', rag_dir=tmp_path, pobieracz=pobierz)
+
+    assert wyjscie.value.code
+    assert not (tmp_path / 'links.json').exists()
+    assert not list(tmp_path.glob('docs*/**/*.md'))

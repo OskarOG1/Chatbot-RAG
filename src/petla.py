@@ -65,9 +65,10 @@ def klasyfikuj(stan: dict[str, dict], wpisy_logu: list[dict],
         czy_nowe = status == 'nowe'
         if status != 'odpowiedziano' and not (uwzglednij_nowe and czy_nowe):
             continue
-        etykieta = zgloszenie.get('etykieta')
-        klucz_etykiety = etykieta if etykieta is not None else 'brak_etykiety'
-        liczniki_etykiet[klucz_etykiety] = liczniki_etykiet.get(klucz_etykiety, 0) + 1
+        if not czy_nowe:
+            etykieta = zgloszenie.get('etykieta')
+            klucz_etykiety = etykieta if etykieta is not None else 'brak_etykiety'
+            liczniki_etykiet[klucz_etykiety] = liczniki_etykiet.get(klucz_etykiety, 0) + 1
         wpis = indeks.get(zgloszenie.get('id_zapytania') or '')
         wiersz = wiersz_do_przegladu(zgloszenie, wpis)
         if wiersz['agent'] is None:
@@ -136,16 +137,22 @@ def zawiera_prace_czlowieka(sciezka: Path) -> bool:
 def zapisz_wynik(wynik: dict, katalog: Path) -> Path:
     katalog.mkdir(parents=True, exist_ok=True)
     plik = katalog / NAZWA_DO_PRZEGLADU
-    if zawiera_prace_czlowieka(plik):
-        raise SystemExit(
-            f'Plik {plik} ma juz wypelnione pole decyzja. Przerywam, zeby nie skasowac pracy '
-            f'czlowieka. Przenies go lub usun recznie, jesli chcesz zbudowac liste od nowa.'
-        )
+    plik_bez_logu = katalog / NAZWA_BEZ_LOGU
+    for sciezka in (plik, plik_bez_logu):
+        if zawiera_prace_czlowieka(sciezka):
+            raise SystemExit(
+                f'Plik {sciezka} ma juz wypelnione pole decyzja. Przerywam, zeby nie skasowac '
+                f'pracy czlowieka. Przenies go lub usun recznie, jesli chcesz zbudowac liste '
+                f'od nowa.'
+            )
     plik.write_text(
         json.dumps(wynik['do_przegladu'], ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     if wynik['bez_logu']:
-        (katalog / NAZWA_BEZ_LOGU).write_text(
+        plik_bez_logu.write_text(
             json.dumps(wynik['bez_logu'], ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    elif plik_bez_logu.exists():
+        plik_bez_logu.unlink()
+        print(f'Usunieto nieaktualny {plik_bez_logu}, ten przebieg nie ma pozycji bez logu.')
     return plik
 
 

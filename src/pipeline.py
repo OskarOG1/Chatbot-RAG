@@ -213,7 +213,7 @@ def wzorce_odmowy(lang: str, klucz: str) -> tuple:
 
 
 def model_nie_wie(tekst: str, lang: str = 'pl') -> bool:
-    tekst = normalizacja(tekst)
+    tekst = normalizacja(tekst.replace('’', "'"))
     return any(wzorzec.search(tekst) for wzorzec in wzorce_odmowy(lang, 'nie_wiem_zwroty'))
 
 
@@ -489,6 +489,8 @@ def probuj_druga_sekcje(zapytanie_ret: str, query: str, history: list[dict],
             print(f'sedzia drugiej sekcji zawiodl ({type(e).__name__}: {e}), przepuszczam dalej',
                   flush=True)
             werdykt = True
+            stan_sedziego['sedzia_pominiety'] = True
+        if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
         if not werdykt:
             cechy['sedzia_ok'] = False
@@ -738,6 +740,20 @@ def run_stream(query:str, bielik_model:str | None=None,
                 yield ev
         if wynik_drugiej is not None and not wynik_drugiej['powod_odmowy']:
             wynik_etapu = wynik_drugiej
+        elif wynik_drugiej is not None:
+            cechy_drugiej = wynik_drugiej.get('cechy') or {}
+            cechy_etapu = wynik_etapu.setdefault('cechy', {})
+            cechy_etapu['etap2_powod'] = wynik_drugiej['powod_odmowy']
+            cechy_etapu['etap2_strona'] = cechy_drugiej.get('strona_wybrana')
+            cechy_etapu['etap2_chunkow'] = cechy_drugiej.get('chunkow')
+            cechy_etapu['etap2_rerank_top1'] = cechy_drugiej.get('rerank_top1')
+            cechy_etapu['etap2_zrodlo_top1'] = cechy_drugiej.get('zrodlo_top1')
+            cechy_etapu['etap2_sedzia_ok'] = cechy_drugiej.get('sedzia_ok')
+            cechy_etapu['etap2_pokrycie'] = cechy_drugiej.get('pokrycie')
+            pominiete_etapu = wynik_etapu.setdefault('bramki_pominiete', [])
+            for bramka in wynik_drugiej.get('bramki_pominiete') or []:
+                if bramka not in pominiete_etapu:
+                    pominiete_etapu.append(bramka)
 
     bramki_pominiete = list(wynik_etapu.get('bramki_pominiete') or [])
     strona_wybrana = wynik_etapu.get('strona') or strona

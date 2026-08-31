@@ -44,7 +44,7 @@ def zastosuj(wpisy: list[dict], rag_dir: Path = RAG_DIR, na_sucho: bool = False,
              dociagnij_fn=dociagnij.wykonaj) -> dict:
     golden = rag_dir / NAZWA_GOLDEN_KOLEJKA
     licz = {'artykul': 0, 'alias': 0, 'pomijamy': 0, 'nieprzejrzane': 0, 'blad': 0}
-    dociagniete: list[str] = []
+    dociagniete: list[dict] = []
     aliasy: list[dict] = []
     bledy: list[str] = []
 
@@ -64,14 +64,16 @@ def zastosuj(wpisy: list[dict], rag_dir: Path = RAG_DIR, na_sucho: bool = False,
             continue
 
         if decyzja == 'artykul':
+            korpus = {'url': url, 'agent': agent, 'lang': lang,
+                      'rodzina': dociagnij.rodzina_agenta(agent)}
             if na_sucho:
                 licz['artykul'] += 1
-                dociagniete.append(url)
+                dociagniete.append(korpus)
                 continue
             try:
                 dociagnij_fn(url, agent, lang, rag_dir=rag_dir)
                 licz['artykul'] += 1
-                dociagniete.append(url)
+                dociagniete.append(korpus)
             except SystemExit as blad:
                 licz['blad'] += 1
                 bledy.append(f'zgloszenie {zgl}: dociagniecie {url} nieudane: {blad.code}')
@@ -87,12 +89,24 @@ def zastosuj(wpisy: list[dict], rag_dir: Path = RAG_DIR, na_sucho: bool = False,
     return {'licz': licz, 'dociagniete': dociagniete, 'aliasy': aliasy, 'bledy': bledy}
 
 
+def komenda_chunkingu(rodzina: str, lang: str) -> str:
+    suffix = '' if lang == 'pl' else f'_{lang}'
+    czlon = 'docs' if rodzina == 'kupujacy' else 'docs_sprzedaz'
+    baza = 'chunks_kupujacy' if rodzina == 'kupujacy' else 'chunks_sprzedaz'
+    return (f'  python chunking.py --lang {lang} --docs-dir ../RAG/{czlon}{suffix} '
+            f'--out ../RAG/{baza}{suffix}.json')
+
+
 def wypisz_nastepne_kroki(wynik: dict) -> None:
     if wynik['dociagniete']:
+        korpusy = sorted({(d['rodzina'], d['lang']) for d in wynik['dociagniete']})
         print()
         print('Dociagniete artykuly wymagaja pelnej przebudowy korpusu, bez przelacznika --dopisz:')
-        print('  python chunking.py --lang pl --docs-dir ../RAG/docs --out ../RAG/chunks_kupujacy.json')
-        print('  python scal_korpus.py --lang pl && python embedder.py --lang pl && python vector.py --lang pl')
+        for rodzina, lang in korpusy:
+            print(komenda_chunkingu(rodzina, lang))
+        for lang in sorted({lang for _, lang in korpusy}):
+            print(f'  python scal_korpus.py --lang {lang} && python embedder.py --lang {lang} '
+                  f'&& python vector.py --lang {lang}')
     if wynik['aliasy']:
         print()
         print('Aliasy: wpisz slownictwo z pytania uzytkownika, nie z odpowiedzi operatora, '

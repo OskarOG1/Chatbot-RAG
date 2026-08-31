@@ -301,6 +301,7 @@ LANG = {
         },
         'nie_wiem_zwroty': (
             'i do not have information',
+            "i don't have information",
             'no information in the context',
             "i couldn't find this in the materials",
         ),

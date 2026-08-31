@@ -33,6 +33,11 @@ def adres_sprzedazowy(url: str) -> bool:
     return bool(WZORZEC_ADRESU_SPRZEDAZ.match(url or ''))
 
 
+def jezyk_adresu(url: str) -> str:
+    dopasowanie = WZORZEC_ADRESU_SPRZEDAZ.match(url or '')
+    return dopasowanie.group(1) if dopasowanie else 'pl'
+
+
 def rodzina_agenta(agent: str) -> str:
     return 'sprzedaz' if agent == 'sprzedaz' else 'kupujacy'
 
@@ -92,6 +97,14 @@ def wykonaj(url: str, agent: str, lang: str, rag_dir: Path = RAG_DIR, pobieracz=
             f'https://allegro.pl/pomoc/<dzial>/<kategoria>/<artykul> ani '
             f'https://help.allegro.com/<pl|en>/sell/a/<artykul>. Nic nie pobieram.')
 
+    lang_adresu = jezyk_adresu(url)
+    if lang_adresu != lang:
+        raise SystemExit(
+            f'Adres {url} prowadzi do wersji {lang_adresu}, a --lang to {lang}. Pobranie '
+            f'zapisaloby tresc w zlym jezyku do katalogu korpusu {lang}. Angielska wersja '
+            f'artykulu dla kupujacego nie ma osobnego adresu, buduje ja links_scraping_en.py '
+            f'przez przelacznik jezyka na stronie, nie ten skrypt. Nic nie pobieram.')
+
     docs_dir = katalog_dokumentow(agent, lang, rag_dir)
     sciezka_links, klucz_links = plik_linkow(agent, lang, rag_dir)
 
@@ -100,6 +113,12 @@ def wykonaj(url: str, agent: str, lang: str, rag_dir: Path = RAG_DIR, pobieracz=
         raise SystemExit(
             f'Nie udalo sie pobrac {url}. Nie zapisuje pliku ani nie dopisuje adresu, '
             f'zeby nie zglaszac domknietej luki, ktora zostala otwarta.')
+
+    if not (artykul.get('tresc') or '').strip():
+        raise SystemExit(
+            f'Artykul {url} pobral sie, ale ma pusta tresc, wiec adres prowadzi do strony bez '
+            f'artykulu albo zmienily sie znaczniki na stronie. Nie zapisuje pliku ani nie '
+            f'dopisuje adresu, zeby nie zglaszac domknietej luki, ktora zostala otwarta.')
 
     docelowy = sciezka_pliku_artykulu(artykul, docs_dir)
     if docelowy.exists():
