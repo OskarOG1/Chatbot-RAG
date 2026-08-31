@@ -506,3 +506,7 @@ def test_wzorce_odmowy_nadazaja_za_lang_config(monkeypatch):
     monkeypatch.setitem(pipeline.LANG['pl'], 'wtracenia_odmowy', ('zupelnie',))
     assert pipeline.model_nie_wie('Nie mam zupelnie informacji na ten temat.', 'pl') is True
     assert pipeline.model_nie_wie('Nie mam tej informacji.', 'pl') is False
+
+
+def test_model_nie_wie_lapie_apostrof_typograficzny():
+    assert pipeline.model_nie_wie('I couldn’t find this in the materials.', 'en') is True

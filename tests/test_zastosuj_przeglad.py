@@ -135,3 +135,32 @@ def test_main_na_prawdziwym_pliku_liczy_i_zwraca_kod(tmp_path, monkeypatch):
     assert kod == 0
     golden = json.loads((tmp_path / 'golden_kolejka.json').read_text(encoding='utf-8'))
     assert golden[0]['zrodlo_url'] == 'jak-odzyskac-dostep-xy99ZZ'
+
+
+def test_nastepne_kroki_dotycza_korpusu_dociagnietego_artykulu(tmp_path, capsys):
+    url = 'https://help.allegro.com/pl/sell/a/jak-wystawic-oferte-xy99ZZ'
+    wynik = zastosuj_przeglad.zastosuj(
+        [wpis('artykul', url, agent='sprzedaz', lang='pl')],
+        rag_dir=tmp_path, dociagnij_fn=pobieracz_notujacy())
+
+    zastosuj_przeglad.wypisz_nastepne_kroki(wynik)
+    wyjscie = capsys.readouterr().out
+
+    assert '--docs-dir ../RAG/docs_sprzedaz --out ../RAG/chunks_sprzedaz.json' in wyjscie
+    assert '../RAG/chunks_kupujacy.json' not in wyjscie
+
+
+def test_nastepne_kroki_lacza_oba_korpusy_i_oba_jezyki(tmp_path, capsys):
+    wynik = zastosuj_przeglad.zastosuj(
+        [wpis('artykul', URL_ART, agent='zakupy', lang='pl'),
+         wpis('artykul', 'https://help.allegro.com/en/sell/a/how-to-sell-ab12', agent='sprzedaz',
+              lang='en', zgl='EN01')],
+        rag_dir=tmp_path, dociagnij_fn=pobieracz_notujacy())
+
+    zastosuj_przeglad.wypisz_nastepne_kroki(wynik)
+    wyjscie = capsys.readouterr().out
+
+    assert '--docs-dir ../RAG/docs --out ../RAG/chunks_kupujacy.json' in wyjscie
+    assert '--docs-dir ../RAG/docs_sprzedaz_en --out ../RAG/chunks_sprzedaz_en.json' in wyjscie
+    assert 'scal_korpus.py --lang pl' in wyjscie
+    assert 'scal_korpus.py --lang en' in wyjscie

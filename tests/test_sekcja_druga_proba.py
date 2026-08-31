@@ -160,3 +160,49 @@ def test_reset_przed_tokenami_drugiej_proby_po_optymistycznym_wyslaniu(monkeypat
     assert wynik['answer'] == 'Pelna odpowiedz kupujacego.'
     assert wynik['cechy']['etap'] == 2
     assert wynik['nota_sekcji']
+
+
+def test_pominiety_sedzia_etapu_2_trafia_do_bramek_pominietych(monkeypatch, atrapa_pipeline, chunk):
+    atrapa_pipeline.ustaw_etap('sprzedajacy', chunki=[chunk('sprzedaz', score=0.0)],
+                               tekst='Odpowiedz sprzedazowa.', sedzia=False)
+    atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=0.0)],
+                               tekst='Odpowiedz kupujacego.', sedzia=True)
+    atrapa_pipeline.sedzia_pominiete.add('kupujacy')
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+
+    wynik = pipeline.run('jakie limity allegro pay', strona='sprzedajacy',
+                         bez_korekty=True, sedzia=True, lang='pl', warstwa_ogolna=False)
+
+    assert wynik['answer'] == 'Odpowiedz kupujacego.'
+    assert wynik['cechy']['etap'] == 2
+    assert 'sedzia' in wynik['bramki_pominiete']
+
+
+def test_odmowa_drugiej_proby_zostawia_slad_w_cechach(monkeypatch, atrapa_pipeline, chunk):
+    atrapa_pipeline.ustaw_etap('sprzedajacy', chunki=[chunk('sprzedaz', score=0.0)],
+                               tekst='Odpowiedz sprzedazowa.', sedzia=False)
+    atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=0.0)],
+                               tekst='Odpowiedz kupujacego.', sedzia=False)
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+
+    wynik = pipeline.run('jakie limity allegro pay', strona='sprzedajacy',
+                         bez_korekty=True, sedzia=True, lang='pl', warstwa_ogolna=False)
+
+    assert wynik['powod_odmowy'] == 'sedzia'
+    assert wynik['cechy']['etap'] == 1
+    assert wynik['cechy']['etap2_powod'] == 'sedzia'
+    assert wynik['cechy']['etap2_strona'] == 'kupujacy'
+    assert wynik['cechy']['etap2_sedzia_ok'] is False
+
+
+def test_odmowa_drugiej_proby_ponizej_progu_tez_zostawia_slad(monkeypatch, atrapa_pipeline, chunk):
+    atrapa_pipeline.ustaw_etap('sprzedajacy', chunki=[chunk('sprzedaz', score=0.0)],
+                               tekst='Odpowiedz sprzedazowa.', sedzia=False)
+    atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=-10.0)],
+                               tekst='Odpowiedz kupujacego.', sedzia=True)
+
+    wynik = pipeline.run('jakie limity allegro pay', strona='sprzedajacy',
+                         bez_korekty=True, sedzia=True, lang='pl', warstwa_ogolna=False)
+
+    assert wynik['cechy']['etap2_powod'] == 'druga_sekcja_prog'
+    assert wynik['cechy']['etap2_rerank_top1'] == -10.0

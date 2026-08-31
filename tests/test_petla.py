@@ -208,3 +208,48 @@ def test_cli_na_pustej_kolejce_konczy_sie_komunikatem_a_nie_wyjatkiem(tmp_path, 
     assert kod == 0
     assert 'Brak zgloszen do przegladu' in capsys.readouterr().out
     assert not (tmp_path / 'petla' / petla.NAZWA_DO_PRZEGLADU).exists()
+
+
+def test_cli_nie_nadpisuje_pliku_bez_logu_z_wypelniona_decyzja(tmp_path):
+    katalog = tmp_path / 'petla'
+    katalog.mkdir()
+    plik = katalog / petla.NAZWA_BEZ_LOGU
+    plik.write_text(json.dumps([
+        {'zgloszenie': 'AAA', 'decyzja': 'alias', 'url': 'https://allegro.pl/pomoc/x'},
+    ]), encoding='utf-8')
+
+    wynik = {'do_przegladu': [{'zgloszenie': 'BBB'}], 'bez_logu': [], 'strony_nieznane': []}
+    with pytest.raises(SystemExit):
+        petla.zapisz_wynik(wynik, katalog)
+
+    zapisane = json.loads(plik.read_text(encoding='utf-8'))
+    assert zapisane[0]['decyzja'] == 'alias'
+
+
+def test_przebieg_bez_pozycji_bez_logu_kasuje_nieaktualny_plik(tmp_path):
+    katalog = tmp_path / 'petla'
+    katalog.mkdir()
+    plik = katalog / petla.NAZWA_BEZ_LOGU
+    plik.write_text(json.dumps([{'zgloszenie': 'AAA', 'decyzja': None, 'url': None}]),
+                    encoding='utf-8')
+
+    petla.zapisz_wynik(
+        {'do_przegladu': [{'zgloszenie': 'BBB', 'decyzja': None, 'url': None}],
+         'bez_logu': [], 'strony_nieznane': []}, katalog)
+
+    assert not plik.exists()
+
+
+def test_nowe_nie_wchodza_do_licznika_etykiet_odpowiedzianych():
+    stan = {
+        'AAA': zgloszenie('AAA', etykieta=None, id_zapytania='q1'),
+        'CCC': zgloszenie('CCC', status='nowe', etykieta=None, tresc=None, id_zapytania='q3'),
+        'DDD': zgloszenie('DDD', status='nowe', etykieta=None, tresc=None, id_zapytania='q4'),
+    }
+    wynik = petla.klasyfikuj(stan, [wpis_logu('q1'), wpis_logu('q3'), wpis_logu('q4')],
+                             uwzglednij_nowe=True)
+
+    assert wynik['podsumowanie']['etykiety_odpowiedziano'] == {'brak_etykiety': 1}
+    assert wynik['podsumowanie']['wymaga_decyzji_czlowieka'] == 1
+    assert wynik['podsumowanie']['nowe_wlaczone'] == 2
+    assert len(wynik['do_przegladu']) == 3
