@@ -121,6 +121,27 @@ def test_odrzucone_i_nowe_sa_liczone_ale_nie_wchodza_do_przegladu():
         'nowe': 1, 'odpowiedziano': 1, 'odrzucone': 1, 'inne': 0}
 
 
+def test_uwzglednij_nowe_wpuszcza_zgloszenie_bez_odpowiedzi_operatora():
+    stan = {
+        'AAA': zgloszenie('AAA', id_zapytania='q1'),
+        'CCC': zgloszenie('CCC', status='nowe', etykieta=None, tresc=None, id_zapytania='q3'),
+        'DDD': zgloszenie('DDD', status='odrzucone', etykieta='spam'),
+    }
+    wynik = petla.klasyfikuj(stan, [wpis_logu('q1'), wpis_logu('q3')], uwzglednij_nowe=True)
+
+    identy = sorted(w['zgloszenie'] for w in wynik['do_przegladu'])
+    assert identy == ['AAA', 'CCC']
+    nowy = next(w for w in wynik['do_przegladu'] if w['zgloszenie'] == 'CCC')
+    assert nowy['etykieta'] is None
+    assert nowy['odpowiedz_operatora'] is None
+    assert nowy['decyzja'] is None
+    assert set(nowy) == {
+        'zgloszenie', 'pytanie', 'lang', 'agent', 'etykieta', 'odpowiedz_operatora',
+        'propozycja_url', 'rerank_top1', 'decyzja', 'url'}
+    assert wynik['podsumowanie']['nowe_wlaczone'] == 1
+    assert [w['zgloszenie'] for w in wynik['nowe_wlaczone']] == ['CCC']
+
+
 def test_cli_nie_nadpisuje_pliku_z_wypelniona_decyzja(tmp_path):
     katalog = tmp_path / 'petla'
     katalog.mkdir()
@@ -185,5 +206,5 @@ def test_cli_na_pustej_kolejce_konczy_sie_komunikatem_a_nie_wyjatkiem(tmp_path, 
     kod = petla.main(['--log', str(tmp_path / 'brak.jsonl'), '--wyjscie', str(tmp_path / 'petla')])
 
     assert kod == 0
-    assert 'Brak odpowiedzianych zgloszen' in capsys.readouterr().out
+    assert 'Brak zgloszen do przegladu' in capsys.readouterr().out
     assert not (tmp_path / 'petla' / petla.NAZWA_DO_PRZEGLADU).exists()

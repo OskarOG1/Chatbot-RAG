@@ -93,8 +93,32 @@ def test_agent_sprzedaz_i_lang_en_trafia_do_wlasciwego_katalogu(tmp_path):
     dociagnij.wykonaj(url, 'sprzedaz', 'en', rag_dir=tmp_path, pobieracz=pobierz)
 
     assert (tmp_path / 'docs_sprzedaz_en' / 'sprzedaz' / 'jak-wystawic-oferte-xy99ZZ.md').exists()
-    links = json.loads((tmp_path / 'links.json').read_text(encoding='utf-8'))
+    links = json.loads((tmp_path / 'links_sprzedaz_en.json').read_text(encoding='utf-8'))
     assert links == {'sprzedaz': [url]}
+
+
+def test_adres_help_allegro_sell_jest_akceptowany_i_trafia_do_links_sprzedaz(tmp_path):
+    url = 'https://help.allegro.com/pl/sell/a/jak-zlozyc-polecenie-zaplaty-AbC123'
+    pobierz = pobieracz_zwraca(artykul_atrapa(url=url, agent='sprzedaz'))
+
+    kod = dociagnij.wykonaj(url, 'sprzedaz', 'pl', rag_dir=tmp_path, pobieracz=pobierz)
+
+    assert kod == 0
+    assert (tmp_path / 'docs_sprzedaz' / 'sprzedaz' / 'jak-zlozyc-polecenie-zaplaty-AbC123.md').exists()
+    links = json.loads((tmp_path / 'links_sprzedaz_pl.json').read_text(encoding='utf-8'))
+    assert links == {'sprzedaz': [url]}
+
+
+@pytest.mark.parametrize('zly_url', [
+    'https://help.allegro.com/pl/sell/c/kategoria-nie-artykul',
+    'https://help.allegro.com/pl/buy/a/to-kupujacy-nie-sprzedaz',
+    'https://help.allegro.com/de/sell/a/zly-jezyk-AbC1',
+    'https://help.allegro.com/pl/sell/a/artykul/nadmiar',
+])
+def test_zle_odmiany_help_allegro_sa_odrzucane(tmp_path, zly_url):
+    with pytest.raises(SystemExit):
+        dociagnij.wykonaj(zly_url, 'sprzedaz', 'pl', rag_dir=tmp_path,
+                          pobieracz=pobieracz_zwraca(artykul_atrapa()))
 
 
 def test_powtorne_uruchomienie_nie_dubluje_linku_i_zglasza_nadpisanie(tmp_path, capsys):

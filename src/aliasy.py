@@ -9,6 +9,12 @@ ALIASY = {
         'Nieautoryzowany dostęp do konta, utrata dostępu do konta, obca osoba na koncie, '
         'nieznane zamówienia na koncie.'
     ),
+    'automatic-collection-of-fees-for-our-services-from-the-funds-you-have-from-sales': (
+        'Polecenie zapłaty za faktury i opłaty Allegro. Jak złożyć nowe polecenie zapłaty, '
+        'jak włączyć automatyczną zapłatę prowizji i opłat za sprzedaż. Automatyczne '
+        'rozliczanie z Allegro, zgoda na pobieranie należności z pieniędzy ze sprzedaży, '
+        'obciążanie bieżącego salda w zakładce Rozliczenia z Allegro.'
+    ),
 }
 
 
