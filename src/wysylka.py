@@ -1,11 +1,31 @@
 import os
 import secrets
+import sys
 
 import httpx
 
 from lang_config import LANG
 
 RESEND_URL = 'https://api.resend.com/emails'
+
+
+def powod_resend(odpowiedz) -> str:
+    try:
+        dane = odpowiedz.json()
+    except Exception:
+        return (getattr(odpowiedz, 'text', '') or '')[:200]
+    if isinstance(dane, dict):
+        opis = ' '.join(str(dane[k]) for k in ('name', 'message') if dane.get(k))
+        return opis[:200] if opis else str(dane)[:200]
+    return str(dane)[:200]
+
+
+def sprawdz_wysylke(odpowiedz, do_kogo: str) -> None:
+    if odpowiedz.status_code < 400:
+        return
+    print(f'UWAGA: Resend odrzucil wiadomosc ({do_kogo}): HTTP {odpowiedz.status_code} '
+          f'{powod_resend(odpowiedz)}', file=sys.stderr, flush=True)
+    odpowiedz.raise_for_status()
 
 
 class WysylkaCzesciowaError(Exception):
@@ -49,10 +69,10 @@ def wyslij_potwierdzenie(email: str, kategoria: str | None, temat: str, tresc: s
 
     with httpx.Client(timeout=10.0) as klient:
         odpowiedz = klient.post(RESEND_URL, headers=naglowki, json=do_sprzedawcy)
-        odpowiedz.raise_for_status()
+        sprawdz_wysylke(odpowiedz, f'kopia dla sprzedawcy, ticket {ticket}')
         try:
             odpowiedz = klient.post(RESEND_URL, headers=naglowki, json=do_klienta)
-            odpowiedz.raise_for_status()
+            sprawdz_wysylke(odpowiedz, f'potwierdzenie dla klienta, ticket {ticket}')
         except httpx.HTTPError as e:
             raise WysylkaCzesciowaError(ticket, e) from e
 
@@ -85,6 +105,6 @@ def wyslij_odpowiedz_operatora(email: str, pytanie: str, odpowiedz: str, zglosze
 
     with httpx.Client(timeout=10.0) as klient:
         wynik = klient.post(RESEND_URL, headers=naglowki, json=wiadomosc)
-        wynik.raise_for_status()
+        sprawdz_wysylke(wynik, f'odpowiedz na zgloszenie {zgloszenie}')
 
     return ticket

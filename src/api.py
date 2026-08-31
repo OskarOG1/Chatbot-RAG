@@ -9,7 +9,8 @@ from rankings import get_reranker, get_bm25, get_faiss
 from spell import correct, detect_lang, load_dictionary
 from guards import MAX_ZNAKI, normalizuj
 from lang_config import LANG, DOMYSLNY_JEZYK
-from wysylka import wyslij_potwierdzenie, wyslij_odpowiedz_operatora, WysylkaCzesciowaError
+from wysylka import (wyslij_potwierdzenie, wyslij_odpowiedz_operatora, WysylkaCzesciowaError,
+                     powod_resend)
 from collections import deque, OrderedDict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -840,6 +841,10 @@ def admin_kolejka_odpowiedz(request: OdpowiedzKolejkiZadanie, http_request: Requ
                                                 request.zgloszenie, lang=lang)
         except RuntimeError as e:
             raise HTTPException(status_code=503, detail=str(e))
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(status_code=502,
+                                detail=f"{LANG[lang]['bledy']['wysylka_nieudana']} "
+                                       f"Resend: {powod_resend(e.response)}")
         except httpx.HTTPError:
             raise HTTPException(status_code=502, detail=LANG[lang]['bledy']['wysylka_nieudana'])
     try:
