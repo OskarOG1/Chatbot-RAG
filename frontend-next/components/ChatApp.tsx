@@ -644,6 +644,13 @@ export default function ChatApp() {
       active: x.id === activeId,
     }));
 
+  const podpowiedzi =
+    active.podpowiedzi.length > 0
+      ? active.podpowiedzi
+      : strona === 'sprzedajacy'
+        ? t.suggestionsBySide.sprzedajacy
+        : t.suggestionsByAgent[active.ostatniAgent ?? ''] ?? t.suggestionsBySide.kupujacy;
+
   const panelOtwarty = active.panelOpen && active.panel !== null;
   const pokazTyping = trwaWysylka;
   const wysylkiWInnychWatkach = threads.filter((x) => x.id !== activeId && x.panel?.odliczanieDo != null);
@@ -772,11 +779,12 @@ export default function ChatApp() {
                   {t.openDraft}
                 </button>
               )}
-              <Suggestions items={active.podpowiedzi.length > 0 ? active.podpowiedzi : t.suggestionsByAgent[active.ostatniAgent ?? ''] ?? t.suggestionsByAgent.default} onPick={setDraft} />
+              <Suggestions items={podpowiedzi} onPick={setDraft} />
               <Composer
                 value={draft}
                 placeholder={t.placeholder}
                 hint={strona === 'kupujacy' ? t.hintBuying : t.hintSelling}
+                enterHint={t.enterHint}
                 sendLabel={t.sendShort}
                 disabled={pokazTyping}
                 strona={strona}

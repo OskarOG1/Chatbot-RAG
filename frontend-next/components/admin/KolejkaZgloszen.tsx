@@ -9,6 +9,7 @@ import {
   NAZWY_SEKCJI,
   NAZWY_STATUSOW_ZGLOSZEN,
   NAZWY_ETYKIET_ZGLOSZEN,
+  ETYKIETY_DIAGNOZ,
   type Kolejka,
   type StatusZgloszenia,
   type EtykietaZgloszenia,
@@ -97,7 +98,7 @@ export default function KolejkaZgloszen({ dni }: Props) {
         </h2>
         <p style={{ fontFamily: BODY, fontSize: 13, color: th.ink2, marginTop: 10, maxWidth: 560 }}>
           Wpisz token administratora, żeby zobaczyć zgłoszenia. Bez tokenu lista jest niedostępna, a nie
-          pusta.
+          pusta. Trafiają tu pytania, na które asystent nie odpowiedział, a użytkownik poprosił o kontakt.
         </p>
         <form
           onSubmit={(e) => {
@@ -270,11 +271,11 @@ function Wiersz({ z, rozwiniete, onToggle, onZapisano, token }: WierszProps) {
           <span style={{ fontFamily: BODY, fontSize: 12, color: th.ink2, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <span>{NAZWY_POWODOW[z.powod ?? ''] ?? z.powod ?? 'brak powodu'}</span>
             <span>·</span>
-            <span>{z.sekcja ? NAZWY_SEKCJI[z.sekcja] ?? z.sekcja : 'brak sekcji'}</span>
+            <span>{z.sekcja ? NAZWY_SEKCJI[z.sekcja] ?? z.sekcja : 'brak tematu'}</span>
             <span>·</span>
-            <span>rerank {z.cechy?.rerank_top1 ?? 'brak'}</span>
+            <span>dopasowanie artykułu {z.cechy?.rerank_top1 ?? 'brak'}</span>
             <span>·</span>
-            <span>pokrycie {z.cechy?.pokrycie ?? 'brak'}</span>
+            <span>oparcie w źródłach {z.cechy?.pokrycie ?? 'brak'}</span>
           </span>
         </span>
         <span
@@ -296,16 +297,16 @@ function Wiersz({ z, rozwiniete, onToggle, onZapisano, token }: WierszProps) {
       {rozwiniete ? (
         <div style={{ padding: '0 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 14px', fontFamily: BODY, fontSize: 12.5 }}>
-            <dt style={{ color: th.ink3 }}>Numer</dt>
+            <dt style={{ color: th.ink3 }}>Numer zgłoszenia</dt>
             <dd style={{ margin: 0, color: th.ink2 }}>{z.zgloszenie}</dd>
             <dt style={{ color: th.ink3 }}>Zgłoszono</dt>
             <dd style={{ margin: 0, color: th.ink2 }}>{czasCzytelny(z.czas)}</dd>
             <dt style={{ color: th.ink3 }}>Adres zwrotny</dt>
             <dd style={{ margin: 0, color: th.ink2 }}>{z.email ?? 'brak'}</dd>
-            <dt style={{ color: th.ink3 }}>Źródło top1</dt>
+            <dt style={{ color: th.ink3 }}>Najlepiej dopasowany artykuł</dt>
             <dd style={{ margin: 0, color: th.ink2 }}>{z.cechy?.zrodlo_top1 ?? 'brak'}</dd>
-            <dt style={{ color: th.ink3 }}>Diagnoza</dt>
-            <dd style={{ margin: 0, color: th.ink2 }}>{z.diagnoza}</dd>
+            <dt style={{ color: th.ink3 }}>Co zawiodło</dt>
+            <dd style={{ margin: 0, color: th.ink2 }}>{ETYKIETY_DIAGNOZ[z.diagnoza] ?? z.diagnoza}</dd>
             {z.tresc ? (
               <>
                 <dt style={{ color: th.ink3 }}>Poprzednia odpowiedź</dt>

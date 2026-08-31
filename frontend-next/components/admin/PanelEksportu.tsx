@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import {
   ETYKIETY_KOLUMN,
+  etykieta,
   parametryFiltrow,
   type Filtry,
   type Kolumny,
@@ -55,7 +56,8 @@ export default function PanelEksportu({ filtry, kolumny }: { filtry: Filtry; kol
         Eksport danych
       </h2>
       <p style={{ margin: 0, fontSize: 12.5, color: th.ink2 }}>
-        Zaznacz kolumny, które mają trafić do pliku. Filtry z góry strony obowiązują także tutaj.
+        Zaznacz kolumny, które mają trafić do pliku. Wybrany u góry strony okres i pozostałe filtry
+        obowiązują także tutaj.
       </p>
       <div style={{ display: 'flex', gap: 8 }}>
         <button
@@ -82,7 +84,7 @@ export default function PanelEksportu({ filtry, kolumny }: { filtry: Filtry; kol
               onChange={() => przelacz(kolumna)}
               style={{ accentColor: th.accent }}
             />
-            {ETYKIETY_KOLUMN[kolumna]}
+            {etykieta(ETYKIETY_KOLUMN, kolumna)}
           </label>
         ))}
       </div>
