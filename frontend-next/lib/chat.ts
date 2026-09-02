@@ -130,6 +130,7 @@ interface Teksty {
   send: string;
   sending: string;
   toastCopied: string;
+  storageBlad: string;
   toastSent: (ticket: string) => string;
   toastSendConfigError: string;
   toastSendError: string;
@@ -229,6 +230,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     send: 'Wyślij wiadomość',
     sending: 'Wysyłanie…',
     toastCopied: 'Skopiowano do schowka',
+    storageBlad: 'Nie udało się zapisać rozmowy w przeglądarce, brak miejsca.',
     toastSent: (ticket) => `Wysłano, numer zgłoszenia: ${ticket}`,
     toastSendConfigError: 'Wysyłka demo nie jest skonfigurowana, spróbuj ponownie później.',
     toastSendError: 'Wysyłka się nie powiodła, spróbuj ponownie.',
@@ -318,6 +320,7 @@ export const TEKSTY: Record<Lang, Teksty> = {
     send: 'Send message',
     sending: 'Sending…',
     toastCopied: 'Copied to clipboard',
+    storageBlad: "Couldn't save the conversation in the browser, storage is full.",
     toastSent: (ticket) => `Sent, your ticket number is ${ticket}`,
     toastSendConfigError: 'Demo sending isn\'t configured right now, please try again later.',
     toastSendError: 'Sending failed, please try again.',

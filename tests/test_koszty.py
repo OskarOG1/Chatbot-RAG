@@ -1,6 +1,8 @@
 import contextvars
+import json
 import threading
 
+import api
 import koszty
 
 
@@ -140,3 +142,27 @@ def test_zacznij_w_watku_nie_wycieka():
     podsumowanie = koszty.podsumowanie()
     assert podsumowanie['tokeny_we'] == 1
     assert podsumowanie['tokeny_wy'] == 1
+
+
+def ostatni_wpis_logu(sciezka):
+    linie = sciezka.read_text(encoding='utf-8').strip().splitlines()
+    return json.loads(linie[-1])
+
+
+def test_loguj_zapytanie_zapisuje_liczbe_wywolan_dla_trafienia_w_cache(tmp_path, monkeypatch):
+    monkeypatch.setattr(api, 'LOG_ANALYTICS', tmp_path / 'log_analytics_test.jsonl')
+    api.loguj_zapytanie('pl', {'agent': 'konto', 'answer': 'x'}, 0.01, True,
+                        'jakies pytanie', 'kupujacy', None)
+    wpis = ostatni_wpis_logu(api.LOG_ANALYTICS)
+    assert wpis['wywolania'] == 0
+
+
+def test_loguj_zapytanie_zapisuje_liczbe_wywolan_dla_zadania_policzonego(tmp_path, monkeypatch):
+    monkeypatch.setattr(api, 'LOG_ANALYTICS', tmp_path / 'log_analytics_test.jsonl')
+    koszty.zacznij()
+    koszty.dodaj('m', 10, 5)
+    koszty.dodaj('m', 10, 5)
+    api.loguj_zapytanie('pl', {'agent': 'konto', 'answer': 'x'}, 0.01, False,
+                        'jakies pytanie', 'kupujacy', koszty.podsumowanie())
+    wpis = ostatni_wpis_logu(api.LOG_ANALYTICS)
+    assert wpis['wywolania'] == 2

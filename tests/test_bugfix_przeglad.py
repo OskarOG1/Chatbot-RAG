@@ -13,6 +13,8 @@ def test_ranking_faiss_odrzuca_indeksy_minus_jeden(monkeypatch):
     import rankings
 
     class FalszywyIndeks:
+        ntotal = 3
+
         def search(self, query_emb, k):
             idx = np.array([[2, -1, 0, -1, 1]])
             dist = np.zeros((1, k))

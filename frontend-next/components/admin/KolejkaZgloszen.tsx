@@ -76,6 +76,21 @@ export default function KolejkaZgloszen({ dni }: Props) {
 
   useEffect(() => wczytaj(), [wczytaj, odswiez]);
 
+  const odswiezPoZapisie = useCallback(async () => {
+    if (!token) {
+      setOdswiez((n) => n + 1);
+      return;
+    }
+    try {
+      const wynik = await pobierzKolejke(token, dni, status);
+      setDane(wynik);
+    } catch (e) {
+      setDane(null);
+      setBlad(e instanceof Error ? e.message : 'Nie udało się pobrać kolejki');
+    }
+    setOdswiez((n) => n + 1);
+  }, [token, dni, status]);
+
   const ramka = {
     background: th.surface,
     border: `1px solid ${th.line}`,
@@ -191,7 +206,7 @@ export default function KolejkaZgloszen({ dni }: Props) {
               z={z}
               rozwiniete={rozwiniete === z.zgloszenie}
               onToggle={() => setRozwiniete(rozwiniete === z.zgloszenie ? null : z.zgloszenie)}
-              onZapisano={() => setOdswiez((n) => n + 1)}
+              onZapisano={odswiezPoZapisie}
               token={token}
             />
           ))}
@@ -205,7 +220,7 @@ interface WierszProps {
   z: ZgloszenieKolejki;
   rozwiniete: boolean;
   onToggle: () => void;
-  onZapisano: () => void;
+  onZapisano: () => Promise<void>;
   token: string;
 }
 
@@ -238,7 +253,7 @@ function Wiersz({ z, rozwiniete, onToggle, onZapisano, token }: WierszProps) {
           ? `Wysłano, numer wiadomości ${wynik.ticket ?? 'brak'}.`
           : 'Zgłoszenie odrzucone.',
       );
-      onZapisano();
+      await onZapisano();
     } catch (e) {
       setKomunikat(e instanceof Error ? e.message : 'Nie udało się zapisać.');
     } finally {

@@ -27,6 +27,7 @@ def czy_kontekst_odpowiada(query: str, chunks: list, bielik_model: str | None = 
               flush=True)
         if stan is not None:
             stan['sedzia_pominiety'] = True
+            stan['sedzia_pominiety_przyczyna'] = 'model'
         return True
     tekst = re.sub(r'<\|.*?\|>', '', odp.choices[0].message.content).strip().upper()
     return not tekst.startswith(p['nie_marker'])

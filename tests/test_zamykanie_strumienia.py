@@ -145,3 +145,88 @@ def test_pelny_przebieg_nie_zostawia_polaczenia(stan_czysty, serwer_atrapy):
     assert zdarzenia[-1]['typ'] == 'koniec'
     assert polaczenia_do_atrapy(serwer_atrapy) == []
     assert koszty.podsumowanie()['wywolania'] == 1
+
+
+class FakeHeaders(dict):
+    def get(self, k, default=None):
+        return dict.get(self, k, default)
+
+
+class FakeClient:
+    host = '127.0.0.1'
+
+
+class FakeHttpRequest:
+    headers = FakeHeaders()
+    client = FakeClient()
+
+
+@pytest.fixture
+def api_stan_czysty(tmp_path, monkeypatch):
+    import api
+    import pipeline
+    from collections import OrderedDict, deque
+
+    monkeypatch.setattr(api, '_zapytania', deque())
+    monkeypatch.setattr(api, '_zapytania_ip', OrderedDict())
+    monkeypatch.setattr(api, '_cache', OrderedDict())
+    monkeypatch.setattr(api, 'LOG_ANALYTICS', tmp_path / 'log_analytics_test.jsonl')
+    monkeypatch.setattr(pipeline, 'LOG_TRUDNE', tmp_path / 'trudne_test.jsonl')
+    monkeypatch.setattr(api, '_bramki_pominiete_historia', deque(maxlen=api.SYGNAL_POMINIETE_OKNO))
+    monkeypatch.setattr(api, '_sygnal_bramki_pominiete_aktywny', False)
+    return api
+
+
+def uruchom_gen(api, monkeypatch, run_stream_atrapa):
+    monkeypatch.setattr(api, 'run_stream', run_stream_atrapa)
+    przechwycone = {}
+    oryginalny = api.StreamingResponse
+
+    def przechwyc(content, **kwargs):
+        przechwycone['gen'] = content
+        return oryginalny(content, **kwargs)
+
+    monkeypatch.setattr(api, 'StreamingResponse', przechwyc)
+    req = api.ChatRequest(message='pytanie testowe')
+    api.chat_stream(req, FakeHttpRequest())
+    return przechwycone['gen']
+
+
+def wpisy_z_logu(api):
+    if not api.LOG_ANALYTICS.exists():
+        return []
+    linie = api.LOG_ANALYTICS.read_text(encoding='utf-8').strip().splitlines()
+    return [json.loads(wiersz) for wiersz in linie if wiersz]
+
+
+def test_strumien_dokonczony_daje_dokladnie_jeden_wpis(api_stan_czysty, monkeypatch):
+    api = api_stan_czysty
+
+    def run_stream_dokonczony(message, **kwargs):
+        yield {'typ': 'wynik', 'dane': {'agent': 'konto', 'answer': 'X', 'sources': [],
+                                        'citations': [], 'tryb': 'rag'}}
+
+    gen = uruchom_gen(api, monkeypatch, run_stream_dokonczony)
+    list(gen)
+
+    wpisy = wpisy_z_logu(api)
+    assert len(wpisy) == 1
+    assert wpisy[0]['wynik'] == 'odpowiedz'
+    assert wpisy[0]['powod'] == 'odpowiedz'
+
+
+def test_strumien_przerwany_daje_dokladnie_jeden_wpis_z_powodem_przerwania(api_stan_czysty, monkeypatch):
+    api = api_stan_czysty
+
+    def run_stream_przerwany(message, **kwargs):
+        while True:
+            yield {'typ': 'token', 'tekst': 'slowo '}
+
+    gen = uruchom_gen(api, monkeypatch, run_stream_przerwany)
+    next(gen)
+    gen.close()
+
+    wpisy = wpisy_z_logu(api)
+    assert len(wpisy) == 1
+    assert wpisy[0]['wynik'] == 'przerwane'
+    assert wpisy[0]['powod'] == 'przerwany_strumien'

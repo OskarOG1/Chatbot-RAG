@@ -305,12 +305,8 @@ export const LEKARSTWA_DIAGNOZ: Record<string, string> = {
   brak_sladu: 'ocena sprzed wprowadzenia identyfikatorów',
 };
 
-export async function pobierzPrzypadki(dni: number | null): Promise<Przypadki> {
-  const params = new URLSearchParams();
-  if (dni !== null) {
-    params.set('dni', String(dni));
-  }
-  const res = await fetch(`/api/admin/oceny?${params.toString()}`, { cache: 'no-store' });
+export async function pobierzPrzypadki(filtry: Filtry): Promise<Przypadki> {
+  const res = await fetch(`/api/admin/oceny?${parametryFiltrow(filtry)}`, { cache: 'no-store' });
   if (!res.ok) {
     throw new Error(`Błąd pobierania ocen: ${res.status}`);
   }

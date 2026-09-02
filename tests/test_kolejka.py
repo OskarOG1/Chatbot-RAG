@@ -122,10 +122,10 @@ def test_stan_kolejki_od_najnowszego(kolejka_w_tmp):
     assert kolejnosc == ['33333333', '44444444', '22222222']
 
 
-def test_zapisz_zgloszenie_zwraca_osiem_znakow_hex(kolejka_w_tmp):
+def test_zapisz_zgloszenie_zwraca_dwanascie_znakow_hex(kolejka_w_tmp):
     ident = kolejka.zapisz_zgloszenie('c43ecf3bdcc4f7ab', 'pl', 'kupujacy', 'kupujacy',
                                       'sedzia', 'jak zlozyc polecenie zaplaty', 'jan@example.com')
-    assert len(ident) == 8
+    assert len(ident) == 12
     assert all(z in '0123456789ABCDEF' for z in ident)
     stan = kolejka.zgloszenie_po_id(ident)
     assert stan['status'] == 'nowe'
@@ -186,7 +186,7 @@ def test_zgloszenie_powod_kwalifikujacy_zwraca_identyfikator(client, powod):
     dane = odp.json()
     assert dane.keys() == {'zgloszenie'}
     ident = dane['zgloszenie']
-    assert len(ident) == 8
+    assert len(ident) == 12
     assert all(z in '0123456789ABCDEF' for z in ident)
     assert kolejka.zgloszenie_po_id(ident)['status'] == 'nowe'
 
@@ -544,3 +544,36 @@ def test_lista_powodow_front_zgodna_z_backendem():
     assert dopasowanie, 'nie znaleziono literalnej listy POWODY_DO_CZLOWIEKA w chat.ts'
     powody_front = set(re.findall(r"'([^']+)'", dopasowanie.group(1)))
     assert powody_front == set(kolejka.POWODY_DO_CZLOWIEKA)
+
+
+@pytest.mark.parametrize('ident,oczekiwane', [
+    ('A1B2C3D4', True),
+    ('A1B2C3D4E5F6', True),
+    ('A1B2C3D4E', False),
+    ('a1b2c3d4', False),
+])
+def test_model_odpowiedzi_kolejki_przyjmuje_obie_dlugosci(ident, oczekiwane):
+    if oczekiwane:
+        model = api.OdpowiedzKolejkiZadanie(zgloszenie=ident, status='odpowiedziano')
+        assert model.zgloszenie == ident
+    else:
+        with pytest.raises(Exception):
+            api.OdpowiedzKolejkiZadanie(zgloszenie=ident, status='odpowiedziano')
+
+
+def test_zapisz_zgloszenie_przy_kolizji_identyfikatora_nie_nadpisuje_pierwszego(monkeypatch, kolejka_w_tmp):
+    stale = ['AAAAAAAAAAAA', 'AAAAAAAAAAAA', 'BBBBBBBBBBBB']
+    monkeypatch.setattr(kolejka, 'nowy_identyfikator', lambda: stale.pop(0))
+
+    pierwszy = kolejka.zapisz_zgloszenie('c43ecf3bdcc4f7ab', 'pl', 'kupujacy', 'kupujacy',
+                                         'sedzia', 'pierwsze pytanie', 'jan@example.com')
+    drugi = kolejka.zapisz_zgloszenie('9999999999999999', 'pl', 'kupujacy', 'kupujacy',
+                                      'sedzia', 'drugie pytanie', 'ola@example.com')
+
+    assert pierwszy == 'AAAAAAAAAAAA'
+    assert drugi != pierwszy
+
+    stan = kolejka.zloz_stan()
+    assert stan[pierwszy]['pytanie'] == 'pierwsze pytanie'
+    assert stan[pierwszy]['email'] == 'jan@example.com'
+    assert stan[drugi]['pytanie'] == 'drugie pytanie'

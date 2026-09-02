@@ -55,6 +55,7 @@ const STORAGE_KEY = 'allegro-rag-threads-v1';
 const LANG_KEY = 'allegro-rag-lang-v1';
 const STRONA_KEY = 'allegro-rag-strona-v1';
 const VERSION = 1;
+const MAKS_WATKOW_W_ZAPISIE = 30;
 
 export function wczytajJezyk(): Lang | null {
   try {
@@ -153,11 +154,18 @@ export function podmienPowitanie(threads: Thread[], lang: Lang): Thread[] {
   });
 }
 
-export function zapiszStan(threads: Thread[], activeId: string): void {
+export function zapiszStan(threads: Thread[], activeId: string): boolean {
   try {
-    const dane: Zapis = { version: VERSION, activeId, threads };
+    const posortowane = [...threads].sort((a, b) => b.updatedAt - a.updatedAt);
+    const przyciete = posortowane.slice(0, MAKS_WATKOW_W_ZAPISIE);
+    const zachowanaAktywna =
+      przyciete.some((th) => th.id === activeId) || threads.length === 0
+        ? activeId
+        : (przyciete[0]?.id ?? activeId);
+    const dane: Zapis = { version: VERSION, activeId: zachowanaAktywna, threads: przyciete };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(dane));
+    return true;
   } catch {
-    return;
+    return false;
   }
 }

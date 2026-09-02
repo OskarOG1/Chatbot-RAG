@@ -157,7 +157,9 @@ export default function ChatApp() {
   const th = THEMES[themeName];
 
   useEffect(() => {
-    zapiszStan(threads, activeId);
+    if (!zapiszStan(threads, activeId)) {
+      pokazToast(t.storageBlad);
+    }
   }, [threads, activeId]);
 
   useEffect(() => {
@@ -312,8 +314,12 @@ export default function ChatApp() {
           }
         }
       }
-    } catch {
-      bladTekst = t.connectError;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        bladTekst = null;
+      } else {
+        bladTekst = t.connectError;
+      }
     }
 
     return { dane, bladTekst };
@@ -415,7 +421,7 @@ export default function ChatApp() {
         panelOpen: true,
         messages: [...x.messages, { id: idPanelu, role: 'assistant', content: t.panelOpened }],
       }));
-    } else {
+    } else if (dane !== null || bladTekst !== null) {
       const idOdpowiedzi = nextMsgId();
       updateThread(tid, (x) => {
         const poprzednia = x.messages[x.messages.length - 1];
