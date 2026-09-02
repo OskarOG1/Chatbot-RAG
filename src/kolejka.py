@@ -18,8 +18,11 @@ _zamek = threading.Lock()
 _cache_kolejki: dict = {'stempel': None, 'wiersze': []}
 
 
+PROBY_IDENTYFIKATORA = 10
+
+
 def nowy_identyfikator() -> str:
-    return secrets.token_hex(4).upper()
+    return secrets.token_hex(6).upper()
 
 
 def dopisz_wiersz(wpis: dict) -> None:
@@ -30,7 +33,15 @@ def dopisz_wiersz(wpis: dict) -> None:
 
 def zapisz_zgloszenie(id_zapytania: str, lang: str, strona: str, sekcja: str | None,
                       powod: str, pytanie: str, email: str) -> str:
+    istniejace = zloz_stan()
     zgloszenie = nowy_identyfikator()
+    for _ in range(PROBY_IDENTYFIKATORA - 1):
+        if zgloszenie not in istniejace:
+            break
+        zgloszenie = nowy_identyfikator()
+    else:
+        if zgloszenie in istniejace:
+            raise RuntimeError('nie udalo sie wylosowac wolnego identyfikatora zgloszenia')
     dopisz_wiersz({
         'czas': datetime.now(timezone.utc).isoformat(),
         'typ': 'zgloszenie',

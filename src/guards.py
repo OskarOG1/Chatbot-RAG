@@ -6,7 +6,15 @@ from lang_config import LANG
 MIN_ZNAKI = 3
 MAX_ZNAKI = 500
 
-LEET = str.maketrans({'0': 'o', '1': 'l', '3': 'e', '4': 'a', '5': 's', '@': 'a', '$': 's'})
+LEET = str.maketrans({'0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '@': 'a', '$': 's'})
+
+ZNAKI_FORMATUJACE = ('​', '‌', '‍', '﻿')
+
+HOMOGLIFY_CYRYLICKIE = str.maketrans({
+    'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c',
+    'у': 'y', 'х': 'x', 'А': 'A', 'Е': 'E', 'О': 'O',
+    'Р': 'P', 'С': 'C', 'У': 'Y', 'Х': 'X',
+})
 
 WZORCE_INJEKCJI = tuple(re.compile(wzorzec) for wzorzec in (
     r'\b(?:z)?ignoruj\w*(?:\s+\w+){0,3}\s+(?:instrukcj|polecen|wytyczn|zasad|regul)',
@@ -29,6 +37,9 @@ WZORCE_INJEKCJI = tuple(re.compile(wzorzec) for wzorzec in (
 
 def bez_ogonkow(s: str) -> str:
     s = s.replace('ł', 'l').replace('Ł', 'L')
+    s = s.translate(HOMOGLIFY_CYRYLICKIE)
+    for znak in ZNAKI_FORMATUJACE:
+        s = s.replace(znak, '')
     rozlozone = unicodedata.normalize('NFKD', s)
     return ''.join(z for z in rozlozone if not unicodedata.combining(z))
 

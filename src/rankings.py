@@ -120,6 +120,8 @@ def wczytaj_chunki(agent:str, lang:str='pl') -> list[dict]:
 def ranking_faiss(query_emb, agent:str, chunki: list[dict], lang:str='pl') -> list[int]:
 
   index = get_faiss(agent, lang)
+  assert index.ntotal == len(chunki), \
+      f'niezgodnosc indeksu {agent}{LANG[lang]["suffix"]}: index.ntotal={index.ntotal} != len(chunki)={len(chunki)}'
   _, idx = index.search(query_emb, len(chunki))
 
   return [i for i in idx[0] if i != -1]

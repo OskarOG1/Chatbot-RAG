@@ -2,7 +2,41 @@ import json
 import os
 import time
 
+import numpy as np
+import pytest
+
 import rankings
+
+
+class FaiszAtrapa:
+    def __init__(self, ntotal, wyniki):
+        self.ntotal = ntotal
+        self.wyniki = wyniki
+
+    def search(self, query_emb, k):
+        idx = np.array([self.wyniki[:k]])
+        odl = np.zeros_like(idx, dtype='float32')
+        return odl, idx
+
+
+def test_niezgodna_para_konczy_sie_wyjatkiem_z_obiema_liczbami(monkeypatch):
+    monkeypatch.setattr(rankings, 'get_faiss', lambda agent, lang='pl': FaiszAtrapa(3, [0, 1, 2]))
+    chunki = [{'tekst': f'{i}'} for i in range(4)]
+
+    with pytest.raises(AssertionError) as blad:
+        rankings.ranking_faiss(np.zeros((1, 8), dtype='float32'), 'kupujacy', chunki, 'pl')
+
+    assert '3' in str(blad.value)
+    assert '4' in str(blad.value)
+
+
+def test_zgodna_para_dziala_jak_dotad(monkeypatch):
+    monkeypatch.setattr(rankings, 'get_faiss', lambda agent, lang='pl': FaiszAtrapa(3, [2, 0, 1]))
+    chunki = [{'tekst': f'{i}'} for i in range(3)]
+
+    wynik = rankings.ranking_faiss(np.zeros((1, 8), dtype='float32'), 'kupujacy', chunki, 'pl')
+
+    assert wynik == [2, 0, 1]
 
 
 def test_drugie_wywolanie_bez_zmiany_pliku_nie_czyta_go_ponownie(tmp_path, monkeypatch):

@@ -67,3 +67,11 @@ def test_distance_transpozycja():
 
 def test_distance_identyczne():
     assert distance('konto', 'konto') == 0
+
+
+def test_correct_wiele_roznych_nieznanych_slow_wszystkie_w_nieznane():
+    tokeny = [f'xqzvt{chr(97 + i // 26)}{chr(97 + i % 26)}' for i in range(30)]
+    zapytanie = ' '.join(tokeny)
+    wynik = correct(zapytanie)
+    assert wynik['zmieniono'] is False
+    assert len(wynik['nieznane']) == len(tokeny)

@@ -48,11 +48,22 @@ POWODY_BLISKO_BAZY = ('pokrycie', 'model_nie_wie', 'jawna_odmowa', 'brak_generac
 POWODY_DRUGA_PROBA = ('sedzia', 'pokrycie', 'model_nie_wie')
 KATALOG_RAG = Path(__file__).resolve().parent.parent / 'RAG'
 LOG_TRUDNE = KATALOG_RAG / 'trudne.jsonl'
+PII_WYJATKI_WIELKA_LITERA = (
+    'Allegro', 'Smart', 'Pay', 'Lokalnie', 'Ceny', 'Protect', 'Paczkomat', 'InPost',
+    'Strefa', 'Okazji', 'Moje', 'Kup', 'Teraz', 'Dodaj', 'Koszyka', 'Koszyk',
+    'How', 'Does', 'Is', 'Are', 'Do', 'What', 'Where', 'When', 'Why', 'Who', 'Which', 'Can',
+    'Jak', 'Czy', 'Gdzie', 'Co', 'Kiedy', 'Dlaczego', 'Kto', 'Prosze',
+)
+PII_WYJATEK_ALT = '|'.join(re.escape(w) for w in PII_WYJATKI_WIELKA_LITERA)
 PII_WZORCE = (
     re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+'),
     re.compile(r'(?:\+\d{1,3}[\s-]?)?(?:\d[\s.-]?){9,}'),
     re.compile(r'\b(?=[^\W_]*\d)[^\W_]{4,}\b'),
     re.compile(r'\bhttps?://\S+'),
+    re.compile(r'\b(?!(?:%s)\b)[A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+\s+(?!(?:%s)\b)'
+               r'[A-ZĄĆĘŁŃÓŚŹŻ][a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ]+\b' % (PII_WYJATEK_ALT, PII_WYJATEK_ALT)),
+    re.compile(r'\b(?i:ulic[aąeęy]|adres(?:u|em)?)\s+[A-ZĄĆĘŁŃÓŚŹŻ][\w]*(?:\s+\d+\w*)?'),
+    re.compile(r'\b\d+\s+(?:[A-Z][a-zA-Z]*\s+){1,3}(?i:Street|St|Avenue|Ave|Road|Rd|Lane|Ln|Drive|Dr)\b'),
 )
 
 
@@ -257,6 +268,12 @@ def cytaty_lub_zrodla(cytaty: list[dict], chunks: list[tuple[dict, float]]) -> l
     return [{'n': i, 'url': url, 'tytul': tytuly[url]} for i, url in enumerate(zrodla, 1)]
 
 
+def zadanie_sedziego(stan: dict, zapytanie_ret: str, chunks: list, bielik_model: str | None,
+                     lang: str) -> bool:
+    stan['sedzia_wystartowal'] = True
+    return czy_kontekst_odpowiada(zapytanie_ret, chunks, bielik_model, lang, stan)
+
+
 def probuj_sekcje(zapytanie_ret: str, query_emb, strona: str, query: str, history: list[dict],
                    bielik_model: str | None, sedzia: bool | None, lang: str, cfg: dict,
                    styl: str | None = None):
@@ -308,7 +325,7 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         kontekst_kosztow = copy_context()
         werdykt = EGZEKUTOR_SEDZIEGO.submit(
             kontekst_kosztow.run,
-            czy_kontekst_odpowiada, zapytanie_ret, chunks[:SEDZIA_CHUNKOW], None, lang, stan_sedziego)
+            zadanie_sedziego, stan_sedziego, zapytanie_ret, chunks[:SEDZIA_CHUNKOW], None, lang)
         rejestr['werdykt'] = werdykt
 
     etykieta_sekcji = cfg['nazwy_sekcji'].get(agent_odp, agent_odp)
@@ -328,10 +345,13 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         except TimeoutError:
             print(f'sedzia kontekstu nie zdazyl w {limit} s, przepuszczam dalej', flush=True)
             stan_sedziego['sedzia_pominiety'] = True
+            stan_sedziego.setdefault('sedzia_pominiety_przyczyna',
+                                     'model' if stan_sedziego.get('sedzia_wystartowal') else 'kolejka')
             return True
         except Exception as e:
             print(f'sedzia kontekstu zawiodl ({type(e).__name__}: {e}), przepuszczam dalej', flush=True)
             stan_sedziego['sedzia_pominiety'] = True
+            stan_sedziego.setdefault('sedzia_pominiety_przyczyna', 'model')
             return True
 
     def odmowa_sedziego(przerwano: bool, tokeny_wyslane: int = 0):
@@ -340,6 +360,7 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         cechy['tokeny_stracone'] = licznik_tokenow if przerwano else tokeny_wyslane
         if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
+            cechy['powod_pominiecia_sedziego'] = stan_sedziego.get('sedzia_pominiety_przyczyna', 'model')
         return {'typ': 'rezultat', 'dane': {'powod_odmowy': 'sedzia',
                                              'bramki_pominiete': bramki_pominiete, 'cechy': cechy,
                                              'wyniki': wyniki}}
@@ -393,6 +414,7 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
 
     if werdykt is not None and stan_sedziego.get('sedzia_pominiety'):
         bramki_pominiete.append('sedzia')
+        cechy['powod_pominiecia_sedziego'] = stan_sedziego.get('sedzia_pominiety_przyczyna', 'model')
 
     if odpowiedz is None:
         yield {'typ': 'rezultat', 'dane': {'powod_odmowy': 'brak_generacji',
@@ -492,6 +514,7 @@ def probuj_druga_sekcje(zapytanie_ret: str, query: str, history: list[dict],
             stan_sedziego['sedzia_pominiety'] = True
         if stan_sedziego.get('sedzia_pominiety'):
             bramki_pominiete.append('sedzia')
+            cechy['powod_pominiecia_sedziego'] = 'model'
         if not werdykt:
             cechy['sedzia_ok'] = False
             yield rezultat_odmowy('sedzia')

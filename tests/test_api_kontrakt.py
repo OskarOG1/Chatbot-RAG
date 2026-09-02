@@ -105,13 +105,35 @@ def test_cache_zdatny_prawda_dla_domyslnego_zadania():
     {'history': [{'role': 'user', 'content': 'poprzednie pytanie'}]},
     {'agent_poprzedni': 'konto'},
     {'przepisz': True},
-    {'bielik_model': 'jakis-model'},
+    {'bielik_model': 'google/gemini-2.5-flash'},
     {'sedzia': False},
     {'bez_korekty': True},
 ])
 def test_cache_zdatny_falszywe_dla_kazdego_warunku(pola):
     req = api.ChatRequest(message='jak zmienic haslo', **pola)
     assert api.cache_zdatny(req) is False
+
+
+# biala lista bielik_model
+
+
+def test_bielik_model_brak_pola_przechodzi():
+    req = api.ChatRequest(message='jak zmienic haslo')
+    assert req.bielik_model is None
+
+
+@pytest.mark.parametrize('model', list(api.MODELE_DOZWOLONE))
+def test_bielik_model_z_listy_przechodzi(model):
+    req = api.ChatRequest(message='jak zmienic haslo', bielik_model=model)
+    assert req.bielik_model == model
+
+
+def test_bielik_model_spoza_listy_daje_422(client, monkeypatch):
+    monkeypatch.setattr(api, 'run', lambda *a, **k: (_ for _ in ()).throw(
+        AssertionError('run nie powinno zostac wywolane dla niedozwolonego modelu')))
+    odp = client.post('/chat', json={'message': 'jak zmienic haslo',
+                                     'bielik_model': 'niedozwolony-model'})
+    assert odp.status_code == 422
 
 
 def test_cache_pobierz_trzyma_zamek_do_konca_wiec_rownolegly_zapis_czeka(monkeypatch):

@@ -6,6 +6,71 @@ import ogolna
 import pipeline
 
 
+def test_przyczyna_pominiecia_sedzia_wyjatek_wskazuje_na_model(monkeypatch, atrapa_pipeline):
+    agent = atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz.', sedzia=True)
+    atrapa_pipeline.tokeny[agent] = ['a ', 'b ']
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+
+    def sedzia_rzuca(zapytanie, chunks, bielik_model=None, lang='pl', stan=None):
+        raise RuntimeError('atrapa awarii sedziego')
+
+    monkeypatch.setattr(pipeline, 'czy_kontekst_odpowiada', sedzia_rzuca)
+
+    wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
+                         bez_korekty=True, sedzia=True, lang='pl')
+
+    assert 'sedzia' in wynik['bramki_pominiete']
+    assert wynik['cechy']['powod_pominiecia_sedziego'] == 'model'
+
+
+def test_przyczyna_pominiecia_sedzia_bez_startu_wskazuje_na_kolejke(monkeypatch, atrapa_pipeline):
+    class OpakowanyEgzekutor:
+        def __init__(self, wewnetrzny):
+            self.wewnetrzny = wewnetrzny
+
+        def submit(self, *args, **kwargs):
+            return self.wewnetrzny.submit(*args, **kwargs)
+
+    prawdziwy = ThreadPoolExecutor(max_workers=1)
+    opakowany = OpakowanyEgzekutor(prawdziwy)
+    monkeypatch.setattr(pipeline, 'EGZEKUTOR_SEDZIEGO', opakowany)
+    monkeypatch.setattr(pipeline, 'SEDZIA_CZEKANIE', 0.05)
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+
+    blokada = threading.Event()
+    prawdziwy.submit(blokada.wait)
+
+    agent = atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz.', sedzia=True)
+    atrapa_pipeline.tokeny[agent] = ['a ', 'b ']
+
+    try:
+        wynik = pipeline.run('jakies pytanie o konto', strona='kupujacy',
+                             bez_korekty=True, sedzia=True, lang='pl')
+    finally:
+        blokada.set()
+        prawdziwy.shutdown(wait=True)
+
+    assert 'sedzia' in wynik['bramki_pominiete']
+    assert wynik['cechy']['powod_pominiecia_sedziego'] == 'kolejka'
+
+
+def test_przyczyna_pominiecia_sedzia_druga_sekcja_nigdy_nie_wskazuje_na_kolejke(
+        monkeypatch, atrapa_pipeline, chunk):
+    atrapa_pipeline.ustaw_etap('sprzedajacy', chunki=[chunk('sprzedaz', score=0.0)],
+                               tekst='Odpowiedz sprzedazowa.', sedzia=False)
+    atrapa_pipeline.ustaw_etap('kupujacy', chunki=[chunk('kupujacy', score=0.0)],
+                               tekst='Odpowiedz kupujacego.', sedzia=True)
+    atrapa_pipeline.sedzia_pominiete.add('kupujacy')
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+
+    wynik = pipeline.run('jakie limity allegro pay', strona='sprzedajacy',
+                         bez_korekty=True, sedzia=True, lang='pl', warstwa_ogolna=False)
+
+    assert wynik['cechy']['etap'] == 2
+    assert 'sedzia' in wynik['bramki_pominiete']
+    assert wynik['cechy']['powod_pominiecia_sedziego'] == 'model'
+
+
 def test_odmowa_sedziego_nie_wypuszcza_tokenow(atrapa_pipeline):
     agent = atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz.', sedzia=False)
     atrapa_pipeline.tokeny[agent] = ['Aby ', 'zalozyc ', 'konto ', 'wejdz ', 'na ']

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from contextlib import asynccontextmanager
 from typing import Literal
 import pipeline
@@ -13,6 +13,7 @@ from wysylka import (wyslij_potwierdzenie, wyslij_odpowiedz_operatora, WysylkaCz
                      powod_resend)
 from collections import deque, OrderedDict
 from datetime import datetime, timezone
+from email.utils import parseaddr
 from pathlib import Path
 import csv
 import httpx
@@ -34,6 +35,7 @@ AGENCI_ROZGRZEWKA = ('kupujacy', 'sprzedaz')
 AGENCI_ROZGRZEWKA_PL = AGENCI_ROZGRZEWKA
 
 _zamek = threading.Lock()
+_zamek_logu = threading.Lock()
 
 LIMIT_MIN = int(os.getenv('LIMIT_MIN', '15'))
 LIMIT_DZIEN = int(os.getenv('LIMIT_DZIEN', '200'))
@@ -48,11 +50,28 @@ LIMIT_WYSYLKA_MIN = int(os.getenv('LIMIT_WYSYLKA_MIN', '5'))
 LIMIT_WYSYLKA_DZIEN = int(os.getenv('LIMIT_WYSYLKA_DZIEN', '40'))
 LIMIT_WYSYLKA_ADRES_S = int(os.getenv('LIMIT_WYSYLKA_ADRES_S', '600'))
 WYSYLKA_ADRES_MAX = int(os.getenv('WYSYLKA_ADRES_MAX', '500'))
+LIMIT_WYSYLKA_IP_MIN = int(os.getenv('LIMIT_WYSYLKA_IP_MIN', '5'))
+LIMIT_WYSYLKA_IP_DZIEN = int(os.getenv('LIMIT_WYSYLKA_IP_DZIEN', '20'))
 _wysylki = deque()
 _wysylki_adres: 'OrderedDict[str, float]' = OrderedDict()
+_wysylki_ip: 'OrderedDict[str, deque]' = OrderedDict()
 TICKET_MAX = int(os.getenv('TICKET_MAX', '5000'))
 _tickety: 'OrderedDict[str, dict]' = OrderedDict()
 EMAIL_WZORZEC = re.compile(r'[^\s@]+@[^\s@]+\.[^\s@]+')
+
+
+def zwykly_adres(surowy: str) -> str | None:
+    surowy = surowy.strip()
+    if '<' in surowy or '>' in surowy:
+        _, adres = parseaddr(surowy)
+    elif any(znak.isspace() for znak in surowy):
+        return None
+    else:
+        adres = surowy
+    adres = adres.strip()
+    if not adres or not EMAIL_WZORZEC.fullmatch(adres):
+        return None
+    return adres.lower()
 
 CACHE_MAX = int(os.getenv('CACHE_MAX', '200'))
 _cache: 'OrderedDict[tuple, dict]' = OrderedDict()
@@ -164,19 +183,22 @@ def powod_wyniku(dane: dict) -> str:
 
 
 def dopisz_do_logu(wpis: dict) -> None:
-    with _zamek:
+    with _zamek_logu:
         with open(LOG_ANALYTICS, 'a', encoding='utf-8') as w:
             w.write(json.dumps(wpis, ensure_ascii=False) + '\n')
 
 
 def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, query: str, strona: str,
-                    zuzycie: dict | None = None, id_zapytania: str | None = None) -> None:
+                    zuzycie: dict | None = None, id_zapytania: str | None = None,
+                    przerwany: bool = False) -> None:
     dane = dane or {}
-    zglos_bramki_pominiete(dane.get('bramki_pominiete') or [], cache_hit)
+    if not przerwany:
+        zglos_bramki_pominiete(dane.get('bramki_pominiete') or [], cache_hit)
     try:
         agent = dane.get('agent') or ''
         tryb = dane.get('tryb')
-        wynik = tryb if tryb in ('rozmowa', 'ogolna') else ('odpowiedz' if agent else 'odmowa')
+        wynik = 'przerwane' if przerwany else (
+            tryb if tryb in ('rozmowa', 'ogolna') else ('odpowiedz' if agent else 'odmowa'))
         zuzycie = zuzycie or {}
         try:
             ustawienia_jezyka = LANG.get(lang) or {}
@@ -200,7 +222,7 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
             'strona': strona,
             'sekcja': agent or None,
             'wynik': wynik,
-            'powod': powod_wyniku(dane),
+            'powod': 'przerwany_strumien' if przerwany else powod_wyniku(dane),
             'powod_ogolna': dane.get('powod_ogolna'),
             'bramki_pominiete': dane.get('bramki_pominiete') or [],
             'latencja_s': round(latencja, 3),
@@ -208,6 +230,7 @@ def loguj_zapytanie(lang: str, dane: dict, latencja: float, cache_hit: bool, que
             'tokeny_wy': zuzycie.get('tokeny_wy', 0),
             'koszt_usd': zuzycie.get('koszt_usd', 0.0),
             'tokeny_szacowane': zuzycie.get('szacowane', False),
+            'wywolania': zuzycie.get('wywolania', 0),
             'cache_hit': cache_hit,
             'pytanie': redaguj(query),
             'cechy': dane.get('cechy') or None,
@@ -258,6 +281,13 @@ def w_limicie_kolejki(slownik: OrderedDict, ip: str, limit_min: int, limit_dzien
 
 def w_limicie_ip(ip: str) -> bool:
     return w_limicie_kolejki(_zapytania_ip, ip, LIMIT_IP_MIN, LIMIT_IP_DZIEN)
+
+
+def zwolnij_z_kolejki(slownik: OrderedDict, ip: str) -> None:
+    with _zamek:
+        kolejka = slownik.get(ip)
+        if kolejka:
+            kolejka.pop()
 
 
 def efektywny_jezyk(message: str, podpowiedz: str | None) -> str:
@@ -501,6 +531,9 @@ class Wiadomosc(BaseModel):
    role: Literal['user', 'assistant']
    content: str = Field(min_length=1, max_length=MAX_ZNAKI_WPISU)
 
+MODELE_DOZWOLONE = frozenset(koszty.CENNIK)
+
+
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=MAX_ZNAKI * 2)
     bielik_model: str |None = None
@@ -513,6 +546,13 @@ class ChatRequest(BaseModel):
     strona: Literal['kupujacy', 'sprzedajacy'] = 'kupujacy'
     ogolna: bool | None = None
 
+    @field_validator('bielik_model')
+    @classmethod
+    def bielik_model_z_bialej_listy(cls, wartosc: str | None) -> str | None:
+        if wartosc is not None and wartosc not in MODELE_DOZWOLONE:
+            raise ValueError('Niedozwolona nazwa modelu.')
+        return wartosc
+
 class Cytat(BaseModel):
    n: int
    url: str
@@ -522,7 +562,7 @@ class WyslijZadanie(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     temat: str = Field(min_length=1, max_length=200)
     tresc: str = Field(min_length=1, max_length=8000)
-    kategoria: str | None = None
+    kategoria: str | None = Field(default=None, max_length=200)
     lang: Literal['pl', 'en'] | None = None
     ticket: str | None = Field(default=None, pattern=r'^[A-F0-9]{8}$')
 
@@ -548,7 +588,7 @@ class ZgloszenieZadanie(BaseModel):
     strona: Literal['kupujacy', 'sprzedajacy'] | None = None
 
 class OdpowiedzKolejkiZadanie(BaseModel):
-    zgloszenie: str = Field(pattern=r'^[A-F0-9]{8}$')
+    zgloszenie: str = Field(pattern=r'^[A-F0-9]{8}([A-F0-9]{4})?$')
     status: Literal['odpowiedziano', 'odrzucone']
     etykieta: Literal['luka_w_bazie', 'prog_za_wysoki', 'poza_zakresem', 'spam'] | None = None
     tresc: str = Field(default='', max_length=8000)
@@ -635,18 +675,21 @@ def chat_stream(request: ChatRequest, http_request: Request):
             return
         start = time.perf_counter()
         id_zapytania = secrets.token_hex(8)
+        wynik = {}
+        trafienie = False
         try:
             uzyj_cache = cache_zdatny(request)
             klucz = cache_klucz(lang, request.message, request.strona) if uzyj_cache else None
             cached = cache_pobierz(klucz) if klucz else None
             if cached is not None:
+                wynik = cached
+                trafienie = True
                 dane_wysylki = {k: v for k, v in cached.items() if k != 'cechy'}
                 dane_wysylki['id'] = id_zapytania
                 yield f"data: {json.dumps({'typ': 'wynik', 'dane': dane_wysylki}, ensure_ascii=False)}\n\n"
                 loguj_zapytanie(lang, cached, time.perf_counter() - start, True, request.message, request.strona,
                                 None, id_zapytania)
                 return
-            wynik = {}
             for ev in run_stream(request.message, bielik_model=request.bielik_model,
                                  history=[w.model_dump() for w in request.history],
                                  agent_poprzedni=request.agent_poprzedni, przepisz=request.przepisz,
@@ -662,6 +705,10 @@ def chat_stream(request: ChatRequest, http_request: Request):
                 cache_zapisz(klucz, wynik)
             loguj_zapytanie(lang, wynik, time.perf_counter() - start, False, request.message, request.strona,
                             koszty.podsumowanie(), id_zapytania)
+        except GeneratorExit:
+            loguj_zapytanie(lang, wynik, time.perf_counter() - start, trafienie, request.message, request.strona,
+                            None if trafienie else koszty.podsumowanie(), id_zapytania, przerwany=True)
+            raise
         except Exception as e:
             print(f'blad /chat/stream: {type(e).__name__}: {e}\n{traceback.format_exc()}', file=sys.stderr, flush=True)
             yield f"data: {json.dumps({'typ': 'blad', 'kod': 503, 'tekst': LANG[lang]['bledy']['model_niedostepny']}, ensure_ascii=False)}\n\n"
@@ -669,19 +716,25 @@ def chat_stream(request: ChatRequest, http_request: Request):
 
 
 @app.post('/send-email', response_model=WyslijOdpowiedz)
-def send_email(request: WyslijZadanie):
+def send_email(request: WyslijZadanie, http_request: Request):
     lang = request.lang or DOMYSLNY_JEZYK
-    email = request.email.strip()
-    if not EMAIL_WZORZEC.fullmatch(email):
+    email = zwykly_adres(request.email)
+    if email is None:
         raise HTTPException(status_code=422, detail=LANG[lang]['bledy']['zly_email'])
+    ip_klienta = adres_klienta(http_request)
+    if not w_limicie_kolejki(_wysylki_ip, ip_klienta, LIMIT_WYSYLKA_IP_MIN, LIMIT_WYSYLKA_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
     korekta = request.ticket is not None
     if korekta:
         if not w_limicie_korekty(request.ticket, email):
+            zwolnij_z_kolejki(_wysylki_ip, ip_klienta)
             raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
         rejestruj_adres(email)
     elif not w_limicie_adresu(email):
+        zwolnij_z_kolejki(_wysylki_ip, ip_klienta)
         raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_wysylek'])
     def zwolnij_limity():
+        zwolnij_z_kolejki(_wysylki_ip, ip_klienta)
         if korekta:
             zwolnij_limit_korekty(request.ticket)
         else:
@@ -730,9 +783,14 @@ def ocena(request: OcenaZadanie, http_request: Request):
 @app.post('/zgloszenie', response_model=ZgloszenieOdpowiedz)
 def zgloszenie(request: ZgloszenieZadanie, http_request: Request):
     lang = request.lang or DOMYSLNY_JEZYK
-    email = request.email.strip()
-    if not EMAIL_WZORZEC.fullmatch(email):
+    email = zwykly_adres(request.email)
+    if email is None:
         raise HTTPException(status_code=422, detail=LANG[lang]['bledy']['zly_email'])
+    if not w_limicie_kolejki(_zgloszenia_ip, adres_klienta(http_request),
+                             LIMIT_ZGLOSZEN_IP_MIN, LIMIT_ZGLOSZEN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
+    if not w_limicie_zgloszen():
+        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     wpis = next((w for w in wpisy_logu()
                  if w.get('id') == request.id_zapytania and not w.get('typ')), None)
     if wpis is None:
@@ -742,11 +800,6 @@ def zgloszenie(request: ZgloszenieZadanie, http_request: Request):
     for z in kolejka.zloz_stan().values():
         if z.get('id_zapytania') == request.id_zapytania:
             raise HTTPException(status_code=409, detail='To zapytanie zostalo juz zgloszone.')
-    if not w_limicie_kolejki(_zgloszenia_ip, adres_klienta(http_request),
-                             LIMIT_ZGLOSZEN_IP_MIN, LIMIT_ZGLOSZEN_IP_DZIEN):
-        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
-    if not w_limicie_zgloszen():
-        raise HTTPException(status_code=429, detail=LANG[lang]['bledy']['limit_zapytan'])
     try:
         ident = kolejka.zapisz_zgloszenie(
             request.id_zapytania,
@@ -777,15 +830,26 @@ def admin_statystyki(http_request: Request, dni: int | None = Query(default=None
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
-    return statystyki_z_cache(dni, lang, strona, od, do)
+    dane = statystyki_z_cache(dni, lang, strona, od, do)
+    if not admin_token_poprawny(http_request):
+        dane = {**dane, 'top_pytania': []}
+    return dane
 
 
 @app.get('/admin/oceny')
-def admin_oceny(http_request: Request, dni: int | None = Query(default=None, ge=1, le=3650)):
+def admin_oceny(http_request: Request, dni: int | None = Query(default=None, ge=1, le=3650),
+                lang: Literal['pl', 'en'] | None = None,
+                strona: Literal['kupujacy', 'sprzedajacy'] | None = None,
+                od: str | None = Query(default=None, pattern=WZORZEC_DATY),
+                do: str | None = Query(default=None, pattern=WZORZEC_DATY)):
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
-    przypadki = statystyki.przypadki_ocen(wpisy_logu(), dni=dni)
+    wpisy = statystyki.filtruj(wpisy_logu(), lang=lang, strona=strona, od=od, do=do)
+    przypadki = statystyki.przypadki_ocen(wpisy, dni=dni)
+    if not admin_token_poprawny(http_request):
+        przypadki = [{k: v for k, v in p.items() if k not in ('pytanie', 'odpowiedz')}
+                     for p in przypadki]
     return {'razem': len(przypadki), 'przypadki': przypadki}
 
 
@@ -798,14 +862,21 @@ def sprawdz_admin_token(http_request: Request) -> None:
         raise HTTPException(status_code=401, detail='Brak uprawnien do kolejki zgloszen.')
 
 
+def admin_token_poprawny(http_request: Request) -> bool:
+    if not ADMIN_TOKEN:
+        return False
+    podany = http_request.headers.get('x-admin-token', '')
+    return secrets.compare_digest(podany.encode('utf-8'), ADMIN_TOKEN.encode('utf-8'))
+
+
 @app.get('/admin/kolejka')
 def admin_kolejka(http_request: Request,
                   dni: int | None = Query(default=None, ge=1, le=3650),
                   status: Literal['nowe', 'odpowiedziano', 'odrzucone'] | None = None):
+    sprawdz_admin_token(http_request)
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
-    sprawdz_admin_token(http_request)
     zapytania = {w['id']: w for w in wpisy_logu() if not w.get('typ') and w.get('id')}
     zgloszenia = []
     for z in kolejka.stan_kolejki(dni=dni, status=status):
@@ -823,10 +894,10 @@ def admin_kolejka(http_request: Request,
 
 @app.post('/admin/kolejka/odpowiedz')
 def admin_kolejka_odpowiedz(request: OdpowiedzKolejkiZadanie, http_request: Request):
+    sprawdz_admin_token(http_request)
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
-    sprawdz_admin_token(http_request)
     zgl = kolejka.zgloszenie_po_id(request.zgloszenie)
     if zgl is None:
         raise HTTPException(status_code=404, detail='Nie znam tego zgloszenia.')
@@ -873,10 +944,10 @@ def admin_kolejka_odpowiedz(request: OdpowiedzKolejkiZadanie, http_request: Requ
 def admin_kolejka_eksport(http_request: Request,
                           dni: int | None = Query(default=None, ge=1, le=3650),
                           status: Literal['nowe', 'odpowiedziano', 'odrzucone'] | None = None):
+    sprawdz_admin_token(http_request)
     if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
-    sprawdz_admin_token(http_request)
     naglowki_csv = ('czas_zgloszenia', 'pytanie', 'powod_odmowy', 'sekcja', 'jezyk',
                     'status', 'etykieta', 'odpowiedz_operatora', 'czas_decyzji')
     pola = ('czas', 'pytanie', 'powod', 'sekcja', 'lang', 'status', 'etykieta',
@@ -900,18 +971,18 @@ def admin_kolejka_eksport(http_request: Request,
 
 @app.post('/admin/resetuj-statystyki')
 def admin_resetuj_statystyki(http_request: Request):
-    if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
-                             LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
-        raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
     if not ADMIN_TOKEN:
         raise HTTPException(status_code=503,
                             detail='Reset statystyk wylaczony, brak ADMIN_TOKEN w konfiguracji.')
     podany = http_request.headers.get('x-admin-token', '')
     if not secrets.compare_digest(podany.encode('utf-8'), ADMIN_TOKEN.encode('utf-8')):
         raise HTTPException(status_code=401, detail='Brak uprawnien do resetu statystyk.')
+    if not w_limicie_kolejki(_admin_ip, adres_klienta(http_request),
+                             LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
+        raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
     znacznik = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S_%f')
     archiwum = LOG_ANALYTICS.with_name(f'{LOG_ANALYTICS.name}.przed-resetem-{znacznik}')
-    with _zamek:
+    with _zamek_logu:
         if archiwum.exists():
             raise HTTPException(status_code=409,
                                 detail='Archiwum o tej nazwie juz istnieje, reset przerwany.')
@@ -919,6 +990,7 @@ def admin_resetuj_statystyki(http_request: Request):
         if zarchiwizowano:
             LOG_ANALYTICS.rename(archiwum)
         LOG_ANALYTICS.touch()
+    with _zamek:
         _log_cache['stempel'] = None
         _log_cache['wpisy'] = []
         _statystyki_cache['stempel'] = None
@@ -938,6 +1010,8 @@ def admin_eksport(http_request: Request, format: Literal['csv', 'json'] = 'csv',
                              LIMIT_ADMIN_IP_MIN, LIMIT_ADMIN_IP_DZIEN):
         raise HTTPException(status_code=429, detail=LANG[DOMYSLNY_JEZYK]['bledy']['limit_zapytan'])
     wybrane = kolumny_eksportu(kolumny)
+    if not admin_token_poprawny(http_request):
+        wybrane = tuple(k for k in wybrane if k != 'pytanie')
     wpisy = [w for w in statystyki.filtruj(wpisy_logu(), dni=dni, lang=lang, strona=strona,
                                            od=od, do=do)
              if not w.get('typ')]

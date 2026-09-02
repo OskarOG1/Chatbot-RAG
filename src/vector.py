@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 from pathlib import Path
 import numpy as np
 import faiss
@@ -7,6 +8,7 @@ import pickle
 from rankings import tokenizacja
 from rank_bm25 import BM25Okapi
 import aliasy
+import strony
 from lang_config import LANG
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,19 +21,26 @@ def wczytaj_chunki(sciezka: Path, suffix: str) -> tuple[list[dict], np.ndarray]:
     embeddings = np.load(RAG_DIR / f'embeddings{suffix}.npy')
     return chunki, embeddings.astype('float32')
 
+def zapisz_atomowo(sciezka: Path, zapisz) -> None:
+    tymczasowa = sciezka.with_name(sciezka.name + '.tmp')
+    zapisz(tymczasowa)
+    os.replace(tymczasowa, sciezka)
+
 def zapisz_indeks(nazwa: str, chunki_pod: list[dict], embeddings_pod: np.ndarray, lang: str) -> None:
     embeddings_pod = embeddings_pod.copy()
     faiss.normalize_L2(embeddings_pod)
 
     index = faiss.IndexFlatIP(embeddings_pod.shape[1])
     index.add(embeddings_pod)
-    faiss.write_index(index, str(RAG_DIR / f'{nazwa}.faiss'))
+    zapisz_atomowo(RAG_DIR / f'{nazwa}.faiss', lambda p: faiss.write_index(index, str(p)))
 
     tokeny = [tokenizacja(aliasy.tekst_do_retrievalu(c), lang) for c in chunki_pod]
     bm25 = BM25Okapi(tokeny)
 
-    with open(RAG_DIR / f'{nazwa}.bm25', "wb") as w:
-       pickle.dump(bm25, w)
+    def zapisz_bm25(p):
+        with open(p, 'wb') as w:
+            pickle.dump(bm25, w)
+    zapisz_atomowo(RAG_DIR / f'{nazwa}.bm25', zapisz_bm25)
 
 def main(lang: str = 'pl'):
     cfg = LANG[lang]
@@ -40,12 +49,10 @@ def main(lang: str = 'pl'):
     sciezka_chunks = RAG_DIR / f'chunks{suffix}.json'
     chunki, embeddings = wczytaj_chunki(sciezka_chunks, suffix)
 
-    strony_agentow = {
-        'kupujacy': lambda c: str(c.get('agent', '')).strip().lower() != 'sprzedaz',
-        'sprzedaz': lambda c: str(c.get('agent', '')).strip().lower() == 'sprzedaz',
-    }
-    for strona, pasuje in strony_agentow.items():
-        indeksy = [i for i, c in enumerate(chunki) if pasuje(c)]
+    for strona in strony.STRONY:
+        agent_strony = strony.STRONA_DO_AGENTA[strona]
+        indeksy = [i for i, c in enumerate(chunki)
+                  if strony.strona_z_agenta(str(c.get('agent', '')).strip().lower()) == strona]
 
         if not indeksy:
             print(f'Strona [{strona}]: Brak pasujących chunków w pliku.')
@@ -54,12 +61,15 @@ def main(lang: str = 'pl'):
         strona_chunki = [chunki[i] for i in indeksy]
         strona_embeddings = embeddings[indeksy]
 
-        nazwa_strony = f'{strona}{suffix}'
+        nazwa_strony = f'{agent_strony}{suffix}'
         zapisz_indeks(nazwa_strony, strona_chunki, strona_embeddings, lang)
 
         vector_json = RAG_DIR / f'chunks_{nazwa_strony}.json'
-        with open(vector_json, 'w', encoding='utf-8') as w:
-            json.dump(strona_chunki, w, ensure_ascii=False, indent=4)
+
+        def zapisz_chunki(p):
+            with open(p, 'w', encoding='utf-8') as w:
+                json.dump(strona_chunki, w, ensure_ascii=False, indent=4)
+        zapisz_atomowo(vector_json, zapisz_chunki)
 
         print(f'strona [{strona}]: zapisano {len(indeksy)} chunkow i wektorow')
 

@@ -20,6 +20,7 @@ MIN_TOKENY_DETEKCJI = 2
 RDZEN_MIN_DLUGOSC = 5
 RDZEN_MIN_CZESTOSC = 500
 RDZEN_MAKS_OGON = 2
+MAKS_TRUDNE_TOKENY = 12
 
 WZORZEC = re.compile(r'[^\W\d_]+', re.UNICODE)
 
@@ -66,6 +67,22 @@ def fold(tekst: str) -> str:
     tekst = tekst.replace('ł', 'l')
     tekst = unicodedata.normalize('NFKD', tekst)
     return ''.join(z for z in tekst if not unicodedata.combining(z))
+
+
+def wektor_znakow(tekst: str) -> tuple[int, ...]:
+    wektor = [0] * 26
+    for znak in tekst:
+        pozycja = ord(znak) - 97
+        if 0 <= pozycja < 26:
+            wektor[pozycja] += 1
+    return tuple(wektor)
+
+
+def dolna_granica_odleglosci(a: tuple[int, ...], b: tuple[int, ...]) -> int:
+    roznica = 0
+    for x, y in zip(a, b):
+        roznica += x - y if x > y else y - x
+    return (roznica + 1) // 2
 
 
 def distance(a: str, b: str, dozwolona: int | None = None) -> int:
@@ -123,9 +140,10 @@ def build_dictionary(chunki: list[dict] | None = None) -> Counter:
     except OSError:
         pass
 
-    global FOLDED_CACHE, DOKLADNE_CACHE
+    global FOLDED_CACHE, DOKLADNE_CACHE, KANDYDAT_CACHE
     FOLDED_CACHE = None
     DOKLADNE_CACHE = None
+    KANDYDAT_CACHE = {}
     return slownik
 
 
@@ -151,14 +169,16 @@ def load_dictionary() -> Counter:
 
 FOLDED_CACHE = None
 DOKLADNE_CACHE = None
-def folded_index(slownik: Counter) -> dict[int, list[tuple[str, int, str, int]]]:
+KANDYDAT_CACHE: dict[str, str | None] = {}
+def folded_index(slownik: Counter) -> dict[int, list[tuple[str, int, str, int, tuple[int, ...]]]]:
     global FOLDED_CACHE, DOKLADNE_CACHE
     if FOLDED_CACHE is None:
-        kubelki: dict[int, list[tuple[str, int, str, int]]] = {}
+        kubelki: dict[int, list[tuple[str, int, str, int, tuple[int, ...]]]] = {}
         dokladne: dict[str, tuple[str, int, int]] = {}
         for indeks, (slowo, czestosc) in enumerate(slownik.items()):
             zlozone = fold(slowo)
-            kubelki.setdefault(len(zlozone), []).append((slowo, czestosc, zlozone, indeks))
+            kubelki.setdefault(len(zlozone), []).append(
+                (slowo, czestosc, zlozone, indeks, wektor_znakow(zlozone)))
             poprzednie = dokladne.get(zlozone)
             if poprzednie is None or czestosc > poprzednie[1] or (
                     czestosc == poprzednie[1] and indeks < poprzednie[2]):
@@ -176,12 +196,17 @@ def dokladne_trafienie(slownik: Counter, zlozony: str) -> str | None:
 
 def best_candidate(token: str, slownik: Counter) -> str | None:
 
+    if token in KANDYDAT_CACHE:
+        return KANDYDAT_CACHE[token]
+
     zlozony = fold(token)
     dokladny = dokladne_trafienie(slownik, zlozony)
     if dokladny is not None:
+        KANDYDAT_CACHE[token] = dokladny
         return dokladny
     dlugosc = len(zlozony)
     dozwolona = 1 if len(token) <= 6 else MAX_ODLEGLOSC
+    wektor_tokenu = wektor_znakow(zlozony)
     najlepszy = None
     najlepsza_odleglosc = dozwolona + 1
     najlepsza_czestosc = 0
@@ -189,7 +214,9 @@ def best_candidate(token: str, slownik: Counter) -> str | None:
 
     kubelki = folded_index(slownik)
     for dlugosc_kubelka in range(dlugosc - dozwolona, dlugosc + dozwolona + 1):
-        for slowo, czestosc, zlozone, indeks in kubelki.get(dlugosc_kubelka, []):
+        for slowo, czestosc, zlozone, indeks, wektor_slowa in kubelki.get(dlugosc_kubelka, []):
+            if dolna_granica_odleglosci(wektor_tokenu, wektor_slowa) > dozwolona:
+                continue
             odleglosc = distance(zlozony, zlozone, dozwolona)
             if (odleglosc < najlepsza_odleglosc
                     or (odleglosc == najlepsza_odleglosc and czestosc > najlepsza_czestosc)
@@ -200,18 +227,20 @@ def best_candidate(token: str, slownik: Counter) -> str | None:
                 najlepsza_czestosc = czestosc
                 najlepszy_indeks = indeks
 
-    if najlepszy is not None and najlepsza_odleglosc <= dozwolona:
-        return najlepszy
-    return None
+    wynik = najlepszy if najlepszy is not None and najlepsza_odleglosc <= dozwolona else None
+    KANDYDAT_CACHE[token] = wynik
+    return wynik
 
 
 def correct(query: str) -> dict:
-    
+
     slownik = load_dictionary()
     zmiany = []
     nieznane = []
+    trudne_tokeny = 0
 
     def replace(dopasowanie):
+        nonlocal trudne_tokeny
         token = dopasowanie.group(0)
         maly = token.lower()
 
@@ -224,11 +253,16 @@ def correct(query: str) -> dict:
         if lemat_znany(maly, slownik) or rdzen_znany(maly, slownik):
             return token
 
+        if trudne_tokeny >= MAKS_TRUDNE_TOKENY:
+            nieznane.append(token)
+            return token
+        trudne_tokeny += 1
+
         kandydat = best_candidate(maly, slownik)
         if kandydat is not None and kandydat != maly:
             zmiany.append((token, kandydat))
             return kandydat
-        
+
         nieznane.append(token)
         return token
 

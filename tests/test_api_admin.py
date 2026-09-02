@@ -241,38 +241,41 @@ def test_loguj_zapytanie_bez_parametru_zuzycie_dziala():
     assert wpis['tokeny_szacowane'] is False
 
 
-def test_eksport_neutralizuje_formule_rownosci(client):
+def test_eksport_neutralizuje_formule_rownosci(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
     zapisz_log(api.LOG_ANALYTICS, [
         {'czas': '2026-08-01T10:00:00+00:00', 'lang': 'pl', 'sekcja': 'konto',
          'wynik': 'odpowiedz', 'latencja_s': 1.0, 'cache_hit': False,
          'pytanie': '=HYPERLINK("http://zle","klik")'},
     ])
-    odp = client.get('/admin/eksport?format=csv&kolumny=pytanie')
+    odp = client.get('/admin/eksport?format=csv&kolumny=pytanie', headers={'x-admin-token': 'tajne'})
     tresc = odp.content.decode('utf-8-sig')
     komorka = list(csv.reader(io.StringIO(tresc), delimiter=';'))[1][0]
     assert komorka.startswith("'=")
 
 
 @pytest.mark.parametrize('znak', ['+', '-', '@'])
-def test_eksport_neutralizuje_inne_znaki_formuly(client, znak):
+def test_eksport_neutralizuje_inne_znaki_formuly(client, monkeypatch, znak):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
     zapisz_log(api.LOG_ANALYTICS, [
         {'czas': '2026-08-01T10:00:00+00:00', 'lang': 'pl', 'sekcja': 'konto',
          'wynik': 'odpowiedz', 'latencja_s': 1.0, 'cache_hit': False,
          'pytanie': f'{znak}niebezpieczne'},
     ])
-    odp = client.get('/admin/eksport?format=csv&kolumny=pytanie')
+    odp = client.get('/admin/eksport?format=csv&kolumny=pytanie', headers={'x-admin-token': 'tajne'})
     tresc = odp.content.decode('utf-8-sig')
     komorka = list(csv.reader(io.StringIO(tresc), delimiter=';'))[1][0]
     assert komorka.startswith(f"'{znak}")
 
 
-def test_eksport_zwykle_pytanie_bez_apostrofu(client):
+def test_eksport_zwykle_pytanie_bez_apostrofu(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
     zapisz_log(api.LOG_ANALYTICS, [
         {'czas': '2026-08-01T10:00:00+00:00', 'lang': 'pl', 'sekcja': 'konto',
          'wynik': 'odpowiedz', 'latencja_s': 1.0, 'cache_hit': False,
          'pytanie': 'jak zmienic haslo'},
     ])
-    odp = client.get('/admin/eksport?format=csv&kolumny=pytanie')
+    odp = client.get('/admin/eksport?format=csv&kolumny=pytanie', headers={'x-admin-token': 'tajne'})
     tresc = odp.content.decode('utf-8-sig')
     komorka = list(csv.reader(io.StringIO(tresc), delimiter=';'))[1][0]
     assert komorka == 'jak zmienic haslo'
@@ -436,6 +439,101 @@ def test_chat_wpis_ma_konfiguracje(client, monkeypatch):
     assert konfiguracja['prog_rerank'] == ustawienia_pl['prog_rerank']
     assert konfiguracja['prog_pokrycia'] == ustawienia_pl['prog_pokrycia']
     assert konfiguracja['k_surowe_sekcji'] == 9
+
+
+def test_top_pytania_puste_bez_tokenu_niepuste_z_tokenem(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    zapisz_log(api.LOG_ANALYTICS, [
+        {'czas': '2026-08-01T10:00:00+00:00', 'lang': 'pl', 'sekcja': 'konto',
+         'wynik': 'odpowiedz', 'latencja_s': 1.0, 'cache_hit': False, 'pytanie': 'jak zwrocic towar'},
+    ])
+    bez_tokenu = client.get('/admin/statystyki')
+    assert bez_tokenu.status_code == 200
+    assert bez_tokenu.json()['top_pytania'] == []
+    z_tokenem = client.get('/admin/statystyki', headers={'x-admin-token': 'tajne'})
+    assert z_tokenem.status_code == 200
+    assert len(z_tokenem.json()['top_pytania']) == 1
+
+
+def test_oceny_bez_pytania_i_odpowiedzi_bez_tokenu(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    zapisz_log(api.LOG_ANALYTICS, [
+        {'czas': '2026-08-18T10:00:00+00:00', 'id': 'aaaaaaaaaaaaaaaa', 'lang': 'pl',
+         'strona': 'kupujacy', 'wynik': 'odmowa', 'powod': 'sedzia'},
+        {'czas': '2026-08-18T10:00:05+00:00', 'typ': 'ocena', 'ocena': 'dol',
+         'id_zapytania': 'aaaaaaaaaaaaaaaa', 'lang': 'pl', 'strona': 'kupujacy',
+         'pytanie': 'jak zwrocic towar', 'odpowiedz': 'nie wiem'},
+    ])
+    bez_tokenu = client.get('/admin/oceny')
+    assert bez_tokenu.status_code == 200
+    przypadek_bez = bez_tokenu.json()['przypadki'][0]
+    assert 'pytanie' not in przypadek_bez
+    assert 'odpowiedz' not in przypadek_bez
+    assert bez_tokenu.json()['razem'] == 1
+
+    z_tokenem = client.get('/admin/oceny', headers={'x-admin-token': 'tajne'})
+    assert z_tokenem.status_code == 200
+    przypadek_z = z_tokenem.json()['przypadki'][0]
+    assert przypadek_z['pytanie'] == 'jak zwrocic towar'
+    assert przypadek_z['odpowiedz'] == 'nie wiem'
+    assert z_tokenem.json()['razem'] == 1
+
+
+def test_eksport_csv_bez_tokenu_pomija_kolumne_pytanie(client):
+    zapisz_log(api.LOG_ANALYTICS, [
+        {'czas': '2026-08-01T10:00:00+00:00', 'lang': 'pl', 'sekcja': 'konto',
+         'wynik': 'odpowiedz', 'latencja_s': 1.0, 'cache_hit': False, 'pytanie': 'jak zmienic haslo'},
+    ])
+    odp = client.get('/admin/eksport?format=csv&kolumny=czas,pytanie')
+    tresc = odp.content.decode('utf-8-sig')
+    wiersze = list(csv.reader(io.StringIO(tresc), delimiter=';'))
+    assert wiersze[0] == ['czas']
+    assert len(wiersze[1]) == 1
+
+
+def test_eksport_json_bez_tokenu_bez_klucza_pytanie(client):
+    zapisz_log(api.LOG_ANALYTICS, [
+        {'czas': '2026-08-01T10:00:00+00:00', 'lang': 'pl', 'sekcja': 'konto',
+         'wynik': 'odpowiedz', 'latencja_s': 1.0, 'cache_hit': False, 'pytanie': 'jak zmienic haslo'},
+    ])
+    odp = client.get('/admin/eksport?format=json&kolumny=czas,pytanie')
+    dane = json.loads(odp.content.decode('utf-8-sig'))
+    assert 'pytanie' not in dane[0]
+
+
+def test_zly_token_zachowuje_sie_jak_brak_tokenu(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    zapisz_log(api.LOG_ANALYTICS, [
+        {'czas': '2026-08-01T10:00:00+00:00', 'lang': 'pl', 'sekcja': 'konto',
+         'wynik': 'odpowiedz', 'latencja_s': 1.0, 'cache_hit': False, 'pytanie': 'jak zmienic haslo'},
+    ])
+    odp = client.get('/admin/statystyki', headers={'x-admin-token': 'zle'})
+    assert odp.status_code == 200
+    assert odp.json()['top_pytania'] == []
+
+
+def test_bez_ustawionego_admin_token_i_bez_naglowka_daje_200(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', '')
+    odp = client.get('/admin/statystyki')
+    assert odp.status_code == 200
+    assert odp.json()['top_pytania'] == []
+
+
+def test_admin_kolejka_bez_tokenu_dalej_401(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    odp = client.get('/admin/kolejka')
+    assert odp.status_code == 401
+
+
+def test_anonim_nie_zjada_budzetu_operatora(client, monkeypatch):
+    monkeypatch.setattr(api, 'ADMIN_TOKEN', 'tajne')
+    monkeypatch.setattr(api, 'LIMIT_ADMIN_IP_MIN', 2)
+    for _ in range(5):
+        odp = client.get('/admin/kolejka', headers={'x-forwarded-for': '5.5.5.5'})
+        assert odp.status_code == 401
+    odp = client.get('/admin/kolejka', headers={'x-forwarded-for': '6.6.6.6',
+                                                 'x-admin-token': 'tajne'})
+    assert odp.status_code == 200
 
 
 def test_sciezka_log_analytics_respektuje_zmienna(monkeypatch, tmp_path):
