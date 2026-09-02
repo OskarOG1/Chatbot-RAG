@@ -135,9 +135,14 @@ export function parametryFiltrow(filtry: Filtry): string {
   return params.toString();
 }
 
-export async function pobierzStatystyki(filtry: Filtry): Promise<Statystyki> {
+export function naglowkiAdmina(token: string): Record<string, string> {
+  return token ? { 'x-admin-token': token } : {};
+}
+
+export async function pobierzStatystyki(filtry: Filtry, token = ''): Promise<Statystyki> {
   const res = await fetch(`/api/admin/statystyki?${parametryFiltrow(filtry)}`, {
     cache: 'no-store',
+    headers: naglowkiAdmina(token),
   });
   if (!res.ok) {
     throw new Error(`Błąd pobierania statystyk: ${res.status}`);
@@ -305,8 +310,11 @@ export const LEKARSTWA_DIAGNOZ: Record<string, string> = {
   brak_sladu: 'ocena sprzed wprowadzenia identyfikatorów',
 };
 
-export async function pobierzPrzypadki(filtry: Filtry): Promise<Przypadki> {
-  const res = await fetch(`/api/admin/oceny?${parametryFiltrow(filtry)}`, { cache: 'no-store' });
+export async function pobierzPrzypadki(filtry: Filtry, token = ''): Promise<Przypadki> {
+  const res = await fetch(`/api/admin/oceny?${parametryFiltrow(filtry)}`, {
+    cache: 'no-store',
+    headers: naglowkiAdmina(token),
+  });
   if (!res.ok) {
     throw new Error(`Błąd pobierania ocen: ${res.status}`);
   }
@@ -408,4 +416,22 @@ export async function odpowiedzZgloszenie(
     throw new Error(tresc?.detail ?? `Błąd zapisu odpowiedzi: ${res.status}`);
   }
   return res.json() as Promise<{ status: string; ticket: string | null }>;
+}
+
+export async function pobierzEksport(
+  filtry: Filtry,
+  kolumny: string[],
+  format: 'csv' | 'json',
+  token = '',
+): Promise<{ blob: Blob; nazwa: string }> {
+  const adres = `/api/admin/eksport?format=${format}&kolumny=${kolumny.join(',')}&${parametryFiltrow(filtry)}`;
+  const res = await fetch(adres, { cache: 'no-store', headers: naglowkiAdmina(token) });
+  if (!res.ok) {
+    const tresc = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(tresc?.detail ?? `Nie udało się pobrać eksportu: ${res.status}`);
+  }
+  const dyspozycja = res.headers.get('content-disposition') ?? '';
+  const dopasowanie = /filename="?([^"]+)"?/.exec(dyspozycja);
+  const stempel = new Date().toISOString().slice(0, 10);
+  return { blob: await res.blob(), nazwa: dopasowanie?.[1] ?? `eksport_${stempel}.${format}` };
 }

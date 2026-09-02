@@ -18,6 +18,8 @@ import {
 
 interface Props {
   dni: number | null;
+  token: string;
+  onToken: (token: string) => void;
 }
 
 const STATUSY: { etykieta: string; wartosc: StatusZgloszenia | null }[] = [
@@ -33,10 +35,9 @@ function czasCzytelny(wartosc: string | null): string {
   return wartosc ? wartosc.slice(0, 16).replace('T', ' ') : 'brak';
 }
 
-export default function KolejkaZgloszen({ dni }: Props) {
+export default function KolejkaZgloszen({ dni, token, onToken }: Props) {
   const th = useTheme();
   const [tokenWpisywany, setTokenWpisywany] = useState('');
-  const [token, setToken] = useState('');
   const [status, setStatus] = useState<StatusZgloszenia | null>('nowe');
   const [dane, setDane] = useState<Kolejka | null>(null);
   const [blad, setBlad] = useState<string | null>(null);
@@ -100,7 +101,7 @@ export default function KolejkaZgloszen({ dni }: Props) {
   };
 
   function wyloguj() {
-    setToken('');
+    onToken('');
     setTokenWpisywany('');
     setDane(null);
   }
@@ -118,7 +119,7 @@ export default function KolejkaZgloszen({ dni }: Props) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            setToken(tokenWpisywany);
+            onToken(tokenWpisywany);
           }}
           style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}
         >
