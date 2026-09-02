@@ -4,16 +4,26 @@ import { useState } from 'react';
 import {
   ETYKIETY_KOLUMN,
   etykieta,
-  parametryFiltrow,
+  pobierzEksport,
   type Filtry,
   type Kolumny,
 } from '@/lib/admin';
 import { useTheme, BODY, DISPLAY } from '@/lib/theme';
 
-export default function PanelEksportu({ filtry, kolumny }: { filtry: Filtry; kolumny: Kolumny }) {
+export default function PanelEksportu({
+  filtry,
+  kolumny,
+  token,
+}: {
+  filtry: Filtry;
+  kolumny: Kolumny;
+  token: string;
+}) {
   const th = useTheme();
   const [wybrane, setWybrane] = useState<string[]>(kolumny.domyslne);
   const [format, setFormat] = useState<'csv' | 'json'>('csv');
+  const [pobieranie, setPobieranie] = useState(false);
+  const [blad, setBlad] = useState<string | null>(null);
 
   const przelacz = (kolumna: string) => {
     setWybrane((biezace) =>
@@ -36,8 +46,27 @@ export default function PanelEksportu({ filtry, kolumny }: { filtry: Filtry; kol
     cursor: 'pointer',
   });
 
-  const adres = `/api/admin/eksport?format=${format}&kolumny=${wybrane.join(',')}&${parametryFiltrow(filtry)}`;
   const brakWyboru = wybrane.length === 0;
+
+  const pobierz = async () => {
+    setPobieranie(true);
+    setBlad(null);
+    try {
+      const { blob, nazwa } = await pobierzEksport(filtry, wybrane, format, token);
+      const adres = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = adres;
+      link.download = nazwa;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(adres);
+    } catch (e) {
+      setBlad(e instanceof Error ? e.message : 'Nie udało się pobrać pliku');
+    } finally {
+      setPobieranie(false);
+    }
+  };
 
   return (
     <section
@@ -96,25 +125,32 @@ export default function PanelEksportu({ filtry, kolumny }: { filtry: Filtry; kol
           JSON
         </button>
       </div>
-      <a
-        href={brakWyboru ? undefined : adres}
-        download
-        aria-disabled={brakWyboru}
+      {!token ? (
+        <p style={{ margin: 0, fontSize: 12.5, color: th.ink2 }}>
+          Bez tokenu administratora plik nie zawiera kolumny z treścią pytań. Token wpisujesz u góry
+          strony.
+        </p>
+      ) : null}
+      {blad ? <p style={{ margin: 0, fontSize: 12.5, color: th.ink }}>{blad}</p> : null}
+      <button
+        type="button"
+        onClick={pobierz}
+        disabled={brakWyboru || pobieranie}
         style={{
           alignSelf: 'flex-start',
           padding: '9px 18px',
           borderRadius: 9,
-          background: brakWyboru ? th.line : th.accent,
+          border: 'none',
+          background: brakWyboru || pobieranie ? th.line : th.accent,
           color: '#FFFFFF',
           fontFamily: BODY,
           fontWeight: 600,
           fontSize: 13,
-          textDecoration: 'none',
-          pointerEvents: brakWyboru ? 'none' : 'auto',
+          cursor: brakWyboru || pobieranie ? 'default' : 'pointer',
         }}
       >
-        Pobierz plik
-      </a>
+        {pobieranie ? 'Pobieram...' : 'Pobierz plik'}
+      </button>
     </section>
   );
 }

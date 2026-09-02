@@ -77,7 +77,9 @@ export default function PanelAdmina() {
   const [resetOtwarty, setResetOtwarty] = useState(false);
   const [resetowanie, setResetowanie] = useState(false);
   const [komunikatResetu, setKomunikatResetu] = useState<string | null>(null);
-  const [tokenResetu, setTokenResetu] = useState('');
+  const [token, setToken] = useState('');
+  const [tokenWpisywany, setTokenWpisywany] = useState('');
+  const [tokenOtwarty, setTokenOtwarty] = useState(false);
   const [przypadki, setPrzypadki] = useState<Przypadki | null>(null);
   const [bladPrzypadkow, setBladPrzypadkow] = useState<string | null>(null);
   const th = THEMES[themeName];
@@ -86,14 +88,13 @@ export default function PanelAdmina() {
     setResetowanie(true);
     setKomunikatResetu(null);
     try {
-      const archiwum = await resetujStatystyki(tokenResetu);
+      const archiwum = await resetujStatystyki(token);
       setKomunikatResetu(
         archiwum
           ? 'Statystyki zresetowane, poprzednie dane zarchiwizowane na serwerze'
           : 'Statystyki zresetowane, nie było czego archiwizować',
       );
       setResetOtwarty(false);
-      setTokenResetu('');
       setOdswiez((n) => n + 1);
     } catch (blad) {
       setKomunikatResetu(
@@ -108,7 +109,7 @@ export default function PanelAdmina() {
     let aktywny = true;
     setLadowanie(true);
     setBlad(null);
-    pobierzStatystyki(filtry)
+    pobierzStatystyki(filtry, token)
       .then((wynik) => {
         if (aktywny) {
           setDane(wynik);
@@ -128,7 +129,7 @@ export default function PanelAdmina() {
     return () => {
       aktywny = false;
     };
-  }, [filtry, odswiez]);
+  }, [filtry, token, odswiez]);
 
   useEffect(() => {
     if (zakladka !== 'Oceny') {
@@ -136,7 +137,7 @@ export default function PanelAdmina() {
     }
     let aktywny = true;
     setBladPrzypadkow(null);
-    pobierzPrzypadki(filtry)
+    pobierzPrzypadki(filtry, token)
       .then((wynik) => {
         if (aktywny) {
           setPrzypadki(wynik);
@@ -150,7 +151,7 @@ export default function PanelAdmina() {
     return () => {
       aktywny = false;
     };
-  }, [zakladka, filtry, odswiez]);
+  }, [zakladka, filtry, token, odswiez]);
 
   const pigulka = (aktywna: boolean) => ({
     height: 34,
@@ -270,6 +271,103 @@ export default function PanelAdmina() {
               >
                 Resetuj statystyki
               </button>
+              {token ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setToken('');
+                    setTokenWpisywany('');
+                    setTokenOtwarty(false);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    height: 36,
+                    padding: '0 14px',
+                    borderRadius: 100,
+                    border: `1px solid ${th.accentLine}`,
+                    background: th.accentSoft,
+                    color: th.accentInk,
+                    fontFamily: BODY,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Wyloguj token
+                </button>
+              ) : tokenOtwarty ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setToken(tokenWpisywany);
+                    setTokenOtwarty(false);
+                  }}
+                  style={{ display: 'flex', gap: 6 }}
+                >
+                  <input
+                    type="password"
+                    value={tokenWpisywany}
+                    onChange={(e) => setTokenWpisywany(e.target.value)}
+                    placeholder="Token administratora"
+                    autoComplete="off"
+                    autoFocus
+                    style={{
+                      height: 36,
+                      width: 190,
+                      padding: '0 12px',
+                      borderRadius: 100,
+                      border: `1px solid ${th.line}`,
+                      background: th.raised,
+                      color: th.ink,
+                      fontFamily: BODY,
+                      fontSize: 13,
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!tokenWpisywany}
+                    style={{
+                      height: 36,
+                      padding: '0 14px',
+                      borderRadius: 100,
+                      border: 'none',
+                      background: tokenWpisywany ? th.accent : th.line,
+                      color: '#FFFFFF',
+                      fontFamily: BODY,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: tokenWpisywany ? 'pointer' : 'default',
+                    }}
+                  >
+                    Odblokuj
+                  </button>
+                </form>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setTokenOtwarty(true)}
+                  title="Bez tokenu panel nie pokazuje treści pytań ani odpowiedzi"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    height: 36,
+                    padding: '0 14px',
+                    borderRadius: 100,
+                    border: `1px solid ${th.line}`,
+                    background: th.surface,
+                    color: th.ink2,
+                    fontFamily: BODY,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Wpisz token
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setThemeName(themeName === 'light' ? 'dark' : 'light')}
@@ -669,10 +767,12 @@ export default function PanelAdmina() {
             </section>
           ) : null}
 
-          {zakladka === 'Kolejka' ? <KolejkaZgloszen dni={filtry.dni} /> : null}
+          {zakladka === 'Kolejka' ? (
+            <KolejkaZgloszen dni={filtry.dni} token={token} onToken={setToken} />
+          ) : null}
 
           {dane && dane.ogolem.zapytan > 0 && zakladka === 'Eksport' ? (
-            <PanelEksportu filtry={filtry} kolumny={dane.kolumny} />
+            <PanelEksportu filtry={filtry} kolumny={dane.kolumny} token={token} />
           ) : null}
         </div>
 
@@ -710,23 +810,11 @@ export default function PanelAdmina() {
                 Dotychczasowe dane zostaną zarchiwizowane na serwerze i wyzerowane na tym panelu.
                 Tej operacji nie da się cofnąć z tego miejsca. Wymaga tokenu administratora.
               </p>
-              <input
-                type="password"
-                value={tokenResetu}
-                onChange={(e) => setTokenResetu(e.target.value)}
-                placeholder="Token administratora"
-                autoComplete="off"
-                style={{
-                  height: 38,
-                  padding: '0 12px',
-                  borderRadius: 9,
-                  border: `1px solid ${th.line}`,
-                  background: th.raised,
-                  color: th.ink,
-                  fontFamily: BODY,
-                  fontSize: 13,
-                }}
-              />
+              {!token ? (
+                <p style={{ margin: 0, fontFamily: BODY, fontSize: 13, color: th.ink2 }}>
+                  Najpierw wpisz token administratora u góry strony.
+                </p>
+              ) : null}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
                 <button
                   type="button"
@@ -750,7 +838,7 @@ export default function PanelAdmina() {
                 <button
                   type="button"
                   onClick={potwierdzResetStatystyk}
-                  disabled={resetowanie || !tokenResetu}
+                  disabled={resetowanie || !token}
                   style={{
                     height: 36,
                     padding: '0 16px',
