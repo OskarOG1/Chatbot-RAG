@@ -88,6 +88,7 @@ export default function EmailPanel({
 
   useEffect(() => {
     if (odliczanieDo === null) return undefined;
+    setTeraz(Date.now());
     const iv = setInterval(() => setTeraz(Date.now()), 250);
     return () => clearInterval(iv);
   }, [odliczanieDo]);

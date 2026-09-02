@@ -4,9 +4,15 @@ const FASTAPI_URL = process.env.FASTAPI_URL ?? 'http://127.0.0.1:8000';
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.toString();
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  const naglowkiZadania: Record<string, string> = { 'x-admin-token': request.headers.get('x-admin-token') ?? '' };
+  if (forwardedFor) {
+    naglowkiZadania['x-forwarded-for'] = forwardedFor;
+  }
 
   const upstream = await fetch(`${FASTAPI_URL}/admin/eksport?${query}`, {
     cache: 'no-store',
+    headers: naglowkiZadania,
   });
 
   const headers: Record<string, string> = { 'cache-control': 'no-store' };

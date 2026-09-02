@@ -136,7 +136,7 @@ export default function PanelAdmina() {
     }
     let aktywny = true;
     setBladPrzypadkow(null);
-    pobierzPrzypadki(filtry.dni)
+    pobierzPrzypadki(filtry)
       .then((wynik) => {
         if (aktywny) {
           setPrzypadki(wynik);
@@ -150,7 +150,7 @@ export default function PanelAdmina() {
     return () => {
       aktywny = false;
     };
-  }, [zakladka, filtry.dni, odswiez]);
+  }, [zakladka, filtry, odswiez]);
 
   const pigulka = (aktywna: boolean) => ({
     height: 34,

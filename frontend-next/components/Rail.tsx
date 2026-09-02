@@ -126,13 +126,11 @@ export default function Rail({
         {items.map((it) => (
           <div
             key={it.id}
-            onClick={() => (selectMode ? onToggleSelected(it.id) : onSelect(it.id))}
             style={{
               display: 'flex',
               gap: 10,
               alignItems: 'stretch',
               padding: '10px 20px 10px 0',
-              cursor: 'pointer',
               background: it.active && !selectMode ? th.raised : 'transparent',
             }}
           >
@@ -142,11 +140,25 @@ export default function Rail({
                 type="checkbox"
                 checked={selectedIds.has(it.id)}
                 onChange={() => onToggleSelected(it.id)}
-                onClick={(e) => e.stopPropagation()}
                 style={{ flex: '0 0 auto', marginTop: 2, cursor: 'pointer' }}
               />
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: '1 1 auto' }}>
+            <button
+              type="button"
+              onClick={() => (selectMode ? onToggleSelected(it.id) : onSelect(it.id))}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
+                minWidth: 0,
+                flex: '1 1 auto',
+                textAlign: 'left',
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+              }}
+            >
               <span
                 style={{
                   fontFamily: BODY,
@@ -161,15 +173,12 @@ export default function Rail({
                 {it.title}
               </span>
               <span style={{ fontFamily: MONO, fontSize: 10.5, color: th.ink3 }}>{it.meta}</span>
-            </div>
+            </button>
             {!selectMode && (
               <button
                 type="button"
                 aria-label={t.deleteChat}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteOne(it.id);
-                }}
+                onClick={() => onDeleteOne(it.id)}
                 style={trashBtn(th)}
               >
                 <IkonaKosz color={th.ink3} />
