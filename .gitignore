@@ -46,3 +46,5 @@ Python.code-workspace
 .env
 outputs/
 backup/
+.semgrep/
+

@@ -196,7 +196,7 @@ def wpisy_z_logu(api):
     if not api.LOG_ANALYTICS.exists():
         return []
     linie = api.LOG_ANALYTICS.read_text(encoding='utf-8').strip().splitlines()
-    return [json.loads(l) for l in linie if l]
+    return [json.loads(wiersz) for wiersz in linie if wiersz]
 
 
 def test_strumien_dokonczony_daje_dokladnie_jeden_wpis(api_stan_czysty, monkeypatch):
