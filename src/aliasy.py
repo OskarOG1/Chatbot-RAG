@@ -9,6 +9,13 @@ ALIASY = {
         'Nieautoryzowany dostęp do konta, utrata dostępu do konta, obca osoba na koncie, '
         'nieznane zamówienia na koncie.'
     ),
+    'jak-zwrocic-zakup-i-odeslac-produkt-do-sprzedajacego-GDeq5VeKRHD': (
+        'Ile mam czasu na zwrot, ile dni na zwrot towaru, jak długo mam na zwrot, '
+        'do kiedy mogę zwrócić zakup, czy zdążę jeszcze zwrócić towar. '
+        'Termin na odstąpienie od umowy, czternaście dni na odesłanie produktu, '
+        'czas na odesłanie przesyłki zwrotnej, do kiedy trzeba nadać zwrot.',
+        '14 dni',
+    ),
     'automatic-collection-of-fees-for-our-services-from-the-funds-you-have-from-sales': (
         'Polecenie zapłaty za faktury i opłaty Allegro. Jak złożyć nowe polecenie zapłaty, '
         'jak włączyć automatyczną zapłatę prowizji i opłat za sprzedaż. Automatyczne '
@@ -20,9 +27,13 @@ ALIASY = {
 
 def dla_chunku(chunk: dict) -> str:
     url = chunk.get('url') or ''
-    for slug, tekst in ALIASY.items():
-        if slug in url:
-            return tekst
+    for slug, wpis in ALIASY.items():
+        if slug not in url:
+            continue
+        if isinstance(wpis, tuple):
+            tekst, kotwica = wpis
+            return tekst if kotwica in (chunk.get('tekst') or '') else ''
+        return wpis
     return ''
 
 
