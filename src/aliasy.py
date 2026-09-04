@@ -16,6 +16,12 @@ ALIASY = {
         'czas na odesłanie przesyłki zwrotnej, do kiedy trzeba nadać zwrot.',
         '14 dni',
     ),
+    'co-mozesz-zrobic-gdy-czekasz-na-przesylke-zbyt-dlugo-xG71gn36qC4': (
+        'Paczka nie przyszła, nie dostałem paczki, przesyłka nie dotarła, zamówienie nie przyszło. '
+        'Brak dostawy, zaginiona przesyłka, sprzedawca nie wysłał paczki, długo czekam na paczkę, '
+        'co zrobić, gdy paczka nie dojdzie na czas.',
+        'nie otrzymałem produktu',
+    ),
     'automatic-collection-of-fees-for-our-services-from-the-funds-you-have-from-sales': (
         'Polecenie zapłaty za faktury i opłaty Allegro. Jak złożyć nowe polecenie zapłaty, '
         'jak włączyć automatyczną zapłatę prowizji i opłat za sprzedaż. Automatyczne '
