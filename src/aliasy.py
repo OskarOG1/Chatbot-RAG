@@ -17,9 +17,9 @@ ALIASY = {
         '14 dni',
     ),
     'co-mozesz-zrobic-gdy-czekasz-na-przesylke-zbyt-dlugo-xG71gn36qC4': (
-        'Paczka nie przyszła, nie dostałem paczki, przesyłka nie dotarła, zamówienie nie przyszło. '
-        'Brak dostawy, zaginiona przesyłka, sprzedawca nie wysłał paczki, długo czekam na paczkę, '
-        'co zrobić, gdy paczka nie dojdzie na czas.',
+        'Paczka nie przyszła, nie dostałem paczki, przesyłka nie dotarła, zamówienie nie przyszło, '
+        'sprzedawca nie wysłał paczki, brak dostawy przesyłki, zaginęła paczka, '
+        'czekam za długo na przesyłkę i nie wiem co robić.',
         'nie otrzymałem produktu',
     ),
     'automatic-collection-of-fees-for-our-services-from-the-funds-you-have-from-sales': (
