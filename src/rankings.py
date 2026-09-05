@@ -19,6 +19,8 @@ RERANKER_MAX_LEN = int(os.getenv('RERANKER_MAX_LEN', '192'))
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
 K_RRF = 60
+DOSZYCIE_SASIADOW_ON = os.getenv('DOSZYCIE_SASIADOW_ON', 'false').lower() in ('1', 'true', 'yes')
+K_SASIEDZI_SEKCJI = int(os.getenv('K_SASIEDZI_SEKCJI', '5'))
 
 def get_reranker():
     global RERANKER
@@ -51,6 +53,40 @@ def dedup_najlepszy(wyniki, klucz):
 
     return list(najlepsze.values())
 
+def sasiedzi_artykulu(chunk, lang='pl', limit=None):
+    limit = K_SASIEDZI_SEKCJI if limit is None else limit
+    chunki = wczytaj_chunki(chunk['agent'], lang)
+    blok = [(i, c) for i, c in enumerate(chunki) if c['url'] == chunk['url']]
+    pozycja = next((i for i, c in blok if c['tekst'] == chunk['tekst']), None)
+    if pozycja is None:
+        return [chunk]
+
+    if len(blok) > limit:
+        blok = sorted(blok, key=lambda para: (abs(para[0] - pozycja), para[0]))[:limit]
+    blok = sorted(blok, key=lambda para: para[0])
+
+    return [c for _, c in blok]
+
+def doszyj_sasiadow(unikalne, lang='pl'):
+    if not unikalne:
+        return unikalne
+
+    czolowki = {}
+    for i, (chunk, score) in enumerate(unikalne):
+        strona = strony.strona_z_agenta(chunk['agent'])
+        if strona not in czolowki or score > czolowki[strona][1]:
+            czolowki[strona] = (i, score)
+    indeksy_czolowe = {i for i, _ in czolowki.values()}
+
+    rozszerzone = []
+    for i, (chunk, score) in enumerate(unikalne):
+        if i in indeksy_czolowe:
+            rozszerzone.extend((sasiad, score) for sasiad in sasiedzi_artykulu(chunk, lang))
+        else:
+            rozszerzone.append((chunk, score))
+
+    return rozszerzone
+
 def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl'):
     linki = []
     for agent in agenci:
@@ -65,6 +101,8 @@ def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl')
     ocenione = [(chunk, float(s)) for (chunk, _), s in zip(linki, scores)]
 
     unikalne = dedup_najlepszy(ocenione, klucz_url)
+    if DOSZYCIE_SASIADOW_ON:
+        unikalne = doszyj_sasiadow(unikalne, lang)
     unikalne = dedup_najlepszy(unikalne, klucz_tresci)
 
     return sorted(unikalne, key=lambda p: p[1], reverse=True)[:k]
