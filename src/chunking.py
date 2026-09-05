@@ -1,4 +1,5 @@
 import argparse
+import re
 from pathlib import Path
 import tiktoken
 import json
@@ -13,6 +14,8 @@ RAG_DIR = ROOT / 'RAG'
 
 encoder = tiktoken.get_encoding('cl100k_base')
 
+SKROTY = {'np', 'tzn', 'm.in', 'ul', 'art', 'zl', 'zł', 'godz', 'tj', 'itd', 'itp', 'pkt', 'nr', 'str'}
+
 
 def wczytaj_dokument(sciezka: Path) -> tuple[dict, str]:
     with open(sciezka, 'r', encoding='utf-8') as r:
@@ -24,16 +27,136 @@ def wczytaj_dokument(sciezka: Path) -> tuple[dict, str]:
         return metadane, tresc
 
 
+def dlugosc_tokenow(tekst: str) -> int:
+    return len(encoder.encode(tekst))
+
+
+SEP_DLUGOSC = {'': 0, ' ': dlugosc_tokenow(' '), '\n\n': dlugosc_tokenow('\n\n')}
+
+
+def podziel_na_bloki(tekst: str) -> list[str]:
+    return [blok.strip() for blok in re.split(r'\n\s*\n', tekst.strip()) if blok.strip()]
+
+
+def podziel_na_zdania(tekst: str) -> list[str]:
+    znormalizowany = ' '.join(tekst.split())
+    if not znormalizowany:
+        return []
+
+    granice = []
+    for match in re.finditer(r'[.!?]+[\'"\)\]]*', znormalizowany):
+        poczatek, koniec = match.start(), match.end()
+
+        przed = znormalizowany[:poczatek].rsplit(' ', 1)[-1]
+        slowo = przed.strip('.!?\'"()[]').lower()
+
+        reszta = znormalizowany[koniec:].lstrip()
+        pierwszy_znak = reszta[0] if reszta else ''
+
+        czy_skrot = slowo in SKROTY or slowo.isdigit()
+        if czy_skrot:
+            continue
+
+        czy_koniec = not reszta
+        czy_nowe_zdanie = pierwszy_znak.isupper() or pierwszy_znak.isdigit()
+        if czy_koniec or czy_nowe_zdanie:
+            granice.append(koniec)
+
+    zdania = []
+    start = 0
+    for koniec in granice:
+        kawalek = znormalizowany[start:koniec].strip()
+        if kawalek:
+            zdania.append(kawalek)
+        start = koniec
+    ogon = znormalizowany[start:].strip()
+    if ogon:
+        zdania.append(ogon)
+
+    return zdania
+
+
+def rozbij_sekcje(tekst: str, budget: int) -> list[dict]:
+    fragmenty = []
+
+    def dodaj(sep, tresc):
+        fragmenty.append({'sep': sep, 'tekst': tresc, 'dl': dlugosc_tokenow(tresc)})
+
+    for i, blok in enumerate(podziel_na_bloki(tekst)):
+        sep_bloku = '' if i == 0 else '\n\n'
+        if dlugosc_tokenow(blok) <= budget:
+            dodaj(sep_bloku, blok)
+            continue
+
+        for j, zdanie in enumerate(podziel_na_zdania(blok)):
+            sep_zdania = sep_bloku if j == 0 else ' '
+            if dlugosc_tokenow(zdanie) <= budget:
+                dodaj(sep_zdania, zdanie)
+                continue
+
+            kawalek = ''
+            sep_kawalka = sep_zdania
+            for slowo in zdanie.split(' '):
+                probka = f'{kawalek} {slowo}' if kawalek else slowo
+                if kawalek and dlugosc_tokenow(probka) > budget:
+                    dodaj(sep_kawalka, kawalek)
+                    kawalek = slowo
+                    sep_kawalka = ' '
+                else:
+                    kawalek = probka
+            if kawalek:
+                dodaj(sep_kawalka, kawalek)
+
+    return fragmenty
+
+
+def zloz_fragmenty(fragmenty: list[dict]) -> str:
+    return ''.join(f['sep'] + f['tekst'] for f in fragmenty)
+
+
+def wybierz_zakladke(poprzedni: list[dict], nastepny: dict, overlap: int, size: int) -> tuple[list[dict], int]:
+    wybrane = []
+    dlugosc = 0
+    for f in reversed(poprzedni):
+        sep_dl = SEP_DLUGOSC[wybrane[0]['sep']] if wybrane else 0
+        nowa_dlugosc = dlugosc + sep_dl + f['dl']
+        if wybrane and nowa_dlugosc > overlap:
+            break
+        if nowa_dlugosc + SEP_DLUGOSC[nastepny['sep']] + nastepny['dl'] > size:
+            break
+        wybrane.insert(0, f)
+        dlugosc = nowa_dlugosc
+    if wybrane:
+        wybrane[0] = {**wybrane[0], 'sep': ''}
+    return wybrane, dlugosc
+
+
 def podziel_na_chunki(tekst: str, size: int, overlap: int) -> list[str]:
 
-    tokeny = encoder.encode(tekst)
-    chunki = []
-    i = 0
+    fragmenty = rozbij_sekcje(tekst, size)
+    if not fragmenty:
+        return []
 
-    while i < len(tokeny):
-        okno = tokeny[i:i + size]
-        chunki.append(encoder.decode(okno))
-        i += max(1, size - overlap)
+    chunki = []
+    biezacy: list[dict] = []
+    dlugosc_biezacego = 0
+
+    i = 0
+    while i < len(fragmenty):
+        frag = fragmenty[i]
+        sep_dl = SEP_DLUGOSC[frag['sep']] if biezacy else 0
+
+        if not biezacy or dlugosc_biezacego + sep_dl + frag['dl'] <= size:
+            biezacy.append(frag if biezacy else {**frag, 'sep': ''})
+            dlugosc_biezacego += sep_dl + frag['dl']
+            i += 1
+            continue
+
+        chunki.append(zloz_fragmenty(biezacy))
+        biezacy, dlugosc_biezacego = wybierz_zakladke(biezacy, frag, overlap, size)
+
+    if biezacy:
+        chunki.append(zloz_fragmenty(biezacy))
 
     return chunki
 
