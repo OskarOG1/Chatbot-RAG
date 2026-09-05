@@ -3,7 +3,7 @@ import faiss
 from rankings import search_reranked_multi, normalizacja
 from agents import (answer_stream, answer_ogolna_stream, przepisz_zapytanie,
                     czy_kontekst_odpowiada, napisz_email, sedzia_kategoria_mail)
-from guards import sprawdz
+from guards import sprawdz, bez_ogonkow
 from spell import correct, tokenize_words, MIN_DLUGOSC, lematy as lematy_lemma
 from lang_config import LANG
 import ogolna
@@ -96,13 +96,20 @@ def kategoria_z_oferty(query: str, lang: str = 'pl') -> str | None:
     return None
 
 
-def jawna_prosba_o_mail(query: str, lang: str = 'pl') -> bool:
+@lru_cache(maxsize=8)
+def listy_maila(lang: str) -> tuple:
     cfg = LANG[lang]
-    low = query.strip().lower()
+    return (frozenset(bez_ogonkow(s) for s in cfg['mail_czasowniki']),
+            frozenset(bez_ogonkow(s) for s in cfg['mail_obiekty']))
+
+
+def jawna_prosba_o_mail(query: str, lang: str = 'pl') -> bool:
     if kategoria_z_oferty(query, lang):
         return True
-    tokeny = set(tokenize_words(low))
-    return bool(tokeny & cfg['mail_czasowniki']) and bool(tokeny & cfg['mail_obiekty'])
+    plaski = bez_ogonkow(query.strip().lower())
+    tokeny = set(tokenize_words(plaski))
+    czasowniki, obiekty = listy_maila(lang)
+    return bool(tokeny & czasowniki) and bool(tokeny & obiekty)
 
 
 def lematy(tekst: str, lang: str = 'pl') -> set:
