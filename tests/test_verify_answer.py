@@ -103,3 +103,52 @@ def test_martwy_numer_obok_prawdziwego_znika_prawdziwy_zostaje():
     wynik = verify_answer('Tresc odpowiedzi [1][7]', chunks)
     assert wynik['tekst'] == 'Tresc odpowiedzi [1]'
     assert wynik['cytaty'] == [{'n': 1, 'url': 'https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF', 'tytul': 't'}]
+
+
+def test_etykieta_przycisku_zostaje_bez_nawiasu():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
+    wynik = verify_answer('Kliknij [dalej], aby kontynuowac.', chunks)
+    assert wynik['tekst'] == 'Kliknij dalej, aby kontynuowac.'
+    assert '[' not in wynik['tekst']
+    assert ']' not in wynik['tekst']
+
+
+def test_bramka_security_dziala_przed_rozwinieciem_etykiety():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
+    wynik = verify_answer('[Security: uwaga] Kliknij [dalej], aby kontynuowac.', chunks)
+    assert 'Security' not in wynik['tekst']
+    assert 'uwaga' not in wynik['tekst']
+    assert wynik['tekst'] == 'Kliknij dalej, aby kontynuowac.'
+
+
+def test_nawias_niedomkniety_nie_wywala_funkcji():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
+    wynik = verify_answer('Kliknij [dalej', chunks)
+    assert 'Kliknij' in wynik['tekst']
+
+
+def test_nawias_zagniezdzony_nie_wywala_funkcji_i_zachowuje_tresc():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
+    wynik = verify_answer('Zrob to [a [b] c] teraz.', chunks)
+    assert 'a' in wynik['tekst']
+    assert 'c' in wynik['tekst']
+    assert 'teraz' in wynik['tekst']
+
+
+def test_etykieta_z_samych_cyfr_zachowanie_bez_zmian():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
+    wynik = verify_answer('Rok [2024] to standard rozliczen.', chunks)
+    assert '[2024]' in wynik['tekst']
+    assert wynik['cytaty'] == []
+
+
+def test_podwojna_spacja_po_etykiecie_sprzatana():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
+    wynik = verify_answer('Otworz  [ustawienia]  i zapisz.', chunks)
+    assert wynik['tekst'] == 'Otworz ustawienia i zapisz.'
+
+
+def test_spacja_przed_przecinkiem_po_etykiecie_sprzatana():
+    chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
+    wynik = verify_answer('Kliknij [ dalej ], aby kontynuowac.', chunks)
+    assert wynik['tekst'] == 'Kliknij dalej, aby kontynuowac.'
