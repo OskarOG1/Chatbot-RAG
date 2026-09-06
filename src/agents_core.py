@@ -571,7 +571,7 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     tekst = URL_REGEX.sub(strip_url, pelna)
     tekst = re.sub(r'\[(?:Security|Note|Disclaimer|Warning)[^\[\]]*:[^\[\]]*\]\s*', '',
                     tekst, flags=re.IGNORECASE).lstrip()
-    tekst = re.sub(r'\[(?!\d+\])[^\[\]]*\]', '', tekst)
+    tekst = re.sub(r'\[(?!\d+\])([^\[\]]*)\]', lambda m: m.group(1).strip(), tekst)
     tekst = usun_sekcje_zrodel(tekst)
 
     numery = []
