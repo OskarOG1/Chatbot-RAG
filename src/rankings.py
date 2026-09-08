@@ -6,6 +6,7 @@ from sentence_transformers import CrossEncoder
 import unicodedata
 import pickle
 import os
+import sys
 import simplemma
 import aliasy
 import strony
@@ -46,19 +47,30 @@ def klucz_tresci(chunk):
 
 def dedup_najlepszy(wyniki, klucz):
     najlepsze = {}
-    for chunk, score in wyniki:
+    for wpis in wyniki:
+        chunk, score = wpis[0], wpis[1]
         k = klucz(chunk)
         if k not in najlepsze or score > najlepsze[k][1]:
-            najlepsze[k] = (chunk, score)
+            najlepsze[k] = wpis
 
     return list(najlepsze.values())
 
-def sasiedzi_artykulu(chunk, lang='pl', limit=None):
+CHUNKI_NIEDOPASOWANE = set()
+
+def sasiedzi_artykulu(chunk, sekcja, lang='pl', limit=None):
     limit = K_SASIEDZI_SEKCJI if limit is None else limit
-    chunki = wczytaj_chunki(chunk['agent'], lang)
+    chunki = wczytaj_chunki(sekcja, lang)
     blok = [(i, c) for i, c in enumerate(chunki) if c['url'] == chunk['url']]
-    pozycja = next((i for i, c in blok if c['tekst'] == chunk['tekst']), None)
+    pozycja = next((i for i, c in blok if c is chunk), None)
     if pozycja is None:
+        pozycja = next((i for i, c in blok if c['tekst'] == chunk['tekst']), None)
+    if pozycja is None:
+        klucz = (sekcja, chunk['url'])
+        if klucz not in CHUNKI_NIEDOPASOWANE:
+            CHUNKI_NIEDOPASOWANE.add(klucz)
+            print(f'UWAGA: chunk {chunk["url"]!r} nie znaleziony w tablicy sekcji {sekcja!r}, '
+                  'doszywanie sasiadow pominiete dla tego wpisu',
+                  file=sys.stderr, flush=True)
         return [chunk]
 
     if len(blok) > limit:
@@ -72,40 +84,43 @@ def doszyj_sasiadow(unikalne, lang='pl'):
         return unikalne
 
     czolowki = {}
-    for i, (chunk, score) in enumerate(unikalne):
+    for i, (chunk, score, sekcja) in enumerate(unikalne):
         strona = strony.strona_z_agenta(chunk['agent'])
         if strona not in czolowki or score > czolowki[strona][1]:
             czolowki[strona] = (i, score)
     indeksy_czolowe = {i for i, _ in czolowki.values()}
 
     rozszerzone = []
-    for i, (chunk, score) in enumerate(unikalne):
+    for i, (chunk, score, sekcja) in enumerate(unikalne):
         if i in indeksy_czolowe:
-            rozszerzone.extend((sasiad, score) for sasiad in sasiedzi_artykulu(chunk, lang))
+            rozszerzone.extend((sasiad, score, sekcja)
+                               for sasiad in sasiedzi_artykulu(chunk, sekcja, lang))
         else:
-            rozszerzone.append((chunk, score))
+            rozszerzone.append((chunk, score, sekcja))
 
     return rozszerzone
 
 def search_reranked_multi(query, query_emb, agenci, k=3, k_surowe=20, lang='pl'):
     linki = []
-    for agent in agenci:
-        k_surowe_agenta = k_surowe[agent] if isinstance(k_surowe, dict) else k_surowe
-        linki.extend(kandydaci_rrf(query, query_emb, agent, k_surowe_agenta, lang))
+    for sekcja in agenci:
+        k_surowe_sekcji = k_surowe[sekcja] if isinstance(k_surowe, dict) else k_surowe
+        linki.extend((chunk, wynik, sekcja) for chunk, wynik in
+                     kandydaci_rrf(query, query_emb, sekcja, k_surowe_sekcji, lang))
 
     if not linki:
         return []
 
-    pary = [(query, aliasy.tekst_do_retrievalu(chunk)) for chunk, _ in linki]
+    pary = [(query, aliasy.tekst_do_retrievalu(chunk)) for chunk, _, _ in linki]
     scores = get_reranker().predict(pary, batch_size=RERANKER_BATCH)
-    ocenione = [(chunk, float(s)) for (chunk, _), s in zip(linki, scores)]
+    ocenione = [(chunk, float(s), sekcja) for (chunk, _, sekcja), s in zip(linki, scores)]
 
     unikalne = dedup_najlepszy(ocenione, klucz_url)
     if DOSZYCIE_SASIADOW_ON:
         unikalne = doszyj_sasiadow(unikalne, lang)
     unikalne = dedup_najlepszy(unikalne, klucz_tresci)
 
-    return sorted(unikalne, key=lambda p: p[1], reverse=True)[:k]
+    posortowane = sorted(unikalne, key=lambda p: p[1], reverse=True)[:k]
+    return [(chunk, score) for chunk, score, _ in posortowane]
 
 
 def stempel_pliku(sciezka) -> int | None:
