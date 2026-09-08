@@ -267,14 +267,6 @@ def loguj_trudne(query: str, nieznane: list) -> None:
     except OSError:
         pass
 
-def cytaty_lub_zrodla(cytaty: list[dict], chunks: list[tuple[dict, float]]) -> list[dict]:
-    if cytaty:
-        return cytaty
-    zrodla = list(dict.fromkeys(c['url'] for c, _ in chunks))
-    tytuly = {c['url']: c['tytul'] for c, _ in chunks}
-    return [{'n': i, 'url': url, 'tytul': tytuly[url]} for i, url in enumerate(zrodla, 1)]
-
-
 def zadanie_sedziego(stan: dict, zapytanie_ret: str, chunks: list, bielik_model: str | None,
                      lang: str) -> bool:
     stan['sedzia_wystartowal'] = True
@@ -469,7 +461,7 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
         'agent': agent_odp,
         'answer': odpowiedz['tekst'],
         'sources': zrodla,
-        'citations': cytaty_lub_zrodla(odpowiedz['cytaty'], chunks),
+        'citations': odpowiedz['cytaty'],
         'podpowiedzi': podpowiedzi.zbuduj(chunks, query, lang),
         'oferta': oferta,
         'oferta_kategoria': oferta_kategoria,
@@ -579,7 +571,7 @@ def probuj_druga_sekcje(zapytanie_ret: str, query: str, history: list[dict],
         'agent': agent_odp,
         'answer': odpowiedz['tekst'],
         'sources': zrodla,
-        'citations': cytaty_lub_zrodla(odpowiedz['cytaty'], chunks),
+        'citations': odpowiedz['cytaty'],
         'podpowiedzi': podpowiedzi.zbuduj(chunks, query, lang),
         'oferta': oferta,
         'oferta_kategoria': oferta_kategoria,

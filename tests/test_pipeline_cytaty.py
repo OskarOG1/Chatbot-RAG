@@ -1,29 +1,29 @@
-from pipeline import cytaty_lub_zrodla
+from agents_core import verify_answer
+
+CHUNKI = [
+    ({'url': 'https://allegro.pl/pomoc/a', 'tytul': 'Artykul A'}, 1.0),
+    ({'url': 'https://allegro.pl/pomoc/b', 'tytul': 'Artykul B'}, 0.5),
+]
 
 
-def chunk(url, tytul='t'):
-    return ({'url': url, 'tytul': tytul}, 0.9)
+def test_odpowiedz_bez_numeru_nie_daje_zadnego_zrodla():
+    assert verify_answer('Zrob X, potem Y.', CHUNKI)['cytaty'] == []
 
 
-def test_cytaty_niepuste_zwracane_bez_zmian():
-    cytaty = [{'n': 1, 'url': 'https://allegro.pl/a', 'tytul': 't'}]
-    chunks = [chunk('https://allegro.pl/a'), chunk('https://allegro.pl/b')]
-    assert cytaty_lub_zrodla(cytaty, chunks) == cytaty
+def test_zacytowany_jest_tylko_ten_numer_ktory_padl_w_tresci():
+    cytaty = verify_answer('Zrob X [1], potem Y.', CHUNKI)['cytaty']
+    assert [c['url'] for c in cytaty] == ['https://allegro.pl/pomoc/a']
 
 
-def test_cytaty_puste_spadaja_na_zrodla_chunkow():
-    chunks = [chunk('https://allegro.pl/a', 'Artykul A'), chunk('https://allegro.pl/b', 'Artykul B')]
-    wynik = cytaty_lub_zrodla([], chunks)
-    assert wynik == [
-        {'n': 1, 'url': 'https://allegro.pl/a', 'tytul': 'Artykul A'},
-        {'n': 2, 'url': 'https://allegro.pl/b', 'tytul': 'Artykul B'},
-    ]
+def test_dwa_numery_daja_dwa_zrodla_w_kolejnosci_wystapienia():
+    cytaty = verify_answer('Najpierw Y [2], potem X [1].', CHUNKI)['cytaty']
+    assert [c['n'] for c in cytaty] == [2, 1]
 
 
-def test_fallback_deduplikuje_te_sama_strone():
-    chunks = [chunk('https://allegro.pl/a', 'X'), chunk('https://allegro.pl/a', 'X')]
-    assert cytaty_lub_zrodla([], chunks) == [{'n': 1, 'url': 'https://allegro.pl/a', 'tytul': 'X'}]
+def test_numer_spoza_okna_nie_dodaje_zrodla():
+    assert verify_answer('Zrob X [9].', CHUNKI)['cytaty'] == []
 
 
-def test_brak_chunkow_i_cytatow_daje_pusta_liste():
-    assert cytaty_lub_zrodla([], []) == []
+def test_ten_sam_numer_dwa_razy_daje_jedno_zrodlo():
+    cytaty = verify_answer('Zrob X [1], a potem znowu X [1].', CHUNKI)['cytaty']
+    assert [c['n'] for c in cytaty] == [1]
