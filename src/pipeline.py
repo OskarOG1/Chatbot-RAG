@@ -32,8 +32,8 @@ class ModeleLeniwe(dict):
 MODELE = ModeleLeniwe()
 OKNO_HISTORII = 3
 OKNO_JAWNEJ_ODMOWY = 160
-K_SUROWE_SEKCJI = int(os.getenv('K_SUROWE_SEKCJI', '6'))
-K_CHUNKOW_SEKCJI = int(os.getenv('K_CHUNKOW_SEKCJI', '5'))
+K_SUROWE_SEKCJI = int(os.getenv('K_SUROWE_SEKCJI', '8'))
+K_CHUNKOW_SEKCJI = int(os.getenv('K_CHUNKOW_SEKCJI', '8'))
 SEDZIA_CHUNKOW = int(os.getenv('SEDZIA_CHUNKOW', '3'))
 SEDZIA_CZEKANIE = float(os.getenv('SEDZIA_CZEKANIE', '30'))
 SEDZIA_CZEKANIE_KONCOWE = float(os.getenv('SEDZIA_CZEKANIE_KONCOWE', '3'))
