@@ -57,7 +57,7 @@ def test_domyslny_limit_sasiadow():
 def test_dopasowanie_po_parze_adres_tekst_a_nie_po_naglowku(korpus_logowanie):
     zwyciezca = KORPUS_LOGOWANIE[2]
 
-    sasiedzi = rankings.sasiedzi_artykulu(zwyciezca, limit=3)
+    sasiedzi = rankings.sasiedzi_artykulu(zwyciezca, 'kupujacy', limit=3)
 
     teksty = [c['tekst'] for c in sasiedzi]
     assert teksty == [
@@ -72,7 +72,7 @@ def test_trzy_chunki_o_identycznym_naglowku_daja_rozne_sasiedztwa(korpus_logowan
                            if c['naglowek'] == 'Jak sie logowac kluczem dostepu']
     assert len(identyczny_naglowek) == 3
 
-    zestawy = [tuple(s['tekst'] for s in rankings.sasiedzi_artykulu(c, limit=3))
+    zestawy = [tuple(s['tekst'] for s in rankings.sasiedzi_artykulu(c, 'kupujacy', limit=3))
               for c in identyczny_naglowek]
 
     assert len(set(zestawy)) == 3
@@ -83,7 +83,7 @@ def test_artykul_krotszy_niz_limit_wchodzi_w_calosci(monkeypatch):
               chunk(INNY_ARTYKUL, 'Platnosci', 'Akapit dwa.')]
     monkeypatch.setattr(rankings, 'wczytaj_chunki', lambda agent, lang='pl': krotki)
 
-    sasiedzi = rankings.sasiedzi_artykulu(krotki[0], limit=5)
+    sasiedzi = rankings.sasiedzi_artykulu(krotki[0], 'kupujacy', limit=5)
 
     assert [c['tekst'] for c in sasiedzi] == ['Akapit jeden.', 'Akapit dwa.']
 
@@ -94,10 +94,58 @@ def test_obcy_chunk_wstawiony_miedzy_blok_nie_wchodzi_do_sasiedztwa(monkeypatch)
               KORPUS_LOGOWANIE[2], KORPUS_LOGOWANIE[3]]
     monkeypatch.setattr(rankings, 'wczytaj_chunki', lambda agent, lang='pl': tablica)
 
-    sasiedzi = rankings.sasiedzi_artykulu(KORPUS_LOGOWANIE[2], limit=3)
+    sasiedzi = rankings.sasiedzi_artykulu(KORPUS_LOGOWANIE[2], 'kupujacy', limit=3)
 
     assert all(c['url'] == ARTYKUL for c in sasiedzi)
     assert obcy not in sasiedzi
+
+
+def test_czyta_tablice_sekcji_przekazanej_parametrem_a_nie_pola_agent(monkeypatch):
+    inna_tablica = [chunk(ARTYKUL, 'Logowanie', 'Zdanie pierwsze.'),
+                    chunk(ARTYKUL, 'Logowanie', 'Zdanie drugie.', agent='platnosci')]
+
+    def wczytaj(sekcja, lang='pl'):
+        if sekcja == 'sprzedaz':
+            return inna_tablica
+        raise AssertionError(f'nie oczekiwano wczytania tablicy dla {sekcja!r}')
+
+    monkeypatch.setattr(rankings, 'wczytaj_chunki', wczytaj)
+    zwyciezca = inna_tablica[1]
+    assert zwyciezca['agent'] == 'platnosci'
+
+    sasiedzi = rankings.sasiedzi_artykulu(zwyciezca, 'sprzedaz', limit=5)
+
+    assert [c['tekst'] for c in sasiedzi] == ['Zdanie pierwsze.', 'Zdanie drugie.']
+
+
+def test_dwa_chunki_o_identycznym_tekscie_dopasowuja_po_obiekcie(monkeypatch):
+    powtorka = chunk(ARTYKUL, 'Logowanie', 'Ten sam akapit powtorzony w artykule.')
+    inny = chunk(ARTYKUL, 'Logowanie', 'Akapit miedzy powtorkami.')
+    powtorka_druga = chunk(ARTYKUL, 'Logowanie', 'Ten sam akapit powtorzony w artykule.')
+    tablica = [powtorka, inny, powtorka_druga]
+    monkeypatch.setattr(rankings, 'wczytaj_chunki', lambda sekcja, lang='pl': tablica)
+
+    sasiedzi_pierwszej = rankings.sasiedzi_artykulu(powtorka, 'kupujacy', limit=1)
+    sasiedzi_drugiej = rankings.sasiedzi_artykulu(powtorka_druga, 'kupujacy', limit=1)
+    sasiedzi_drugiej_powtornie = rankings.sasiedzi_artykulu(powtorka_druga, 'kupujacy', limit=1)
+
+    assert sasiedzi_pierwszej[0] is powtorka
+    assert sasiedzi_drugiej[0] is powtorka_druga
+    assert sasiedzi_drugiej_powtornie[0] is powtorka_druga
+
+
+def test_niedopasowany_chunk_daje_czytelny_sygnal_a_nie_cichy_fallback(monkeypatch, capsys):
+    rankings.CHUNKI_NIEDOPASOWANE.clear()
+    tablica = [chunk(ARTYKUL, 'Logowanie', 'Jedyny akapit w tablicy.')]
+    monkeypatch.setattr(rankings, 'wczytaj_chunki', lambda sekcja, lang='pl': tablica)
+    obcy = chunk(ARTYKUL, 'Logowanie', 'Tekst, ktorego nie ma w tablicy sekcji.')
+
+    sasiedzi = rankings.sasiedzi_artykulu(obcy, 'kupujacy', limit=3)
+
+    assert sasiedzi == [obcy]
+    zapis = capsys.readouterr()
+    assert 'UWAGA' in zapis.err
+    assert 'kupujacy' in zapis.err
 
 
 def test_rozszerzany_jest_tylko_czolowy_wpis_kazdej_strony(monkeypatch, flaga_wlaczona,
