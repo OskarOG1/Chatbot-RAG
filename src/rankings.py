@@ -16,6 +16,7 @@ RERANKER_NAME = 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1'
 RERANKER = None
 RERANKER_BATCH = int(os.getenv('RERANKER_BATCH', '16'))
 RERANKER_MAX_LEN = int(os.getenv('RERANKER_MAX_LEN', '128'))
+RERANKER_INT8 = os.getenv('RERANKER_INT8', 'true').lower() in ('1', 'true', 'yes')
 
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
@@ -23,10 +24,25 @@ K_RRF = 60
 DOSZYCIE_SASIADOW_ON = os.getenv('DOSZYCIE_SASIADOW_ON', 'false').lower() in ('1', 'true', 'yes')
 K_SASIEDZI_SEKCJI = int(os.getenv('K_SASIEDZI_SEKCJI', '5'))
 
+def skwantyzuj(model):
+    import torch
+    silniki = torch.backends.quantized.supported_engines
+    silnik = 'onednn' if 'onednn' in silniki else ('fbgemm' if 'fbgemm' in silniki else None)
+    if silnik is None:
+        print('UWAGA: brak silnika kwantyzacji, reranker zostaje w float32',
+              file=sys.stderr, flush=True)
+        return model
+    torch.backends.quantized.engine = silnik
+    torch.ao.quantization.quantize_dynamic(
+        model.model, {torch.nn.Linear}, dtype=torch.qint8, inplace=True)
+    return model
+
+
 def get_reranker():
     global RERANKER
     if RERANKER is None:
-        RERANKER = CrossEncoder(RERANKER_NAME, max_length=RERANKER_MAX_LEN)
+        model = CrossEncoder(RERANKER_NAME, max_length=RERANKER_MAX_LEN)
+        RERANKER = skwantyzuj(model) if RERANKER_INT8 else model
     return RERANKER
 
 def kandydaci_rrf(query, query_emb, agent, k_surowe, lang='pl'):

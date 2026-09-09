@@ -27,6 +27,10 @@ measure_*.mjs
 Pomiary/zbierz_pytania.py
 Pomiary/fixtures_pytania/
 Pomiary/log_*.txt
+Pomiary/build_candidates_sprzedaz.py
+Pomiary/search_realne.py
+Pomiary/show_article.py
+Pomiary/assemble_golden_sprzedaz.py
 classify.py
 trudne.jsonl
 *.jsonl
