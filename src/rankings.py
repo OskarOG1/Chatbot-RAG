@@ -15,7 +15,7 @@ from lang_config import LANG
 RERANKER_NAME = 'cross-encoder/mmarco-mMiniLMv2-L12-H384-v1'
 RERANKER = None
 RERANKER_BATCH = int(os.getenv('RERANKER_BATCH', '16'))
-RERANKER_MAX_LEN = int(os.getenv('RERANKER_MAX_LEN', '192'))
+RERANKER_MAX_LEN = int(os.getenv('RERANKER_MAX_LEN', '128'))
 
 ROOT = Path(__file__).resolve().parent.parent
 RAG_DIR = ROOT / 'RAG'
