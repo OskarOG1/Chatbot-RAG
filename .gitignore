@@ -31,6 +31,11 @@ Pomiary/build_candidates_sprzedaz.py
 Pomiary/search_realne.py
 Pomiary/show_article.py
 Pomiary/assemble_golden_sprzedaz.py
+Pomiary/gpu_rozmiar_chunku.py
+Pomiary/pokaz_artykul.py
+Pomiary/przygotuj_kandydatow.py
+Pomiary/sprawdz_etykiety.py
+Pomiary/kandydaci/
 classify.py
 trudne.jsonl
 *.jsonl
