@@ -79,10 +79,13 @@ def test_cytat_powielony_na_koncu_wyciety_ale_jedyny_zostaje():
     ]
 
 
-def test_cytat_koncowy_powtorzony_wyzej_zostaje_obciety():
+def test_powtorzony_cytat_zostaje_tylko_na_koncu_ciagu():
+    # Ciag tych samych numerow zwija sie do ostatniego, wiec z dwoch [1] zostaje ten koncowy.
+    # Wczesniej obcinany byl koncowy, a zostawal pierwszy; zrodlo jest zacytowane w obu wersjach.
     chunks = [chunk('https://allegro.pl/pomoc/dla-kupujacych/x/a-ABCDEF')]
     wynik = verify_answer('Zrob to [1]. Podsumowanie [1]', chunks)
-    assert wynik['tekst'] == 'Zrob to [1]. Podsumowanie'
+    assert wynik['tekst'] == 'Zrob to. Podsumowanie [1]'
+    assert [c['n'] for c in wynik['cytaty']] == [1]
 
 
 def test_slowo_zrodla_w_srodku_zdania_nie_wyciete():

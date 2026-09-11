@@ -3,7 +3,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'src'))
 
-from agents_core import usun_liste_zrodel_bez_naglowka, usun_sekcje_zrodel, verify_answer
+from agents_core import (usun_liste_zrodel_bez_naglowka, usun_sekcje_zrodel, verify_answer,
+                         zwin_powtorzone_cytaty)
 from pipeline import przytnij_kontekst
 
 
@@ -117,3 +118,41 @@ def test_numery_z_usunietego_bloku_nie_udaja_cytatow():
              'Nazwa musi byc zgodna z parametrami [2].')
     wynik = verify_answer(tekst, [(chunk(u), -1.0) for u in urle])
     assert [c['n'] for c in wynik['cytaty']] == [2]
+
+
+def test_ten_sam_numer_w_podpunktach_zostaje_raz_na_koncu():
+    # Tak wygladala odpowiedz z produkcji: kazdy podpunkt jednego kroku konczyl sie tym samym [1].
+    tekst = ('1. Na stronie ogloszenia: a. Kliknij zglos naruszenie [1]. b. Wybierz powod [1]. '
+             'c. Kliknij wyslij [1].')
+    assert zwin_powtorzone_cytaty(tekst) == (
+        '1. Na stronie ogloszenia: a. Kliknij zglos naruszenie. b. Wybierz powod. '
+        'c. Kliknij wyslij [1].')
+
+
+def test_kolejne_kroki_z_jednego_zrodla_maja_jeden_numer():
+    tekst = '1. Wejdz w ustawienia [1].\n2. Kliknij Zmien [1].\n3. Zapisz [1].'
+    assert zwin_powtorzone_cytaty(tekst) == '1. Wejdz w ustawienia.\n2. Kliknij Zmien.\n3. Zapisz [1].'
+
+
+def test_zmiana_zrodla_przerywa_ciag():
+    # Przypadek graniczny: [1] wraca po [2], wiec kazdy z trzech numerow zamyka wlasny ciag
+    # i zaden nie moze zniknac, inaczej krok 3 wygladalby na wziety z [2].
+    tekst = '1. Krok A [1].\n2. Krok B [2].\n3. Krok C [1].'
+    assert zwin_powtorzone_cytaty(tekst) == tekst
+
+
+def test_pusta_linia_przerywa_ciag():
+    tekst = 'Pierwszy akapit [1].\n\nDrugi akapit [1].'
+    assert zwin_powtorzone_cytaty(tekst) == tekst
+
+
+def test_zwiniecie_nie_zmienia_listy_zrodel():
+    urle = [f'https://help.allegro.com/pl/a/art{i}-X{i}X' for i in range(1, 3)]
+    tekst = ('Zgloszenie wyslesz na dwa sposoby.\n'
+             '1. Kliknij zglos naruszenie [1]. Wybierz powod [1].\n'
+             '2. Uzyj formularza [2]. Opisz naruszenie [2].')
+    wynik = verify_answer(tekst, [(chunk(u), -1.0) for u in urle])
+    assert [c['n'] for c in wynik['cytaty']] == [1, 2]
+    assert wynik['tekst'].count('[1]') == 1
+    assert wynik['tekst'].count('[2]') == 1
+    assert '1. Kliknij zglos naruszenie. Wybierz powod [1].' in wynik['tekst']
