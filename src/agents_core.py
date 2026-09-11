@@ -547,6 +547,12 @@ def usun_liste_zrodel_bez_naglowka(tekst: str) -> str:
 
 
 ZNACZNIK_CYTATU = re.compile(r'[ \t]*\[(\d+)\]')
+CYTAT_WIELOKROTNY = re.compile(r'\[(\d+(?:[ \t]*[,;][ \t]*\d+)+)\]')
+
+
+def rozbij_cytaty_wielokrotne(tekst: str) -> str:
+    return CYTAT_WIELOKROTNY.sub(
+        lambda m: ' '.join(f'[{n}]' for n in re.findall(r'\d+', m.group(1))), tekst)
 
 
 def zwin_powtorzone_cytaty(tekst: str) -> str:
@@ -615,6 +621,7 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     tekst = URL_REGEX.sub(strip_url, pelna)
     tekst = re.sub(r'\[(?:Security|Note|Disclaimer|Warning)[^\[\]]*:[^\[\]]*\]\s*', '',
                     tekst, flags=re.IGNORECASE).lstrip()
+    tekst = rozbij_cytaty_wielokrotne(tekst)
     tekst = re.sub(r'\[(?!\d+\])([^\[\]]*)\]', lambda m: m.group(1).strip(), tekst)
     tekst = usun_sekcje_zrodel(tekst)
 

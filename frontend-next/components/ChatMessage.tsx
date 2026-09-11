@@ -112,8 +112,8 @@ export default function ChatMessage({
                 {children}
               </ul>
             ),
-            ol: ({ children }) => (
-              <ol style={{ margin: 0, paddingLeft: 22, listStyle: 'decimal', listStylePosition: 'outside', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            ol: ({ children, start }) => (
+              <ol start={start} style={{ margin: 0, paddingLeft: 22, listStyle: 'decimal', listStylePosition: 'outside', display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {children}
               </ol>
             ),

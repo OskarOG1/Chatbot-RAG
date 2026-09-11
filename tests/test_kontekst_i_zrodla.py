@@ -156,3 +156,21 @@ def test_zwiniecie_nie_zmienia_listy_zrodel():
     assert wynik['tekst'].count('[1]') == 1
     assert wynik['tekst'].count('[2]') == 1
     assert '1. Kliknij zglos naruszenie. Wybierz powod [1].' in wynik['tekst']
+
+
+def test_cytat_z_kilkoma_numerami_zostaje_cytatem():
+    # Wczesniej [2, 3] tracilo nawiasy jak adnotacja [Note: ...], w tekscie zostawalo gole
+    # "2, 3", a zrodla 2 i 3 wypadaly z listy linkow pod odpowiedzia.
+    urle = [f'https://help.allegro.com/pl/a/art{i}-X{i}X' for i in range(1, 4)]
+    wynik = verify_answer('Wybierz szablon cennika [2, 3]. Zapisz zmiany [1].',
+                          [(chunk(u), -1.0) for u in urle])
+    assert wynik['tekst'] == 'Wybierz szablon cennika [2] [3]. Zapisz zmiany [1].'
+    assert [c['n'] for c in wynik['cytaty']] == [2, 3, 1]
+
+
+def test_adnotacja_w_nawiasie_dalej_traci_nawiasy():
+    # Przypadek graniczny: rozbijanie dotyczy tylko samych liczb z przecinkami. Tekst
+    # w nawiasie z liczba i slowem to nie cytat i ma dalej stracic nawiasy.
+    urle = ['https://help.allegro.com/pl/a/art1-X1X']
+    wynik = verify_answer('Oplata [2 zl, 3 zl] zalezy od kategorii [1].', [(chunk(u), -1.0) for u in urle])
+    assert wynik['tekst'] == 'Oplata 2 zl, 3 zl zalezy od kategorii [1].'
