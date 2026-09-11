@@ -385,6 +385,14 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
                 continue
             licznik_tokenow += 1
             if optymistycznie:
+                decyzja = werdykt_sedziego(czekaj=False)
+                if decyzja is False:
+                    strumien.close()
+                    yield odmowa_sedziego(przerwano=True)
+                    return
+                if decyzja:
+                    cechy['sedzia_ok'] = True
+                    optymistycznie = False
                 yield ev
                 continue
             bufor.append(ev)
