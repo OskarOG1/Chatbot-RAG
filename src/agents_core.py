@@ -523,19 +523,6 @@ MIN_WPISOW_LISTY = 2
 
 
 def usun_liste_zrodel_bez_naglowka(tekst: str) -> str:
-    """Usuwa dopisana przez model liste zrodel, ktora nie ma naglowka 'Zrodla:'.
-
-    Model bywa, ze mimo zakazu w promcie wstawia wiersze w rodzaju
-    '[[2]](adres) - Tytul artykulu Zdanie z kontekstu', czasem na koncu, a czasem w srodku,
-    z akapitem zamykajacym ponizej. Interfejs pokazuje wylacznie zrodla zacytowane w tresci,
-    wiec numery z takiego bloku udawalyby cytaty i wszystkie osiem artykulow z okna trafialo
-    na liste zrodel, a tresc bloku powtarzala ten sam akapit kilka razy.
-
-    Przypadek graniczny, ktorego nie wolno zepsuc: zwykly krok instrukcji z odsylaczem na koncu
-    ('3. Kliknij Zapisz [2]'). Taki wiersz nie zaczyna sie od numeru zrodla, wiec nie pasuje
-    do WPIS_ZRODLA. Usuwany jest wylacznie ciag co najmniej dwoch sasiednich wierszy w tym
-    ksztalcie i tylko wtedy, gdy poza nim zostaje jakas tresc.
-    """
     linie = tekst.split('\n')
     do_usuniecia = set()
     i = 0
@@ -557,6 +544,20 @@ def usun_liste_zrodel_bez_naglowka(tekst: str) -> str:
     zostaje = [linia for k, linia in enumerate(linie) if k not in do_usuniecia]
     wynik = '\n'.join(zostaje).strip()
     return wynik if wynik else tekst
+
+
+ZNACZNIK_CYTATU = re.compile(r'[ \t]*\[(\d+)\]')
+
+
+def zwin_powtorzone_cytaty(tekst: str) -> str:
+    wynik = []
+    for akapit in re.split(r'(\n[ \t]*\n)', tekst):
+        znaczniki = list(ZNACZNIK_CYTATU.finditer(akapit))
+        zbedne = [m for m, nastepny in zip(znaczniki, znaczniki[1:]) if m.group(1) == nastepny.group(1)]
+        for m in reversed(zbedne):
+            akapit = akapit[:m.start()] + akapit[m.end():]
+        wynik.append(akapit)
+    return ''.join(wynik)
 
 
 def usun_sekcje_zrodel(tekst: str) -> str:
@@ -625,6 +626,7 @@ def verify_answer(pelna: str, chunks: list) -> dict:
     cytaty = [{'n': n, 'url': mapa[n], 'tytul': mapa_tytul[n]} for n in numery]
 
     tekst = re.sub(r'(?m)^[ \t]*(?:\[\d+\][ \t]*)+$\n?', '', tekst)
+    tekst = zwin_powtorzone_cytaty(tekst)
 
     licznik = Counter(int(n) for n in re.findall(r'\[(\d+)\]', tekst))
 
