@@ -230,6 +230,83 @@ def test_odmowa_po_optymistycznym_wyslaniu(monkeypatch, atrapa_pipeline):
     assert cechy['tokeny_stracone'] == len(teksty)
 
 
+def sedzia_zwolniony_w_trakcie_strumienia(monkeypatch, atrapa_pipeline, werdykt):
+    monkeypatch.setattr(pipeline, 'SEDZIA_BUFOR_MAX', 2)
+    atrapa_pipeline.ustaw_etap('kupujacy', tekst='Odpowiedz.')
+    monkeypatch.setattr(pipeline, 'pokrycie_idf', lambda tekst, chunks, lang: 1.0)
+
+    class OpakowanyEgzekutor:
+        def __init__(self, wewnetrzny):
+            self.wewnetrzny = wewnetrzny
+            self.ostatni = None
+
+        def submit(self, *args, **kwargs):
+            self.ostatni = self.wewnetrzny.submit(*args, **kwargs)
+            return self.ostatni
+
+    prawdziwy = ThreadPoolExecutor(max_workers=1)
+    opakowany = OpakowanyEgzekutor(prawdziwy)
+    monkeypatch.setattr(pipeline, 'EGZEKUTOR_SEDZIEGO', opakowany)
+    zwolnij = threading.Event()
+    zamkniety = []
+
+    def sedzia(zapytanie, chunks, bielik_model=None, lang='pl', stan=None):
+        zwolnij.wait(timeout=2.0)
+        return werdykt
+
+    def generuj(query, agent, chunks, bielik_model, history, lang, styl=None):
+        try:
+            for tekst in ['a ', 'b ', 'c ']:
+                yield {'typ': 'token', 'tekst': tekst}
+            zwolnij.set()
+            opakowany.ostatni.result(timeout=2.0)
+            for tekst in ['d ', 'e ', 'f ']:
+                yield {'typ': 'token', 'tekst': tekst}
+            yield {'typ': 'koniec', 'dane': {'tekst': 'Odpowiedz.', 'cytaty': []}}
+        except GeneratorExit:
+            zamkniety.append(True)
+            raise
+
+    monkeypatch.setattr(pipeline, 'czy_kontekst_odpowiada', sedzia)
+    monkeypatch.setattr(pipeline, 'answer_stream', generuj)
+    try:
+        zdarzenia = list(pipeline.run_stream('jakies pytanie o konto', strona='kupujacy',
+                                              bez_korekty=True, sedzia=True, lang='pl',
+                                              warstwa_ogolna=False, etap2=False))
+    finally:
+        zwolnij.set()
+        prawdziwy.shutdown(wait=True)
+    return zdarzenia, zamkniety
+
+
+def test_nie_w_trakcie_optymistycznego_strumienia_przerywa_generacje(monkeypatch, atrapa_pipeline):
+    # Bufor (2) jest pelny po 'b', wiec 'c' idzie juz optymistycznie. Werdykt NIE jest gotowy
+    # przed 'd': gdyby strumien sprawdzal go dopiero po koncu generacji, uzytkownik dostalby
+    # jeszcze 'd e f', a model generowalby do konca odpowiedz, ktora i tak zniknie.
+    zdarzenia, zamkniety = sedzia_zwolniony_w_trakcie_strumienia(monkeypatch, atrapa_pipeline, False)
+    typy = [z['typ'] for z in zdarzenia]
+    teksty = [z['tekst'] for z in zdarzenia if z['typ'] == 'token']
+    assert teksty == ['a ', 'b ', 'c ']
+    assert zamkniety == [True]
+    assert typy.count('reset') == 1
+    assert typy.index('reset') > typy.index('token')
+    cechy = zdarzenia[-1]['dane']['cechy']
+    assert zdarzenia[-1]['dane']['powod_odmowy'] == 'sedzia'
+    assert cechy['sedzia_ok'] is False
+    assert cechy['generacja_przerwana'] is True
+
+
+def test_tak_w_trakcie_optymistycznego_strumienia_puszcza_reszte(monkeypatch, atrapa_pipeline):
+    zdarzenia, zamkniety = sedzia_zwolniony_w_trakcie_strumienia(monkeypatch, atrapa_pipeline, True)
+    typy = [z['typ'] for z in zdarzenia]
+    teksty = [z['tekst'] for z in zdarzenia if z['typ'] == 'token']
+    assert teksty == ['a ', 'b ', 'c ', 'd ', 'e ', 'f ']
+    assert zamkniety == []
+    assert 'reset' not in typy
+    assert not zdarzenia[-1]['dane'].get('powod_odmowy')
+    assert zdarzenia[-1]['dane']['cechy']['sedzia_ok'] is True
+
+
 def test_werdykt_niezdazony_w_krotkim_limicie_przepuszcza(monkeypatch, atrapa_pipeline):
     monkeypatch.setattr(pipeline, 'SEDZIA_BUFOR_MAX', 2)
     monkeypatch.setattr(pipeline, 'SEDZIA_CZEKANIE_KONCOWE', 0.01)
