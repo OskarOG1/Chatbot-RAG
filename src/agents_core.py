@@ -514,7 +514,49 @@ NAGLOWEK_ZRODEL = re.compile(
     r'[ \t]*:?[ \t]*[*_]{0,2}[ \t]*:?[ \t]*((?:\[\d+\][ \t]*,?[ \t]*)*)$',
     re.IGNORECASE,
 )
-LINIA_NUMERU = re.compile(r'^[ \t]*(?:[-*+][ \t]+|\d+[.)][ \t]+)?[*_]{0,2}\[\d+\]')
+LINIA_NUMERU = re.compile(r'^[ \t]*(?:[-*+][ \t]+|\d+[.)][ \t]+)?[*_]{0,2}\[{1,2}\d+\]{1,2}')
+WPIS_ZRODLA = re.compile(
+    r'^[ \t]*(?:[-*+][ \t]+|\d+[.)][ \t]+)?[*_]{0,2}\[{1,2}(\d+)\]{1,2}'
+    r'(?:\([^)]*\)|\([^)]*)?[ \t]*[-–—:]'
+)
+MIN_WPISOW_LISTY = 2
+
+
+def usun_liste_zrodel_bez_naglowka(tekst: str) -> str:
+    """Usuwa dopisana przez model liste zrodel, ktora nie ma naglowka 'Zrodla:'.
+
+    Model bywa, ze mimo zakazu w promcie wstawia wiersze w rodzaju
+    '[[2]](adres) - Tytul artykulu Zdanie z kontekstu', czasem na koncu, a czasem w srodku,
+    z akapitem zamykajacym ponizej. Interfejs pokazuje wylacznie zrodla zacytowane w tresci,
+    wiec numery z takiego bloku udawalyby cytaty i wszystkie osiem artykulow z okna trafialo
+    na liste zrodel, a tresc bloku powtarzala ten sam akapit kilka razy.
+
+    Przypadek graniczny, ktorego nie wolno zepsuc: zwykly krok instrukcji z odsylaczem na koncu
+    ('3. Kliknij Zapisz [2]'). Taki wiersz nie zaczyna sie od numeru zrodla, wiec nie pasuje
+    do WPIS_ZRODLA. Usuwany jest wylacznie ciag co najmniej dwoch sasiednich wierszy w tym
+    ksztalcie i tylko wtedy, gdy poza nim zostaje jakas tresc.
+    """
+    linie = tekst.split('\n')
+    do_usuniecia = set()
+    i = 0
+    while i < len(linie):
+        if not WPIS_ZRODLA.match(linie[i]):
+            i += 1
+            continue
+        j = i
+        wpisy = []
+        while j < len(linie) and (WPIS_ZRODLA.match(linie[j]) or not linie[j].strip()):
+            if linie[j].strip():
+                wpisy.append(j)
+            j += 1
+        if len(wpisy) >= MIN_WPISOW_LISTY:
+            do_usuniecia.update(range(wpisy[0], wpisy[-1] + 1))
+        i = j
+    if not do_usuniecia:
+        return tekst
+    zostaje = [linia for k, linia in enumerate(linie) if k not in do_usuniecia]
+    wynik = '\n'.join(zostaje).strip()
+    return wynik if wynik else tekst
 
 
 def usun_sekcje_zrodel(tekst: str) -> str:
@@ -525,7 +567,7 @@ def usun_sekcje_zrodel(tekst: str) -> str:
             if all(not linia_reszty.strip() or LINIA_NUMERU.match(linia_reszty) for linia_reszty in reszta):
                 return '\n'.join(linie[:i]).rstrip()
             return '\n'.join(linie[:i] + reszta)
-    return tekst
+    return usun_liste_zrodel_bez_naglowka(tekst)
 
 
 def skroc_tekst(tekst: str, limit: int) -> str:
@@ -561,6 +603,7 @@ def verify_answer(pelna: str, chunks: list) -> dict:
 
     obce = []
     pelna = zwin_linki_markdown(pelna)
+    pelna = usun_liste_zrodel_bez_naglowka(pelna)
 
     def strip_url(dopasowanie):
         surowy = dopasowanie.group(0)

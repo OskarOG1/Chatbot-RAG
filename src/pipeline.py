@@ -34,6 +34,7 @@ OKNO_HISTORII = 3
 OKNO_JAWNEJ_ODMOWY = 160
 K_SUROWE_SEKCJI = int(os.getenv('K_SUROWE_SEKCJI', '18'))
 K_CHUNKOW_SEKCJI = int(os.getenv('K_CHUNKOW_SEKCJI', '8'))
+MARGINES_KONTEKSTU = float(os.getenv('MARGINES_KONTEKSTU', '4'))
 SEDZIA_CHUNKOW = int(os.getenv('SEDZIA_CHUNKOW', '3'))
 SEDZIA_CZEKANIE = float(os.getenv('SEDZIA_CZEKANIE', '30'))
 SEDZIA_CZEKANIE_KONCOWE = float(os.getenv('SEDZIA_CZEKANIE_KONCOWE', '3'))
@@ -65,6 +66,17 @@ PII_WZORCE = (
     re.compile(r'\b(?i:ulic[aąeęy]|adres(?:u|em)?)\s+[A-ZĄĆĘŁŃÓŚŹŻ][\w]*(?:\s+\d+\w*)?'),
     re.compile(r'\b\d+\s+(?:[A-Z][a-zA-Z]*\s+){1,3}(?i:Street|St|Avenue|Ave|Road|Rd|Lane|Ln|Drive|Dr)\b'),
 )
+
+
+def przytnij_kontekst(chunks: list, margines: float | None = None,
+                      minimum: int | None = None) -> list:
+    prog = MARGINES_KONTEKSTU if margines is None else margines
+    podloga = SEDZIA_CHUNKOW if minimum is None else minimum
+    if not chunks or prog <= 0:
+        return chunks
+    granica = chunks[0][1] - prog
+    przyciete = [para for para in chunks if para[1] >= granica]
+    return przyciete if len(przyciete) >= podloga else chunks[:podloga]
 
 
 def followup(query: str, lang: str = 'pl') -> bool:
@@ -302,6 +314,7 @@ def sekcja_z_bramkami(zapytanie_ret: str, query_emb, strona: str, query: str, hi
     wyniki = search_reranked_multi(zapytanie_ret, query_emb, strony.agenci_wszystkich_stron(),
                                     k=None, k_surowe=K_SUROWE_SEKCJI, lang=lang)
     strona_wybrana, chunks, przewaga = strony.rozstrzygnij(wyniki, strona, K_CHUNKOW_SEKCJI)
+    chunks = przytnij_kontekst(chunks)
     cechy['strona_wybrana'] = strona_wybrana
     cechy['przewaga_sekcji'] = przewaga
     yield krok(cfg['kroki']['wybieram_strone'].format(strona=cfg['nazwy_stron'][strona_wybrana]))
@@ -485,6 +498,7 @@ def probuj_druga_sekcje(zapytanie_ret: str, query: str, history: list[dict],
 
     chunks = [para for para in wyniki
               if strony.strona_z_agenta(para[0]['agent']) == druga_strona][:K_CHUNKOW_SEKCJI]
+    chunks = przytnij_kontekst(chunks)
     cechy['chunkow'] = len(chunks)
     if chunks:
         cechy['rerank_top1'] = round(float(chunks[0][1]), 4)
