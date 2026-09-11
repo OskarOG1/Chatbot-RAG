@@ -2,6 +2,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTheme, DISPLAY, BODY } from '@/lib/theme';
 import { przygotujOdpowiedz } from '@/lib/zrodla';
+import { rozdzielPodpunkty } from '@/lib/podpunkty';
 import { TEKSTY, type Cytat, type Lang } from '@/lib/chat';
 import SourceList from './SourceList';
 import InfoBanner from './InfoBanner';
@@ -63,7 +64,7 @@ export default function ChatMessage({
     );
   }
 
-  const { tekst: tresc, zrodla, zacytowano } = przygotujOdpowiedz(content, citations);
+  const { tekst: tresc, zrodla, zacytowano } = przygotujOdpowiedz(rozdzielPodpunkty(content), citations);
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 14 }}>
