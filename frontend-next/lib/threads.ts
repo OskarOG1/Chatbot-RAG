@@ -74,6 +74,23 @@ export function zapiszJezyk(lang: Lang): void {
   }
 }
 
+export function jezykPrzegladarki(): Lang {
+  try {
+    const lista = navigator.languages && navigator.languages.length > 0 ? navigator.languages : [navigator.language];
+    for (const kod of lista) {
+      const podstawowy = String(kod ?? '').toLowerCase().split('-')[0];
+      if (podstawowy === 'pl' || podstawowy === 'en') return podstawowy;
+    }
+    return 'pl';
+  } catch {
+    return 'pl';
+  }
+}
+
+export function jezykStartowy(): Lang {
+  return wczytajJezyk() ?? jezykPrzegladarki();
+}
+
 export function wczytajStrone(): Strona | null {
   try {
     const zapis = localStorage.getItem(STRONA_KEY);

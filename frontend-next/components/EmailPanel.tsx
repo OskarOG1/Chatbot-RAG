@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent } from 'react';
 import { useTheme } from '@/lib/theme';
-import { TEKSTY, type Lang } from '@/lib/chat';
+import { OKNO_COFNIECIA_MS, TEKSTY, type Lang } from '@/lib/chat';
 import { htmlDoMarkdown, markdownDoHtml } from '@/lib/richtext';
 
 const SZEROKOSCI: Record<'left' | 'center' | 'right', number[]> = {
@@ -25,9 +25,12 @@ function AlignIcon({ align, color }: { align: 'left' | 'center' | 'right'; color
   );
 }
 
+export type TrybPanelu = 'kolumna' | 'nakladka' | 'ekran';
+
 interface Props {
   lang: Lang;
   open: boolean;
+  tryb: TrybPanelu;
   recipient: string;
   subject: string;
   body: string;
@@ -52,6 +55,7 @@ interface Props {
 export default function EmailPanel({
   lang,
   open,
+  tryb,
   recipient,
   subject,
   body,
@@ -88,12 +92,54 @@ export default function EmailPanel({
 
   useEffect(() => {
     if (odliczanieDo === null) return undefined;
-    setTeraz(Date.now());
-    const iv = setInterval(() => setTeraz(Date.now()), 250);
-    return () => clearInterval(iv);
+    const odswiez = () => setTeraz(Date.now());
+    const pierwszy = setTimeout(odswiez, 0);
+    const iv = setInterval(odswiez, 250);
+    return () => {
+      clearTimeout(pierwszy);
+      clearInterval(iv);
+    };
   }, [odliczanieDo]);
 
-  const sekundyDoWyslania = odliczanieDo !== null ? Math.max(0, Math.ceil((odliczanieDo - teraz) / 1000)) : null;
+  const ekran = tryb === 'ekran';
+  const poziomo = ekran ? 14 : 22;
+  const fontPola = ekran ? 16 : 14;
+
+  const obudowa: CSSProperties =
+    tryb === 'kolumna'
+      ? {
+          flex: '0 0 auto',
+          width: open ? 440 : 0,
+          borderLeft: open ? `1px solid ${th.border}` : 'none',
+          visibility: open ? 'visible' : 'hidden',
+          transition: `width 0.28s cubic-bezier(0.22,1,0.36,1), background 0.2s ease, visibility 0s linear ${open ? '0s' : '0.28s'}`,
+          animation: open ? 'dcSlideIn 0.3s ease both' : 'none',
+        }
+      : tryb === 'nakladka'
+        ? {
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 80,
+            width: 'min(440px, 100vw)',
+            display: open ? 'block' : 'none',
+            borderLeft: `1px solid ${th.border}`,
+            boxShadow: th.shadowLift,
+            animation: 'dcPanel 0.28s ease both',
+          }
+        : {
+            position: 'fixed',
+            inset: 0,
+            zIndex: 80,
+            display: open ? 'block' : 'none',
+            animation: 'dcRise 0.25s ease both',
+          };
+
+  const sekundyDoWyslania =
+    odliczanieDo !== null
+      ? Math.min(Math.ceil(OKNO_COFNIECIA_MS / 1000), Math.max(0, Math.ceil((odliczanieDo - teraz) / 1000)))
+      : null;
 
   function synchronizujBody() {
     if (!bodyRef.current) return;
@@ -112,31 +158,68 @@ export default function EmailPanel({
     e.preventDefault();
   }
 
+  const akcja =
+    odliczanieDo !== null ? (
+      <div style={{ display: 'flex', gap: 8 }}>
+        <div
+          style={{
+            flex: 1.4,
+            padding: 11,
+            borderRadius: 10,
+            border: `1px solid ${th.border}`,
+            background: th.inputBg,
+            color: th.textPrimary,
+            fontFamily: 'inherit',
+            fontWeight: 700,
+            fontSize: 13,
+            textAlign: 'center',
+          }}
+        >
+          {t.sendingCountdown(sekundyDoWyslania ?? 0)}
+        </div>
+        <button type="button" onClick={onCancelSend} style={outlineBtn(th)}>
+          {t.cancelSend}
+        </button>
+      </div>
+    ) : readOnly ? (
+      <button type="button" onClick={onStartEdit} style={primaryBtn(th, false)}>
+        {t.editAfterSend}
+      </button>
+    ) : (
+      <button
+        type="button"
+        onClick={onSend}
+        disabled={!emailValid || sending}
+        style={primaryBtn(th, !emailValid || sending)}
+      >
+        {sending ? t.sending : t.send}
+      </button>
+    );
+
   return (
     <div
+      role={tryb === 'kolumna' ? undefined : 'dialog'}
+      aria-label={tryb === 'kolumna' ? undefined : t.panelTitle}
       style={{
-        flex: '0 0 auto',
-        width: open ? 440 : 0,
-        borderLeft: open ? `1px solid ${th.border}` : 'none',
+        ...obudowa,
         background: th.bgSurface,
         overflow: 'hidden',
-        transition: 'width 0.28s cubic-bezier(0.22,1,0.36,1), background 0.2s ease',
-        animation: open ? 'dcSlideIn 0.3s ease both' : 'none',
       }}
     >
       {
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: tryb === 'kolumna' ? undefined : 'auto' }}>
           <div
             style={{
               flex: '0 0 auto',
-              padding: '20px 22px',
+              padding: ekran ? '12px 14px' : '20px 22px',
               borderBottom: `1px solid ${th.border}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
+              gap: 10,
             }}
           >
-            <div>
+            <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 15, color: th.textPrimary }}>{t.panelTitle}</div>
               <div style={{ fontSize: 12, color: th.textSecondary, marginTop: 2 }}>
                 {t.to} {recipient}
@@ -154,11 +237,12 @@ export default function EmailPanel({
               <button
                 type="button"
                 onClick={onClose}
+                aria-label={t.closePanel}
                 style={{
                   border: 'none',
                   background: th.bgApp,
-                  width: 30,
-                  height: 30,
+                  width: ekran ? 40 : 30,
+                  height: ekran ? 40 : 30,
                   padding: 0,
                   borderRadius: 8,
                   cursor: 'pointer',
@@ -175,7 +259,7 @@ export default function EmailPanel({
             </div>
           </div>
 
-          <div style={{ flex: '0 0 auto', padding: '18px 22px 0' }}>
+          <div style={{ flex: '0 0 auto', padding: `${ekran ? 14 : 18}px ${poziomo}px 0` }}>
             <label style={labelStyle(th.textSecondary)}>{t.subjectLabel}</label>
             <input
               value={subject}
@@ -190,20 +274,20 @@ export default function EmailPanel({
                 borderRadius: 10,
                 padding: '10px 12px',
                 fontFamily: 'inherit',
-                fontSize: 14,
+                fontSize: fontPola,
                 fontWeight: 600,
                 outline: 'none',
               }}
             />
           </div>
 
-          <div style={{ flex: '0 0 auto', padding: '16px 22px 0', display: 'flex', gap: 6 }}>
+          <div style={{ flex: '0 0 auto', padding: `${ekran ? 12 : 16}px ${poziomo}px 0`, display: 'flex', gap: 6 }}>
             <button
               type="button"
               disabled={readOnly}
               onMouseDown={zachowajZaznaczenie}
               onClick={() => formatuj('bold')}
-              style={toolbarBtn(th, { fontWeight: 800 }, readOnly)}
+              style={toolbarBtn(th, { fontWeight: 800 }, readOnly, ekran)}
             >
               B
             </button>
@@ -212,7 +296,7 @@ export default function EmailPanel({
               disabled={readOnly}
               onMouseDown={zachowajZaznaczenie}
               onClick={() => formatuj('italic')}
-              style={toolbarBtn(th, { fontStyle: 'italic', fontWeight: 700 }, readOnly)}
+              style={toolbarBtn(th, { fontStyle: 'italic', fontWeight: 700 }, readOnly, ekran)}
             >
               I
             </button>
@@ -222,7 +306,7 @@ export default function EmailPanel({
               aria-label={t.alignLeft}
               onMouseDown={zachowajZaznaczenie}
               onClick={() => formatuj('justifyLeft')}
-              style={toolbarBtn(th, {}, readOnly)}
+              style={toolbarBtn(th, {}, readOnly, ekran)}
             >
               <AlignIcon align="left" color={th.textPrimary} />
             </button>
@@ -232,7 +316,7 @@ export default function EmailPanel({
               aria-label={t.alignCenter}
               onMouseDown={zachowajZaznaczenie}
               onClick={() => formatuj('justifyCenter')}
-              style={toolbarBtn(th, {}, readOnly)}
+              style={toolbarBtn(th, {}, readOnly, ekran)}
             >
               <AlignIcon align="center" color={th.textPrimary} />
             </button>
@@ -242,13 +326,21 @@ export default function EmailPanel({
               aria-label={t.alignRight}
               onMouseDown={zachowajZaznaczenie}
               onClick={() => formatuj('justifyRight')}
-              style={toolbarBtn(th, {}, readOnly)}
+              style={toolbarBtn(th, {}, readOnly, ekran)}
             >
               <AlignIcon align="right" color={th.textPrimary} />
             </button>
           </div>
 
-          <div style={{ flex: '1 1 auto', padding: '12px 22px 0', minHeight: 0 }}>
+          <div
+            style={{
+              flex: tryb === 'kolumna' ? '1 1 auto' : '1 0 auto',
+              padding: `12px ${poziomo}px 0`,
+              minHeight: tryb === 'kolumna' ? 0 : 200,
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
             <div
               ref={bodyRef}
               contentEditable={!readOnly}
@@ -257,13 +349,14 @@ export default function EmailPanel({
               className="email-body-editor"
               style={{
                 width: '100%',
-                height: '100%',
+                flex: '1 1 auto',
+                minHeight: 0,
                 border: `1px solid ${th.border}`,
                 background: th.inputBg,
                 borderRadius: 12,
                 padding: 14,
                 fontFamily: 'inherit',
-                fontSize: 14,
+                fontSize: fontPola,
                 lineHeight: 1.65,
                 overflowY: 'auto',
                 outline: 'none',
@@ -272,7 +365,7 @@ export default function EmailPanel({
             />
           </div>
 
-          <div style={{ flex: '0 0 auto', padding: '18px 22px 0' }}>
+          <div style={{ flex: '0 0 auto', padding: `${ekran ? 14 : 18}px ${poziomo}px 0` }}>
             <label style={labelStyle(th.textSecondary)}>{t.emailFieldLabel}</label>
             <input
               type="email"
@@ -289,14 +382,22 @@ export default function EmailPanel({
                 borderRadius: 10,
                 padding: '10px 12px',
                 fontFamily: 'inherit',
-                fontSize: 14,
+                fontSize: fontPola,
                 outline: 'none',
               }}
             />
             <div style={{ fontSize: 11.5, color: th.textSecondary, marginTop: 6 }}>{t.emailPrivacyNote}</div>
           </div>
 
-          <div style={{ flex: '0 0 auto', padding: '18px 22px 22px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div
+            style={{
+              flex: '0 0 auto',
+              padding: tryb === 'kolumna' ? '18px 22px 22px' : ekran ? `14px ${poziomo}px 0` : `18px ${poziomo}px 0`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}
+          >
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" onClick={onCopy} style={secondaryBtn(th)}>
                 {t.copy}
@@ -305,43 +406,26 @@ export default function EmailPanel({
                 {t.undoEdits}
               </button>
             </div>
-            {odliczanieDo !== null ? (
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div
-                  style={{
-                    flex: 1.4,
-                    padding: 11,
-                    borderRadius: 10,
-                    border: `1px solid ${th.border}`,
-                    background: th.inputBg,
-                    color: th.textPrimary,
-                    fontFamily: 'inherit',
-                    fontWeight: 700,
-                    fontSize: 13,
-                    textAlign: 'center',
-                  }}
-                >
-                  {t.sendingCountdown(sekundyDoWyslania ?? 0)}
-                </div>
-                <button type="button" onClick={onCancelSend} style={outlineBtn(th)}>
-                  {t.cancelSend}
-                </button>
-              </div>
-            ) : readOnly ? (
-              <button type="button" onClick={onStartEdit} style={primaryBtn(th, false)}>
-                {t.editAfterSend}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={onSend}
-                disabled={!emailValid || sending}
-                style={primaryBtn(th, !emailValid || sending)}
-              >
-                {sending ? t.sending : t.send}
-              </button>
-            )}
+            {tryb === 'kolumna' && akcja}
           </div>
+          {tryb !== 'kolumna' && (
+            <div
+              style={{
+                position: 'sticky',
+                bottom: 0,
+                zIndex: 1,
+                flex: '0 0 auto',
+                marginTop: 10,
+                padding: `10px ${poziomo}px ${ekran ? 14 : 18}px`,
+                background: th.bgSurface,
+                borderTop: `1px solid ${th.border}`,
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              {akcja}
+            </div>
+          )}
         </div>
       }
     </div>
@@ -358,14 +442,14 @@ function labelStyle(color: string) {
   };
 }
 
-function toolbarBtn(th: ReturnType<typeof useTheme>, extra: Record<string, string | number>, disabled = false) {
+function toolbarBtn(th: ReturnType<typeof useTheme>, extra: Record<string, string | number>, disabled = false, duzy = false) {
   return {
     border: `1px solid ${th.border}`,
     background: th.inputBg,
     color: th.textPrimary,
     borderRadius: 8,
-    width: 32,
-    height: 32,
+    width: duzy ? 40 : 32,
+    height: duzy ? 40 : 32,
     padding: 0,
     fontSize: 13,
     lineHeight: 1,

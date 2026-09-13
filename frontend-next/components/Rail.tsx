@@ -18,6 +18,10 @@ interface Props {
   lang: Lang;
   theme: ThemeName;
   items: RailItem[];
+  nieaktywny?: boolean;
+  waski: boolean;
+  otwarte: boolean;
+  onZamknij: () => void;
   onNew: () => void;
   onSelect: (id: string) => void;
   onSetLang: (lang: Lang) => void;
@@ -31,10 +35,16 @@ interface Props {
   onDeleteSelected: () => void;
 }
 
+const CZAS_SZUFLADY_MS = 240;
+
 export default function Rail({
   lang,
   theme,
   items,
+  nieaktywny = false,
+  waski,
+  otwarte,
+  onZamknij,
   onNew,
   onSelect,
   onSetLang,
@@ -50,11 +60,27 @@ export default function Rail({
   const th = useTheme();
   const t = TEKSTY[lang];
 
+  const szuflada: CSSProperties = waski
+    ? {
+        position: 'fixed',
+        top: 0,
+        bottom: 0,
+        left: 0,
+        zIndex: 70,
+        width: 'min(304px, 86vw)',
+        transform: otwarte ? 'translateX(0)' : 'translateX(-105%)',
+        visibility: otwarte ? 'visible' : 'hidden',
+        transition: `transform ${CZAS_SZUFLADY_MS}ms cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear ${otwarte ? 0 : CZAS_SZUFLADY_MS}ms`,
+        boxShadow: otwarte ? th.shadowLift : 'none',
+      }
+    : { flex: '0 0 256px', width: 256 };
+
   return (
     <aside
+      inert={nieaktywny}
+      aria-hidden={waski && !otwarte ? true : undefined}
       style={{
-        flex: '0 0 256px',
-        width: 256,
+        ...szuflada,
         minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -63,7 +89,7 @@ export default function Rail({
         overflow: 'hidden',
       }}
     >
-      <div style={{ padding: '22px 20px 18px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ padding: waski ? '16px 16px 14px' : '22px 20px 18px', display: 'flex', flexDirection: 'column', gap: waski ? 16 : 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
           <div
             style={{
@@ -79,12 +105,17 @@ export default function Rail({
           >
             <span style={{ fontFamily: DISPLAY, fontSize: 21, fontWeight: 800, color: th.markInk, lineHeight: 1, marginTop: -2 }}>a</span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0, flex: '1 1 auto' }}>
             <span style={{ fontFamily: DISPLAY, fontSize: 14.5, fontWeight: 700, letterSpacing: '-0.02em', color: th.ink }}>{t.title}</span>
             <span style={{ fontFamily: MONO, fontSize: 10, color: th.ink3, letterSpacing: '0.02em' }}>{t.brandSub}</span>
           </div>
+          {waski && (
+            <button type="button" aria-label={t.menuClose} onClick={onZamknij} style={closeBtn(th)}>
+              ✕
+            </button>
+          )}
         </div>
-        <button type="button" onClick={onNew} style={newChatBtn(th)}>
+        <button type="button" onClick={onNew} style={newChatBtn(th, waski)}>
           <span style={{ fontFamily: MONO, fontSize: 15, color: th.accent, lineHeight: 1 }}>+</span>
           {t.newChat}
         </button>
@@ -97,7 +128,7 @@ export default function Rail({
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 8,
-            padding: '6px 20px 10px',
+            padding: waski ? '6px 16px 10px' : '6px 20px 10px',
           }}
         >
           <span
@@ -112,13 +143,13 @@ export default function Rail({
           >
             {t.recent}
           </span>
-          <button type="button" onClick={onToggleSelectMode} style={miniGhost(th)}>
+          <button type="button" onClick={onToggleSelectMode} style={miniGhost(th, waski)}>
             {selectMode ? t.cancelSelect : t.selectMode}
           </button>
         </div>
         {selectMode && (
-          <div style={{ padding: '0 20px 10px' }}>
-            <button type="button" onClick={onDeleteAll} style={miniGhost(th)}>
+          <div style={{ padding: waski ? '0 16px 10px' : '0 20px 10px' }}>
+            <button type="button" onClick={onDeleteAll} style={miniGhost(th, waski)}>
               {t.deleteAll}
             </button>
           </div>
@@ -130,7 +161,7 @@ export default function Rail({
               display: 'flex',
               gap: 10,
               alignItems: 'stretch',
-              padding: '10px 20px 10px 0',
+              padding: waski ? '8px 12px 8px 0' : '10px 20px 10px 0',
               background: it.active && !selectMode ? th.raised : 'transparent',
             }}
           >
@@ -140,7 +171,7 @@ export default function Rail({
                 type="checkbox"
                 checked={selectedIds.has(it.id)}
                 onChange={() => onToggleSelected(it.id)}
-                style={{ flex: '0 0 auto', marginTop: 2, cursor: 'pointer' }}
+                style={{ flex: '0 0 auto', marginTop: 2, cursor: 'pointer', width: waski ? 18 : undefined, height: waski ? 18 : undefined }}
               />
             )}
             <button
@@ -155,12 +186,13 @@ export default function Rail({
                 textAlign: 'left',
                 background: 'none',
                 border: 'none',
-                padding: 0,
+                padding: waski ? '4px 0' : 0,
                 cursor: 'pointer',
               }}
             >
               <span
                 style={{
+                  maxWidth: '100%',
                   fontFamily: BODY,
                   fontSize: 13,
                   fontWeight: it.active ? 600 : 500,
@@ -179,7 +211,7 @@ export default function Rail({
                 type="button"
                 aria-label={t.deleteChat}
                 onClick={() => onDeleteOne(it.id)}
-                style={trashBtn(th)}
+                style={trashBtn(th, waski)}
               >
                 <IkonaKosz color={th.ink3} />
               </button>
@@ -202,14 +234,14 @@ export default function Rail({
       <div style={{ flex: '0 0 auto', borderTop: `1px solid ${th.line}`, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <div style={{ flex: '1 1 auto', display: 'flex', padding: 2, borderRadius: 8, background: th.raised, border: `1px solid ${th.line}` }}>
-            <button type="button" onClick={() => onSetLang('pl')} style={segBtn(th, lang === 'pl')}>
+            <button type="button" onClick={() => onSetLang('pl')} style={segBtn(th, lang === 'pl', waski)}>
               <FlagaPl /> PL
             </button>
-            <button type="button" onClick={() => onSetLang('en')} style={segBtn(th, lang === 'en')}>
+            <button type="button" onClick={() => onSetLang('en')} style={segBtn(th, lang === 'en', waski)}>
               <FlagaGb /> EN
             </button>
           </div>
-          <button type="button" aria-label={t.themeButtonLabel[theme]} onClick={onToggleTheme} style={themeIconBtn(th)}>
+          <button type="button" aria-label={t.themeButtonLabel[theme]} onClick={onToggleTheme} style={themeIconBtn(th, waski)}>
             {theme === 'light' ? <IkonaKsiezyc color={th.ink2} /> : <IkonaSlonce color={th.ink2} />}
           </button>
         </div>
@@ -221,13 +253,13 @@ export default function Rail({
   );
 }
 
-function newChatBtn(th: ReturnType<typeof useTheme>): CSSProperties {
+function newChatBtn(th: ReturnType<typeof useTheme>, waski: boolean): CSSProperties {
   return {
     display: 'flex',
     alignItems: 'center',
     gap: 8,
     width: '100%',
-    padding: '10px 12px',
+    padding: waski ? '12px 12px' : '10px 12px',
     borderRadius: 9,
     border: `1px solid ${th.line}`,
     background: th.raised,
@@ -240,14 +272,14 @@ function newChatBtn(th: ReturnType<typeof useTheme>): CSSProperties {
   };
 }
 
-function segBtn(th: ReturnType<typeof useTheme>, active: boolean): CSSProperties {
+function segBtn(th: ReturnType<typeof useTheme>, active: boolean, waski: boolean): CSSProperties {
   return {
     flex: 1,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    padding: 6,
+    padding: waski ? 10 : 6,
     border: 'none',
     borderRadius: 6,
     fontFamily: MONO,
@@ -276,29 +308,31 @@ function railGhost(th: ReturnType<typeof useTheme>): CSSProperties {
   };
 }
 
-function miniGhost(th: ReturnType<typeof useTheme>): CSSProperties {
+function miniGhost(th: ReturnType<typeof useTheme>, waski: boolean): CSSProperties {
   return {
     display: 'inline-flex',
     alignItems: 'center',
-    padding: '3px 8px',
+    minHeight: waski ? 32 : 24,
+    padding: waski ? '4px 12px' : '3px 8px',
     borderRadius: 6,
     border: `1px solid ${th.line}`,
     background: 'transparent',
     color: th.ink2,
     fontFamily: BODY,
-    fontSize: 10.5,
+    fontSize: waski ? 11.5 : 10.5,
     fontWeight: 600,
     lineHeight: 1.4,
     cursor: 'pointer',
   };
 }
 
-function trashBtn(th: ReturnType<typeof useTheme>): CSSProperties {
+function trashBtn(th: ReturnType<typeof useTheme>, waski: boolean): CSSProperties {
+  const bok = waski ? 36 : 24;
   return {
     flex: '0 0 auto',
     alignSelf: 'center',
-    width: 22,
-    height: 22,
+    width: bok,
+    height: bok,
     borderRadius: 6,
     border: 'none',
     background: 'transparent',
@@ -311,11 +345,31 @@ function trashBtn(th: ReturnType<typeof useTheme>): CSSProperties {
   };
 }
 
-function themeIconBtn(th: ReturnType<typeof useTheme>): CSSProperties {
+function closeBtn(th: ReturnType<typeof useTheme>): CSSProperties {
   return {
     flex: '0 0 auto',
-    width: 32,
-    height: 32,
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    border: `1px solid ${th.line}`,
+    background: th.raised,
+    color: th.ink2,
+    fontSize: 14,
+    lineHeight: 1,
+    cursor: 'pointer',
+    padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+}
+
+function themeIconBtn(th: ReturnType<typeof useTheme>, waski: boolean): CSSProperties {
+  const bok = waski ? 38 : 32;
+  return {
+    flex: '0 0 auto',
+    width: bok,
+    height: bok,
     borderRadius: 8,
     border: `1px solid ${th.line}`,
     background: th.raised,
@@ -329,11 +383,12 @@ function themeIconBtn(th: ReturnType<typeof useTheme>): CSSProperties {
 
 function privacyLink(th: ReturnType<typeof useTheme>): CSSProperties {
   return {
+    alignSelf: 'flex-start',
     fontFamily: BODY,
     fontSize: 10.5,
     color: th.ink3,
     textDecoration: 'none',
-    padding: '2px 2px 0',
+    padding: '6px 2px 4px',
   };
 }
 

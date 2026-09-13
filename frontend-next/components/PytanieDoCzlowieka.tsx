@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTheme, BODY } from '@/lib/theme';
 import { TEKSTY, type Lang } from '@/lib/chat';
 
@@ -19,6 +19,14 @@ export default function PytanieDoCzlowieka({ lang, numer = null, onZglos }: Prop
   const [email, setEmail] = useState('');
   const [wysylka, setWysylka] = useState(false);
   const [blad, setBlad] = useState<Exclude<WynikZgloszenia, 'ok'> | null>(null);
+  const formularz = useRef<HTMLDivElement | null>(null);
+  const pole = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!rozwiniete) return;
+    pole.current?.focus({ preventScroll: true });
+    formularz.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [rozwiniete]);
 
   if (numer) {
     return (
@@ -60,13 +68,14 @@ export default function PytanieDoCzlowieka({ lang, numer = null, onZglos }: Prop
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 2 }}>
+    <div ref={formularz} style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 2 }}>
       <span style={{ fontFamily: BODY, fontSize: 13, color: th.ink3 }}>{t.zgloszenieZacheta}</span>
       <label style={{ fontFamily: BODY, fontSize: 11.5, fontWeight: 700, color: th.ink3, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
         {t.zgloszenieEmailLabel}
       </label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <input
+          ref={pole}
           type="email"
           value={email}
           placeholder={t.emailPlaceholder}

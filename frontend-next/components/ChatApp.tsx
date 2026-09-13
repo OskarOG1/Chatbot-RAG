@@ -11,10 +11,12 @@ import Rail, { type RailItem } from '@/components/Rail';
 import Toast from '@/components/Toast';
 import InfoBanner from '@/components/InfoBanner';
 import Link from 'next/link';
-import { IkonaWykres } from '@/components/Ikony';
+import { IkonaMenu, IkonaWykres } from '@/components/Ikony';
+import { usePanelJakoNakladka, useWaskiEkran } from '@/lib/ekran';
 import { czytajSse } from '@/lib/sse';
 import { ThemeContext, THEMES, BODY, DISPLAY, MONO, type ThemeName } from '@/lib/theme';
 import {
+  OKNO_COFNIECIA_MS,
   TEKSTY,
   czyKwalifikujeDoCzlowieka,
   jestNegacja,
@@ -31,7 +33,7 @@ import {
   podmienPowitanie,
   tytulZWiadomosci,
   usunWatki,
-  wczytajJezyk,
+  jezykStartowy,
   wczytajStan,
   wczytajStrone,
   zapiszJezyk,
@@ -42,7 +44,6 @@ import {
 import { oczyscPodglad } from '@/lib/zrodla';
 
 const EMAIL_WZORZEC = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const OKNO_COFNIECIA_MS = 15000;
 const PROG_PRZYKLEJENIA_PX = 80;
 
 function formatCzas(ts: number): string {
@@ -69,15 +70,32 @@ function panelLink(th: { line: string; surface: string; ink2: string }) {
   } as const;
 }
 
+function przyciskIkonowy(th: { line: string; surface: string }) {
+  return {
+    flex: '0 0 auto',
+    width: 40,
+    height: 40,
+    padding: 0,
+    borderRadius: 10,
+    border: `1px solid ${th.line}`,
+    background: th.surface,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+  } as const;
+}
+
 function stanPoczatkowy(): { threads: Thread[]; activeId: string } {
+  const jezyk = jezykStartowy();
   const zapis = wczytajStan();
-  if (zapis) return zapis;
-  const th0 = nowyThread('pl');
+  if (zapis) return { ...zapis, threads: podmienPowitanie(zapis.threads, jezyk) };
+  const th0 = nowyThread(jezyk);
   return { threads: [th0], activeId: th0.id };
 }
 
 export default function ChatApp() {
-  const [lang, setLangState] = useState<Lang>(() => wczytajJezyk() ?? 'pl');
+  const [lang, setLangState] = useState<Lang>(jezykStartowy);
   const [strona, setStronaState] = useState<Strona>(() => wczytajStrone() ?? 'kupujacy');
   const [themeName, setThemeName] = useState<ThemeName>('light');
   const [seed] = useState(stanPoczatkowy);
@@ -90,6 +108,9 @@ export default function ChatApp() {
   const [toast, setToast] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [menuOtwarte, setMenuOtwarte] = useState(false);
+  const waski = useWaskiEkran();
+  const panelNakladka = usePanelJakoNakladka();
   const msgCounter = useRef(
     seed.threads.reduce((max, th) => th.messages.reduce((m, msg) => Math.max(m, msg.id), max), 0)
   );
@@ -160,11 +181,20 @@ export default function ChatApp() {
     if (!zapiszStan(threads, activeId)) {
       pokazToast(t.storageBlad);
     }
-  }, [threads, activeId]);
+  }, [threads, activeId, t.storageBlad]);
 
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
+
+  useEffect(() => {
+    if (!menuOtwarte) return undefined;
+    function klawisz(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOtwarte(false);
+    }
+    document.addEventListener('keydown', klawisz);
+    return () => document.removeEventListener('keydown', klawisz);
+  }, [menuOtwarte]);
 
   function setLang(nowyLang: Lang) {
     setLangState(nowyLang);
@@ -212,10 +242,12 @@ export default function ChatApp() {
     setThreads((ts) => [th0, ...ts]);
     setActiveId(th0.id);
     setDraft('');
+    setMenuOtwarte(false);
     pokazToast(t.newChatToast);
   }
 
   function wybierzThread(id: string) {
+    setMenuOtwarte(false);
     if (id === activeId) return;
     setActiveId(id);
     setDraft('');
@@ -636,7 +668,7 @@ export default function ChatApp() {
   if (!active) {
     return (
       <ThemeContext.Provider value={th}>
-        <div style={{ width: '100%', height: '100vh', background: th.canvas }} />
+        <div className="dc-ekran" style={{ width: '100%', background: th.canvas }} />
       </ThemeContext.Provider>
     );
   }
@@ -658,16 +690,19 @@ export default function ChatApp() {
         : t.suggestionsByAgent[active.ostatniAgent ?? ''] ?? t.suggestionsBySide.kupujacy;
 
   const panelOtwarty = active.panelOpen && active.panel !== null;
+  const menuWidoczne = waski && menuOtwarte;
+  const panelModalny = panelOtwarty && (waski || panelNakladka);
+  const mainZasloniety = menuWidoczne || panelModalny;
   const pokazTyping = trwaWysylka;
   const wysylkiWInnychWatkach = threads.filter((x) => x.id !== activeId && x.panel?.odliczanieDo != null);
 
   return (
     <ThemeContext.Provider value={th}>
       <div
+        className="dc-ekran"
         style={{
           width: '100%',
-          height: '100vh',
-          minHeight: 660,
+          minHeight: waski ? 0 : 660,
           display: 'flex',
           background: th.canvas,
           color: th.ink,
@@ -680,6 +715,10 @@ export default function ChatApp() {
           lang={lang}
           theme={themeName}
           items={railItems}
+          nieaktywny={panelModalny}
+          waski={waski}
+          otwarte={menuOtwarte}
+          onZamknij={() => setMenuOtwarte(false)}
           onNew={nowaRozmowa}
           onSelect={wybierzThread}
           onSetLang={setLang}
@@ -693,30 +732,65 @@ export default function ChatApp() {
           onDeleteSelected={usunWybrane}
         />
 
-        <main style={{ flex: '1 1 auto', minWidth: 'min(400px, 100%)', display: 'flex', flexDirection: 'column' }}>
+        {panelModalny && !waski && (
+          <div
+            aria-hidden
+            onClick={() => setPanelOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 75, background: 'rgba(20, 17, 16, 0.32)', animation: 'dcFadeUp 0.2s ease both' }}
+          />
+        )}
+
+        {menuWidoczne && (
+          <div
+            aria-hidden
+            onClick={() => setMenuOtwarte(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 65, background: 'rgba(20, 17, 16, 0.42)', animation: 'dcFadeUp 0.2s ease both' }}
+          />
+        )}
+
+        <main
+          inert={mainZasloniety}
+          style={{ flex: '1 1 auto', minWidth: waski ? 0 : 'min(400px, 100%)', display: 'flex', flexDirection: 'column' }}
+        >
           <header
             style={{
               flex: '0 0 auto',
-              padding: '20px 32px',
+              padding: waski ? '10px 12px' : '20px 32px',
               display: 'flex',
-              alignItems: 'flex-start',
+              alignItems: waski ? 'center' : 'flex-start',
               justifyContent: 'space-between',
-              gap: 20,
-              flexWrap: 'wrap',
+              gap: waski ? 10 : 20,
               borderBottom: `1px solid ${th.line}`,
               background: th.canvas,
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-              <h1 style={{ margin: 0, fontFamily: DISPLAY, fontSize: 21, fontWeight: 700, letterSpacing: '-0.025em', color: th.ink }}>
+            {waski && (
+              <button type="button" aria-label={t.menuOpen} onClick={() => setMenuOtwarte(true)} style={przyciskIkonowy(th)}>
+                <IkonaMenu color={th.ink2} />
+              </button>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: '1 1 auto' }}>
+              <h1
+                style={{
+                  margin: 0,
+                  fontFamily: DISPLAY,
+                  fontSize: waski ? 16.5 : 21,
+                  fontWeight: 700,
+                  letterSpacing: '-0.025em',
+                  color: th.ink,
+                  whiteSpace: waski ? 'nowrap' : undefined,
+                  overflow: waski ? 'hidden' : undefined,
+                  textOverflow: waski ? 'ellipsis' : undefined,
+                }}
+              >
                 {active.title ?? t.threadFallbackTitle}
               </h1>
-              <span style={{ fontFamily: MONO, fontSize: 11, color: th.ink3 }}>{t.subtitle}</span>
+              {!waski && <span style={{ fontFamily: MONO, fontSize: 11, color: th.ink3 }}>{t.subtitle}</span>}
             </div>
             <div style={{ flex: '0 0 auto', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <Link href="/admin" style={panelLink(th)}>
+              <Link href="/admin" aria-label={waski ? t.panel : undefined} style={waski ? przyciskIkonowy(th) : panelLink(th)}>
                 <IkonaWykres color={th.ink2} />
-                {t.panel}
+                {!waski && t.panel}
               </Link>
             </div>
           </header>
@@ -724,9 +798,9 @@ export default function ChatApp() {
           <div
             ref={kontenerRef}
             onScroll={odnotujPrzewijanie}
-            style={{ flex: '1 1 auto', overflowY: 'auto', padding: '32px 32px 8px' }}
+            style={{ flex: '1 1 auto', overflowY: 'auto', padding: waski ? '18px 14px 8px' : '32px 32px 8px' }}
           >
-            <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 30 }}>
+            <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: waski ? 24 : 30 }}>
               {active.messages.map((m) => (
                 <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <ChatMessage
@@ -763,8 +837,14 @@ export default function ChatApp() {
             </div>
           </div>
 
-          <div style={{ flex: '0 0 auto', padding: '14px 32px 24px', background: `linear-gradient(to top, ${th.canvas} 55%, transparent)` }}>
-            <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div
+            style={{
+              flex: '0 0 auto',
+              padding: waski ? '8px 10px 10px' : '14px 32px 24px',
+              background: `linear-gradient(to top, ${th.canvas} 55%, transparent)`,
+            }}
+          >
+            <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: waski ? 8 : 10 }}>
               {active.panel && !active.panelOpen && (
                 <button
                   type="button"
@@ -807,6 +887,7 @@ export default function ChatApp() {
         <EmailPanel
           lang={lang}
           open={panelOtwarty}
+          tryb={waski ? 'ekran' : panelNakladka ? 'nakladka' : 'kolumna'}
           recipient={active.panel?.recipient ?? ''}
           subject={active.panel?.subject ?? ''}
           body={active.panel?.body ?? ''}
@@ -832,9 +913,8 @@ export default function ChatApp() {
           <div
             style={{
               position: 'fixed',
-              bottom: 20,
-              left: 20,
-              zIndex: 40,
+              ...(waski ? { top: 64, left: 12, right: 12 } : { bottom: 20, left: 20 }),
+              zIndex: 90,
               display: 'flex',
               flexDirection: 'column',
               gap: 8,
@@ -846,6 +926,7 @@ export default function ChatApp() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
                   gap: 10,
                   padding: '10px 14px',
                   borderRadius: 10,
@@ -880,7 +961,7 @@ export default function ChatApp() {
           </div>
         )}
 
-        <Toast tekst={toast} />
+        <Toast tekst={toast} waski={waski} />
       </div>
     </ThemeContext.Provider>
   );

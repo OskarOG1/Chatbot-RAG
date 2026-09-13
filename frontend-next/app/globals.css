@@ -41,6 +41,28 @@ body {
   background: transparent;
 }
 
+.dc-ekran {
+  height: 100vh;
+  height: 100dvh;
+}
+
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: 16px !important;
+  }
+}
+
+.dc-bez-paska {
+  scrollbar-width: none;
+}
+
+.dc-bez-paska::-webkit-scrollbar {
+  display: none;
+}
+
 .email-body-editor ul {
   list-style: disc;
   margin: 0 0 0 1.3em;
