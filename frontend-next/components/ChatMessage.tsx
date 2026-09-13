@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTheme, DISPLAY, BODY } from '@/lib/theme';
+import { useWaskiEkran } from '@/lib/ekran';
 import { przygotujOdpowiedz } from '@/lib/zrodla';
 import { rozdzielPodpunkty } from '@/lib/podpunkty';
 import { TEKSTY, type Cytat, type Lang } from '@/lib/chat';
@@ -39,6 +40,7 @@ export default function ChatMessage({
   onZglos,
 }: Props) {
   const th = useTheme();
+  const waski = useWaskiEkran();
   const t = TEKSTY[lang];
   const isUser = role === 'user';
 
@@ -47,8 +49,8 @@ export default function ChatMessage({
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <div
           style={{
-            maxWidth: '76%',
-            padding: '13px 17px',
+            maxWidth: waski ? '88%' : '76%',
+            padding: waski ? '11px 14px' : '13px 17px',
             borderRadius: '14px 14px 3px 14px',
             background: th.userBg,
             color: th.userInk,
@@ -56,6 +58,7 @@ export default function ChatMessage({
             fontSize: 14.5,
             lineHeight: 1.6,
             whiteSpace: 'pre-wrap',
+            overflowWrap: 'anywhere',
           }}
         >
           {content}
@@ -101,6 +104,7 @@ export default function ChatMessage({
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
+          overflowWrap: 'anywhere',
         }}
       >
         <ReactMarkdown
@@ -158,8 +162,8 @@ export default function ChatMessage({
                 aria-label={wybor === 'gora' ? t.ocenaTak : t.ocenaNie}
                 aria-pressed={wybrany}
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: waski ? 36 : 28,
+                  height: waski ? 36 : 28,
                   padding: 0,
                   display: 'flex',
                   alignItems: 'center',

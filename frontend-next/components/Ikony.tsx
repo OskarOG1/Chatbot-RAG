@@ -140,3 +140,11 @@ export function IkonaKciukDol({ color = 'currentColor' }: { color?: string }) {
     </svg>
   );
 }
+
+export function IkonaMenu({ color = 'currentColor' }: { color?: string }) {
+  return (
+    <svg width={18} height={18} viewBox="0 0 18 18" fill="none" aria-hidden focusable="false">
+      <path d="M3 5h12M3 9h12M3 13h12" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+    </svg>
+  );
+}

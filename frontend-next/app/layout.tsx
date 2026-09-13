@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -23,6 +23,12 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Allegro RAG Asystent",
   description: "Asystent zakupowy Allegro: pytania, reklamacje, zwroty, faktury",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({

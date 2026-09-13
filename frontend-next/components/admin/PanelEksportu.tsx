@@ -1,13 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  ETYKIETY_KOLUMN,
-  etykieta,
-  pobierzEksport,
-  type Filtry,
-  type Kolumny,
-} from '@/lib/admin';
+import { etykieta, pobierzEksport, type Filtry, type Kolumny } from '@/lib/admin';
+import { opisBledu, useJezykAdmina, useTekstyAdmina } from '@/lib/adminTeksty';
+import { useWaskiEkran } from '@/lib/ekran';
 import { useTheme, BODY, DISPLAY } from '@/lib/theme';
 
 export default function PanelEksportu({
@@ -20,10 +16,13 @@ export default function PanelEksportu({
   token: string;
 }) {
   const th = useTheme();
+  const t = useTekstyAdmina();
+  const lang = useJezykAdmina();
+  const waski = useWaskiEkran();
   const [wybrane, setWybrane] = useState<string[]>(kolumny.domyslne);
   const [format, setFormat] = useState<'csv' | 'json'>('csv');
   const [pobieranie, setPobieranie] = useState(false);
-  const [blad, setBlad] = useState<string | null>(null);
+  const [blad, setBlad] = useState<unknown>(null);
 
   const przelacz = (kolumna: string) => {
     setWybrane((biezace) =>
@@ -36,7 +35,7 @@ export default function PanelEksportu({
     alignItems: 'center',
     gap: 6,
     borderRadius: 100,
-    padding: '7px 12px',
+    padding: waski ? '9px 13px' : '7px 12px',
     border: `1px solid ${aktywna ? th.accentLine : th.line}`,
     background: aktywna ? th.accentSoft : th.raised,
     color: aktywna ? th.accentInk : th.ink2,
@@ -62,7 +61,7 @@ export default function PanelEksportu({
       link.remove();
       URL.revokeObjectURL(adres);
     } catch (e) {
-      setBlad(e instanceof Error ? e.message : 'Nie udało się pobrać pliku');
+      setBlad(e ?? true);
     } finally {
       setPobieranie(false);
     }
@@ -74,7 +73,7 @@ export default function PanelEksportu({
         background: th.surface,
         border: `1px solid ${th.line}`,
         borderRadius: 14,
-        padding: 18,
+        padding: waski ? 14 : 18,
         boxShadow: th.shadow,
         display: 'flex',
         flexDirection: 'column',
@@ -82,26 +81,23 @@ export default function PanelEksportu({
       }}
     >
       <h2 style={{ margin: 0, fontFamily: DISPLAY, fontSize: 15, fontWeight: 700, color: th.ink }}>
-        Eksport danych
+        {t.eksportTytul}
       </h2>
-      <p style={{ margin: 0, fontSize: 12.5, color: th.ink2 }}>
-        Zaznacz kolumny, które mają trafić do pliku. Wybrany u góry strony okres i pozostałe filtry
-        obowiązują także tutaj.
-      </p>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <p style={{ margin: 0, fontSize: 12.5, color: th.ink2 }}>{t.eksportOpis}</p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         <button
           type="button"
           onClick={() => setWybrane(kolumny.wszystkie)}
           style={{ ...pigulka(false), fontWeight: 500 }}
         >
-          Zaznacz wszystko
+          {t.zaznaczWszystko}
         </button>
         <button
           type="button"
           onClick={() => setWybrane([])}
           style={{ ...pigulka(false), fontWeight: 500 }}
         >
-          Odznacz wszystko
+          {t.odznaczWszystko}
         </button>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -113,11 +109,11 @@ export default function PanelEksportu({
               onChange={() => przelacz(kolumna)}
               style={{ accentColor: th.accent }}
             />
-            {etykieta(ETYKIETY_KOLUMN, kolumna)}
+            {etykieta(t.kolumny, kolumna)}
           </label>
         ))}
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         <button type="button" onClick={() => setFormat('csv')} style={pigulka(format === 'csv')}>
           CSV
         </button>
@@ -125,20 +121,15 @@ export default function PanelEksportu({
           JSON
         </button>
       </div>
-      {!token ? (
-        <p style={{ margin: 0, fontSize: 12.5, color: th.ink2 }}>
-          Bez tokenu administratora plik nie zawiera kolumny z treścią pytań. Token wpisujesz u góry
-          strony.
-        </p>
-      ) : null}
-      {blad ? <p style={{ margin: 0, fontSize: 12.5, color: th.ink }}>{blad}</p> : null}
+      {!token ? <p style={{ margin: 0, fontSize: 12.5, color: th.ink2 }}>{t.eksportBezTokenu}</p> : null}
+      {blad ? <p style={{ margin: 0, fontSize: 12.5, color: th.ink }}>{opisBledu(blad, t.bladPliku, lang)}</p> : null}
       <button
         type="button"
         onClick={pobierz}
         disabled={brakWyboru || pobieranie}
         style={{
-          alignSelf: 'flex-start',
-          padding: '9px 18px',
+          alignSelf: waski ? 'stretch' : 'flex-start',
+          padding: waski ? '12px 18px' : '9px 18px',
           borderRadius: 9,
           border: 'none',
           background: brakWyboru || pobieranie ? th.line : th.accent,
@@ -149,7 +140,7 @@ export default function PanelEksportu({
           cursor: brakWyboru || pobieranie ? 'default' : 'pointer',
         }}
       >
-        {pobieranie ? 'Pobieram...' : 'Pobierz plik'}
+        {pobieranie ? t.pobieram : t.pobierzPlik}
       </button>
     </section>
   );

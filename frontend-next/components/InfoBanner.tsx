@@ -16,6 +16,7 @@ export default function InfoBanner({ tekst }: Props) {
         padding: '8px 12px',
         borderRadius: 10,
         fontSize: 13,
+        overflowWrap: 'anywhere',
       }}
     >
       {tekst}

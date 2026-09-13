@@ -115,6 +115,23 @@ export interface Filtry {
   strona: 'kupujacy' | 'sprzedajacy' | null;
 }
 
+export class BladZapytania extends Error {
+  status: number;
+  detail: string | null;
+
+  constructor(status: number, detail: string | null) {
+    super(detail ?? `HTTP ${status}`);
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+async function bladOdpowiedzi(res: Response): Promise<BladZapytania> {
+  const tresc = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+  const detail = typeof tresc?.detail === 'string' ? tresc.detail : null;
+  return new BladZapytania(res.status, detail);
+}
+
 export function parametryFiltrow(filtry: Filtry): string {
   const params = new URLSearchParams();
   if (filtry.od !== null) {
@@ -145,87 +162,18 @@ export async function pobierzStatystyki(filtry: Filtry, token = ''): Promise<Sta
     headers: naglowkiAdmina(token),
   });
   if (!res.ok) {
-    throw new Error(`Błąd pobierania statystyk: ${res.status}`);
+    throw await bladOdpowiedzi(res);
   }
   return res.json() as Promise<Statystyki>;
 }
-
-export const ETYKIETY_KOLUMN: Record<string, string> = {
-  czas: 'Data i godzina',
-  lang: 'Język',
-  strona: 'Rola użytkownika',
-  sekcja: 'Temat',
-  wynik: 'Wynik',
-  powod: 'Powód braku odpowiedzi',
-  powod_ogolna: 'Powód odmowy bez bazy wiedzy',
-  latencja_s: 'Czas odpowiedzi (s)',
-  cache_hit: 'Odpowiedź z pamięci',
-  pytanie: 'Pytanie',
-  tokeny_we: 'Tokeny wejściowe',
-  tokeny_wy: 'Tokeny wyjściowe',
-  koszt_usd: 'Koszt (USD)',
-};
-
-export const NAZWY_SEKCJI: Record<string, string> = {
-  konto: 'Konto',
-  zakupy: 'Zakupy',
-  platnosci: 'Płatności',
-  sprzedaz: 'Sprzedaż',
-  kupujacy: 'Kupujący',
-  email: 'Wiadomość do sprzedawcy',
-};
-
-export const NAZWY_STRON: Record<string, string> = {
-  kupujacy: 'Kupujący',
-  sprzedajacy: 'Sprzedający',
-  nieznana: 'Nieznana',
-};
-
-export const NAZWY_POWODOW: Record<string, string> = {
-  prog_rerank: 'Nie znaleziono pasującego artykułu',
-  sedzia: 'Znalezione artykuły nie pasowały do pytania',
-  brak_generacji: 'Asystent nie ułożył odpowiedzi',
-  pokrycie: 'Odpowiedź za słabo oparta na artykułach',
-  model_nie_wie: 'Asystent przyznał, że nie wie',
-  jawna_odmowa: 'Asystent odmówił odpowiedzi',
-  nie_zrozumialem: 'Pytanie niezrozumiałe',
-  mail_doprecyzuj: 'Trzeba dopytać przed wysłaniem wiadomości',
-  guard_za_krotkie: 'Pytanie za krótkie',
-  guard_za_dlugie: 'Pytanie za długie',
-  guard_nie_rozumiem: 'Nie rozpoznano treści pytania',
-  guard_zly_alfabet: 'Pytanie w niedozwolonym alfabecie',
-  guard_injekcja: 'Próba manipulacji asystentem',
-  brak_danych: 'Brak materiałów w bazie wiedzy',
-  pytanie_o_strone: 'Pytanie do innej roli (dawne kierowanie automatyczne)',
-  odmowa: 'Brak odpowiedzi bez podanego powodu',
-  brak_wyniku: 'Awaria przetwarzania',
-  ogolna_temat: 'Pytanie spoza tematyki Allegro',
-  ogolna_domena: 'Pytanie spoza obsługiwanej dziedziny',
-  ogolna_blisko_bazy: 'Pytanie zbyt bliskie bazie, by odpowiadać z ogólnej wiedzy',
-  ogolna_konkrety: 'Odpowiedź ogólna wchodziła w szczegóły Allegro',
-  ogolna_pusta: 'Pusta odpowiedź ogólna',
-  ogolna_dluga: 'Odpowiedź ogólna za długa',
-  ogolna_model_nie_wie: 'Asystent nie znał odpowiedzi także bez bazy',
-  ogolna_jawna_odmowa: 'Odmowa także bez bazy wiedzy',
-  ogolna_brak_generacji: 'Brak odpowiedzi także bez bazy wiedzy',
-};
-
-export const NAZWY_CECH: Record<string, string> = {
-  rerank_top1: 'Dopasowanie artykułu',
-  pokrycie: 'Oparcie w źródłach',
-  zrodlo_top1: 'Najlepiej dopasowany artykuł',
-  strona_wybrana: 'Rola wybrana przez użytkownika',
-  przewaga_sekcji: 'Pewność wyboru tematu',
-  etap: 'Poziom odpowiedzi',
-};
 
 export function etykieta(mapa: Record<string, string>, klucz: string): string {
   return mapa[klucz] ?? klucz;
 }
 
-export function procent(wartosc: number | null, miejsca = 1): string {
+export function procent(wartosc: number | null, brak: string, miejsca = 1): string {
   if (wartosc === null || Number.isNaN(wartosc)) {
-    return 'brak danych';
+    return brak;
   }
   return `${(wartosc * 100).toFixed(miejsca)}%`;
 }
@@ -241,8 +189,7 @@ export async function resetujStatystyki(token: string): Promise<string | null> {
     headers: { 'x-admin-token': token },
   });
   if (!res.ok) {
-    const tresc = (await res.json().catch(() => null)) as { detail?: string } | null;
-    throw new Error(tresc?.detail ?? `Błąd resetowania statystyk: ${res.status}`);
+    throw await bladOdpowiedzi(res);
   }
   const wynik = (await res.json()) as { archiwum: string | null };
   return wynik.archiwum;
@@ -281,61 +228,19 @@ export interface Przypadki {
   przypadki: Przypadek[];
 }
 
-export const ETYKIETY_DIAGNOZ: Record<string, string> = {
-  ok: 'Dobra odpowiedź',
-  tresc: 'Dobre materiały, słaba odpowiedź',
-  retrieval: 'Wyszukiwarka nie znalazła artykułu',
-  sedzia: 'Materiały odrzucone jako niepasujące',
-  pokrycie: 'Odpowiedź za słabo oparta na artykułach',
-  generacja: 'Asystent nie ułożył odpowiedzi',
-  guard: 'Zatrzymane przez zabezpieczenia',
-  literowki: 'Nierozpoznane słowa',
-  doprecyzowanie: 'Dopytanie o rolę',
-  ogolna: 'Odpowiedź bez bazy wiedzy',
-  rozmowa: 'Zwykła wymiana zdań',
-  inna: 'Inna przyczyna',
-  brak_sladu: 'Brak zapisu przebiegu zapytania',
-};
-
-export const LEKARSTWA_DIAGNOZ: Record<string, string> = {
-  tresc: 'instrukcja dla asystenta',
-  retrieval: 'baza artykułów i słownictwo',
-  sedzia: 'czułość oceny materiałów',
-  pokrycie: 'wymóg oparcia w artykułach',
-  generacja: 'instrukcja dla asystenta',
-  guard: 'reguły zabezpieczeń',
-  literowki: 'słownik poprawek',
-  doprecyzowanie: 'treść dopytania',
-  ogolna: 'reguły odpowiedzi bez bazy',
-  brak_sladu: 'ocena sprzed wprowadzenia identyfikatorów',
-};
-
 export async function pobierzPrzypadki(filtry: Filtry, token = ''): Promise<Przypadki> {
   const res = await fetch(`/api/admin/oceny?${parametryFiltrow(filtry)}`, {
     cache: 'no-store',
     headers: naglowkiAdmina(token),
   });
   if (!res.ok) {
-    throw new Error(`Błąd pobierania ocen: ${res.status}`);
+    throw await bladOdpowiedzi(res);
   }
   return res.json() as Promise<Przypadki>;
 }
 
 export type StatusZgloszenia = 'nowe' | 'odpowiedziano' | 'odrzucone';
 export type EtykietaZgloszenia = 'luka_w_bazie' | 'prog_za_wysoki' | 'poza_zakresem' | 'spam';
-
-export const NAZWY_STATUSOW_ZGLOSZEN: Record<StatusZgloszenia, string> = {
-  nowe: 'Nowe',
-  odpowiedziano: 'Odpowiedziano',
-  odrzucone: 'Odrzucone',
-};
-
-export const NAZWY_ETYKIET_ZGLOSZEN: Record<EtykietaZgloszenia, string> = {
-  luka_w_bazie: 'Luka w bazie',
-  prog_za_wysoki: 'Próg za wysoki',
-  poza_zakresem: 'Poza zakresem',
-  spam: 'Spam',
-};
 
 export interface CechyZgloszenia {
   rerank_top1?: number | null;
@@ -395,8 +300,7 @@ export async function pobierzKolejke(
     headers: { 'x-admin-token': token },
   });
   if (!res.ok) {
-    const tresc = (await res.json().catch(() => null)) as { detail?: string } | null;
-    throw new Error(tresc?.detail ?? `Błąd pobierania kolejki: ${res.status}`);
+    throw await bladOdpowiedzi(res);
   }
   return res.json() as Promise<Kolejka>;
 }
@@ -412,8 +316,7 @@ export async function odpowiedzZgloszenie(
     body: JSON.stringify(dane),
   });
   if (!res.ok) {
-    const tresc = (await res.json().catch(() => null)) as { detail?: string } | null;
-    throw new Error(tresc?.detail ?? `Błąd zapisu odpowiedzi: ${res.status}`);
+    throw await bladOdpowiedzi(res);
   }
   return res.json() as Promise<{ status: string; ticket: string | null }>;
 }
@@ -427,8 +330,7 @@ export async function pobierzEksport(
   const adres = `/api/admin/eksport?format=${format}&kolumny=${kolumny.join(',')}&${parametryFiltrow(filtry)}`;
   const res = await fetch(adres, { cache: 'no-store', headers: naglowkiAdmina(token) });
   if (!res.ok) {
-    const tresc = (await res.json().catch(() => null)) as { detail?: string } | null;
-    throw new Error(tresc?.detail ?? `Nie udało się pobrać eksportu: ${res.status}`);
+    throw await bladOdpowiedzi(res);
   }
   const dyspozycja = res.headers.get('content-disposition') ?? '';
   const dopasowanie = /filename="?([^"]+)"?/.exec(dyspozycja);

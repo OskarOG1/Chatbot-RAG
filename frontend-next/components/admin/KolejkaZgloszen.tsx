@@ -5,16 +5,13 @@ import { useTheme, BODY, DISPLAY } from '@/lib/theme';
 import {
   pobierzKolejke,
   odpowiedzZgloszenie,
-  NAZWY_POWODOW,
-  NAZWY_SEKCJI,
-  NAZWY_STATUSOW_ZGLOSZEN,
-  NAZWY_ETYKIET_ZGLOSZEN,
-  ETYKIETY_DIAGNOZ,
   type Kolejka,
   type StatusZgloszenia,
   type EtykietaZgloszenia,
   type ZgloszenieKolejki,
 } from '@/lib/admin';
+import { opisBledu, useJezykAdmina, useTekstyAdmina } from '@/lib/adminTeksty';
+import { useWaskiEkran } from '@/lib/ekran';
 
 interface Props {
   dni: number | null;
@@ -22,75 +19,60 @@ interface Props {
   onToken: (token: string) => void;
 }
 
-const STATUSY: { etykieta: string; wartosc: StatusZgloszenia | null }[] = [
-  { etykieta: 'Nowe', wartosc: 'nowe' },
-  { etykieta: 'Odpowiedziane', wartosc: 'odpowiedziano' },
-  { etykieta: 'Odrzucone', wartosc: 'odrzucone' },
-  { etykieta: 'Wszystkie', wartosc: null },
-];
-
 const ETYKIETY: EtykietaZgloszenia[] = ['luka_w_bazie', 'prog_za_wysoki', 'poza_zakresem', 'spam'];
 
-function czasCzytelny(wartosc: string | null): string {
-  return wartosc ? wartosc.slice(0, 16).replace('T', ' ') : 'brak';
-}
+type Komunikat = { rodzaj: 'pusta' } | { rodzaj: 'wyslano'; numer: string | null } | { rodzaj: 'odrzucono' } | { rodzaj: 'blad'; blad: unknown };
 
 export default function KolejkaZgloszen({ dni, token, onToken }: Props) {
   const th = useTheme();
+  const t = useTekstyAdmina();
+  const lang = useJezykAdmina();
+  const waski = useWaskiEkran();
   const [tokenWpisywany, setTokenWpisywany] = useState('');
   const [status, setStatus] = useState<StatusZgloszenia | null>('nowe');
   const [dane, setDane] = useState<Kolejka | null>(null);
-  const [blad, setBlad] = useState<string | null>(null);
-  const [ladowanie, setLadowanie] = useState(false);
+  const [wynik, setWynik] = useState<{ klucz: string; blad: unknown } | null>(null);
   const [odswiez, setOdswiez] = useState(0);
   const [rozwiniete, setRozwiniete] = useState<string | null>(null);
 
-  const wczytaj = useCallback(() => {
+  const statusy: { etykieta: string; wartosc: StatusZgloszenia | null }[] = [
+    { etykieta: t.statusyKolejki.nowe, wartosc: 'nowe' },
+    { etykieta: t.statusyKolejki.odpowiedziano, wartosc: 'odpowiedziano' },
+    { etykieta: t.statusyKolejki.odrzucone, wartosc: 'odrzucone' },
+    { etykieta: t.statusyKolejki.wszystkie, wartosc: null },
+  ];
+
+  useEffect(() => {
     if (!token) {
-      setDane(null);
       return;
     }
     let aktywny = true;
-    setLadowanie(true);
-    setBlad(null);
+    const klucz = JSON.stringify([token, dni, status, odswiez]);
     pobierzKolejke(token, dni, status)
-      .then((wynik) => {
+      .then((pobrane) => {
         if (aktywny) {
-          setDane(wynik);
+          setDane(pobrane);
+          setWynik({ klucz, blad: null });
         }
       })
       .catch((e) => {
         if (aktywny) {
           setDane(null);
-          setBlad(e instanceof Error ? e.message : 'Nie udało się pobrać kolejki');
-        }
-      })
-      .finally(() => {
-        if (aktywny) {
-          setLadowanie(false);
+          setWynik({ klucz, blad: e ?? true });
         }
       });
     return () => {
       aktywny = false;
     };
-  }, [token, dni, status]);
+  }, [token, dni, status, odswiez]);
 
-  useEffect(() => wczytaj(), [wczytaj, odswiez]);
+  const kluczBiezacy = JSON.stringify([token, dni, status, odswiez]);
+  const blad = wynik?.klucz === kluczBiezacy ? wynik.blad : null;
+  const ladowanie = token !== '' && wynik?.klucz !== kluczBiezacy;
 
   const odswiezPoZapisie = useCallback(async () => {
-    if (!token) {
-      setOdswiez((n) => n + 1);
-      return;
-    }
-    try {
-      const wynik = await pobierzKolejke(token, dni, status);
-      setDane(wynik);
-    } catch (e) {
-      setDane(null);
-      setBlad(e instanceof Error ? e.message : 'Nie udało się pobrać kolejki');
-    }
     setOdswiez((n) => n + 1);
-  }, [token, dni, status]);
+  }, []);
 
   const ramka = {
     background: th.surface,
@@ -104,18 +86,16 @@ export default function KolejkaZgloszen({ dni, token, onToken }: Props) {
     onToken('');
     setTokenWpisywany('');
     setDane(null);
+    setWynik(null);
   }
 
   if (!token) {
     return (
-      <section style={{ ...ramka, padding: '20px 20px 24px' }}>
+      <section style={{ ...ramka, padding: waski ? '16px 14px 18px' : '20px 20px 24px' }}>
         <h2 style={{ margin: 0, fontFamily: DISPLAY, fontSize: 15, fontWeight: 700, color: th.ink }}>
-          Kolejka zgłoszeń
+          {t.kolejkaTytul}
         </h2>
-        <p style={{ fontFamily: BODY, fontSize: 13, color: th.ink2, marginTop: 10, maxWidth: 560 }}>
-          Wpisz token administratora, żeby zobaczyć zgłoszenia. Bez tokenu lista jest niedostępna, a nie
-          pusta. Trafiają tu pytania, na które asystent nie odpowiedział, a użytkownik poprosił o kontakt.
-        </p>
+        <p style={{ fontFamily: BODY, fontSize: 13, color: th.ink2, marginTop: 10, maxWidth: 560 }}>{t.kolejkaWstep}</p>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -126,12 +106,12 @@ export default function KolejkaZgloszen({ dni, token, onToken }: Props) {
           <input
             type="password"
             value={tokenWpisywany}
-            placeholder="token administratora"
+            placeholder={t.tokenMaly}
             onChange={(e) => setTokenWpisywany(e.target.value)}
-            style={{ ...pole(th), marginTop: 0, flex: '1 1 220px' }}
+            style={{ ...pole(th, waski), marginTop: 0, flex: '1 1 200px', width: 'auto', minWidth: 0 }}
           />
           <button type="submit" disabled={!tokenWpisywany} style={przyciskGlowny(th, !tokenWpisywany)}>
-            Pokaż kolejkę
+            {t.pokazKolejke}
           </button>
         </form>
       </section>
@@ -147,27 +127,27 @@ export default function KolejkaZgloszen({ dni, token, onToken }: Props) {
           justifyContent: 'space-between',
           gap: 12,
           flexWrap: 'wrap',
-          padding: '16px 18px 12px',
+          padding: waski ? '14px 14px 10px' : '16px 18px 12px',
         }}
       >
         <h2 style={{ margin: 0, fontFamily: DISPLAY, fontSize: 15, fontWeight: 700, color: th.ink }}>
-          Kolejka zgłoszeń
+          {t.kolejkaTytul}
         </h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {dane ? (
             <span style={{ fontFamily: BODY, fontSize: 12.5, color: th.ink2 }}>
-              {dane.otwarte} otwartych · {dane.razem} w widoku
+              {t.kolejkaLicznik(dane.otwarte, dane.razem)}
             </span>
           ) : null}
-          {STATUSY.map((s) => {
+          {statusy.map((s) => {
             const aktywny = s.wartosc === status;
             return (
               <button
-                key={s.etykieta}
+                key={s.wartosc ?? 'wszystkie'}
                 type="button"
                 onClick={() => setStatus(s.wartosc)}
                 style={{
-                  height: 30,
+                  height: waski ? 34 : 30,
                   padding: '0 12px',
                   borderRadius: 100,
                   border: `1px solid ${aktywny ? th.accentLine : th.line}`,
@@ -184,19 +164,19 @@ export default function KolejkaZgloszen({ dni, token, onToken }: Props) {
             );
           })}
           <button type="button" onClick={wyloguj} style={przyciskCichy(th)}>
-            Wyloguj token
+            {t.wylogujToken}
           </button>
         </div>
       </div>
 
-      {blad ? <p style={{ padding: '0 18px 16px', color: th.accentInk, fontSize: 13 }}>{blad}</p> : null}
+      {blad ? (
+        <p style={{ padding: '0 18px 16px', color: th.accentInk, fontSize: 13 }}>{opisBledu(blad, t.bladKolejki, lang)}</p>
+      ) : null}
       {!blad && ladowanie && dane === null ? (
-        <p style={{ padding: '0 18px 16px', color: th.ink2, fontSize: 13 }}>Ładuję kolejkę</p>
+        <p style={{ padding: '0 18px 16px', color: th.ink2, fontSize: 13 }}>{t.ladujeKolejke}</p>
       ) : null}
       {!blad && dane && dane.zgloszenia.length === 0 ? (
-        <p style={{ padding: '0 18px 16px', color: th.ink2, fontSize: 13 }}>
-          Brak zgłoszeń w tym widoku.
-        </p>
+        <p style={{ padding: '0 18px 16px', color: th.ink2, fontSize: 13 }}>{t.brakZgloszen}</p>
       ) : null}
 
       {dane && dane.zgloszenia.length > 0 ? (
@@ -227,17 +207,21 @@ interface WierszProps {
 
 function Wiersz({ z, rozwiniete, onToggle, onZapisano, token }: WierszProps) {
   const th = useTheme();
+  const t = useTekstyAdmina();
+  const lang = useJezykAdmina();
+  const waski = useWaskiEkran();
   const [tresc, setTresc] = useState('');
   const [etykieta, setEtykieta] = useState<EtykietaZgloszenia | ''>('');
   const [zapis, setZapis] = useState(false);
-  const [komunikat, setKomunikat] = useState<string | null>(null);
+  const [komunikat, setKomunikat] = useState<Komunikat | null>(null);
 
   const nowe = z.status === 'nowe';
+  const czasCzytelny = (wartosc: string | null) => (wartosc ? wartosc.slice(0, 16).replace('T', ' ') : t.brak);
 
   async function wyslij(docelowyStatus: 'odpowiedziano' | 'odrzucone') {
     if (zapis) return;
     if (docelowyStatus === 'odpowiedziano' && !tresc.trim()) {
-      setKomunikat('Odpowiedź nie może być pusta.');
+      setKomunikat({ rodzaj: 'pusta' });
       return;
     }
     setZapis(true);
@@ -249,49 +233,56 @@ function Wiersz({ z, rozwiniete, onToggle, onZapisano, token }: WierszProps) {
         etykieta: etykieta || null,
         tresc: tresc.trim(),
       });
-      setKomunikat(
-        docelowyStatus === 'odpowiedziano'
-          ? `Wysłano, numer wiadomości ${wynik.ticket ?? 'brak'}.`
-          : 'Zgłoszenie odrzucone.',
-      );
+      setKomunikat(docelowyStatus === 'odpowiedziano' ? { rodzaj: 'wyslano', numer: wynik.ticket } : { rodzaj: 'odrzucono' });
       await onZapisano();
     } catch (e) {
-      setKomunikat(e instanceof Error ? e.message : 'Nie udało się zapisać.');
+      setKomunikat({ rodzaj: 'blad', blad: e });
     } finally {
       setZapis(false);
     }
   }
+
+  function tekstKomunikatu(k: Komunikat): string {
+    if (k.rodzaj === 'pusta') return t.pustaOdpowiedz;
+    if (k.rodzaj === 'wyslano') return t.wyslanoNumer(k.numer ?? t.brak);
+    if (k.rodzaj === 'odrzucono') return t.odrzucono;
+    return opisBledu(k.blad, t.bladZapisu, lang);
+  }
+
+  const brakWartosci = (wartosc: number | null | undefined) => (wartosc === null || wartosc === undefined ? t.brak : String(wartosc));
 
   return (
     <div style={{ borderBottom: `1px solid ${th.lineSoft}` }}>
       <button
         type="button"
         onClick={onToggle}
+        aria-expanded={rozwiniete}
         style={{
           width: '100%',
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
-          gap: 16,
-          padding: '14px 18px',
+          gap: waski ? 10 : 16,
+          padding: waski ? '12px 14px' : '14px 18px',
           background: 'none',
           border: 'none',
           textAlign: 'left',
           cursor: 'pointer',
         }}
       >
-        <span style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
+        <span style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0, overflowWrap: 'anywhere' }}>
           <span style={{ fontFamily: BODY, fontSize: 13.5, color: th.ink, fontWeight: 600 }}>
-            {z.pytanie ?? 'brak treści pytania'}
+            {z.pytanie ?? t.brakTresciPytania}
           </span>
-          <span style={{ fontFamily: BODY, fontSize: 12, color: th.ink2, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <span>{NAZWY_POWODOW[z.powod ?? ''] ?? z.powod ?? 'brak powodu'}</span>
-            <span>·</span>
-            <span>{z.sekcja ? NAZWY_SEKCJI[z.sekcja] ?? z.sekcja : 'brak tematu'}</span>
-            <span>·</span>
-            <span>dopasowanie artykułu {z.cechy?.rerank_top1 ?? 'brak'}</span>
-            <span>·</span>
-            <span>oparcie w źródłach {z.cechy?.pokrycie ?? 'brak'}</span>
+          <span style={{ fontFamily: BODY, fontSize: 12, color: th.ink2, display: 'flex', columnGap: 8, rowGap: 2, flexWrap: 'wrap' }}>
+            {[
+              z.powod ? t.powody[z.powod] ?? z.powod : t.brakPowodu,
+              z.sekcja ? t.sekcje[z.sekcja] ?? z.sekcja : t.brakTematu,
+              t.dopasowanie(brakWartosci(z.cechy?.rerank_top1)),
+              t.oparcie(brakWartosci(z.cechy?.pokrycie)),
+            ].map((tekst, i, wszystkie) => (
+              <span key={i}>{i < wszystkie.length - 1 ? `${tekst} ·` : tekst}</span>
+            ))}
           </span>
         </span>
         <span
@@ -306,26 +297,36 @@ function Wiersz({ z, rozwiniete, onToggle, onZapisano, token }: WierszProps) {
             color: nowe ? th.accentInk : th.ink2,
           }}
         >
-          {NAZWY_STATUSOW_ZGLOSZEN[z.status]}
+          {t.statusy[z.status] ?? z.status}
         </span>
       </button>
 
       {rozwiniete ? (
-        <div style={{ padding: '0 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 14px', fontFamily: BODY, fontSize: 12.5 }}>
-            <dt style={{ color: th.ink3 }}>Numer zgłoszenia</dt>
+        <div style={{ padding: waski ? '0 14px 16px' : '0 18px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <dl
+            style={{
+              margin: 0,
+              display: 'grid',
+              gridTemplateColumns: waski ? '1fr' : 'auto 1fr',
+              gap: waski ? '2px 0' : '4px 14px',
+              fontFamily: BODY,
+              fontSize: 12.5,
+              overflowWrap: 'anywhere',
+            }}
+          >
+            <dt style={{ color: th.ink3, marginTop: waski ? 6 : 0 }}>{t.numerZgloszenia}</dt>
             <dd style={{ margin: 0, color: th.ink2 }}>{z.zgloszenie}</dd>
-            <dt style={{ color: th.ink3 }}>Zgłoszono</dt>
+            <dt style={{ color: th.ink3, marginTop: waski ? 6 : 0 }}>{t.zgloszono}</dt>
             <dd style={{ margin: 0, color: th.ink2 }}>{czasCzytelny(z.czas)}</dd>
-            <dt style={{ color: th.ink3 }}>Adres zwrotny</dt>
-            <dd style={{ margin: 0, color: th.ink2 }}>{z.email ?? 'brak'}</dd>
-            <dt style={{ color: th.ink3 }}>Najlepiej dopasowany artykuł</dt>
-            <dd style={{ margin: 0, color: th.ink2 }}>{z.cechy?.zrodlo_top1 ?? 'brak'}</dd>
-            <dt style={{ color: th.ink3 }}>Co zawiodło</dt>
-            <dd style={{ margin: 0, color: th.ink2 }}>{ETYKIETY_DIAGNOZ[z.diagnoza] ?? z.diagnoza}</dd>
+            <dt style={{ color: th.ink3, marginTop: waski ? 6 : 0 }}>{t.adresZwrotny}</dt>
+            <dd style={{ margin: 0, color: th.ink2 }}>{z.email ?? t.brak}</dd>
+            <dt style={{ color: th.ink3, marginTop: waski ? 6 : 0 }}>{t.najlepszyArtykul}</dt>
+            <dd style={{ margin: 0, color: th.ink2 }}>{z.cechy?.zrodlo_top1 ?? t.brak}</dd>
+            <dt style={{ color: th.ink3, marginTop: waski ? 6 : 0 }}>{t.coZawiodlo}</dt>
+            <dd style={{ margin: 0, color: th.ink2 }}>{t.diagnozy[z.diagnoza] ?? z.diagnoza}</dd>
             {z.tresc ? (
               <>
-                <dt style={{ color: th.ink3 }}>Poprzednia odpowiedź</dt>
+                <dt style={{ color: th.ink3, marginTop: waski ? 6 : 0 }}>{t.poprzedniaOdpowiedz}</dt>
                 <dd style={{ margin: 0, color: th.ink2 }}>{z.tresc}</dd>
               </>
             ) : null}
@@ -336,21 +337,21 @@ function Wiersz({ z, rozwiniete, onToggle, onZapisano, token }: WierszProps) {
               <textarea
                 value={tresc}
                 onChange={(e) => setTresc(e.target.value)}
-                placeholder="Odpowiedź do użytkownika"
+                placeholder={t.odpowiedzPlaceholder}
                 rows={5}
                 maxLength={8000}
-                style={{ ...pole(th), resize: 'vertical', fontFamily: BODY, lineHeight: 1.5 }}
+                style={{ ...pole(th, waski), resize: 'vertical', fontFamily: BODY, lineHeight: 1.5 }}
               />
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <select
                   value={etykieta}
                   onChange={(e) => setEtykieta(e.target.value as EtykietaZgloszenia | '')}
-                  style={{ ...pole(th), width: 'auto', padding: '9px 12px' }}
+                  style={{ ...pole(th, waski), marginTop: 0, width: waski ? '100%' : 'auto', padding: '9px 12px' }}
                 >
-                  <option value="">bez etykiety</option>
+                  <option value="">{t.bezEtykiety}</option>
                   {ETYKIETY.map((klucz) => (
                     <option key={klucz} value={klucz}>
-                      {NAZWY_ETYKIET_ZGLOSZEN[klucz]}
+                      {t.etykietyZgloszen[klucz]}
                     </option>
                   ))}
                 </select>
@@ -360,7 +361,7 @@ function Wiersz({ z, rozwiniete, onToggle, onZapisano, token }: WierszProps) {
                   disabled={zapis}
                   style={przyciskGlowny(th, zapis)}
                 >
-                  {zapis ? 'Zapisuję' : 'Wyślij odpowiedź'}
+                  {zapis ? t.zapisuje : t.wyslijOdpowiedz}
                 </button>
                 <button
                   type="button"
@@ -368,14 +369,14 @@ function Wiersz({ z, rozwiniete, onToggle, onZapisano, token }: WierszProps) {
                   disabled={zapis}
                   style={przyciskCichy(th)}
                 >
-                  Odrzuć
+                  {t.odrzuc}
                 </button>
               </div>
             </>
           ) : null}
 
           {komunikat ? (
-            <span style={{ fontFamily: BODY, fontSize: 12.5, color: th.ink }}>{komunikat}</span>
+            <span style={{ fontFamily: BODY, fontSize: 12.5, color: th.ink }}>{tekstKomunikatu(komunikat)}</span>
           ) : null}
         </div>
       ) : null}
@@ -385,7 +386,7 @@ function Wiersz({ z, rozwiniete, onToggle, onZapisano, token }: WierszProps) {
 
 type Motyw = ReturnType<typeof useTheme>;
 
-function pole(th: Motyw) {
+function pole(th: Motyw, waski: boolean) {
   return {
     width: '100%',
     marginTop: 12,
@@ -395,7 +396,7 @@ function pole(th: Motyw) {
     borderRadius: 9,
     padding: '10px 12px',
     fontFamily: BODY,
-    fontSize: 13.5,
+    fontSize: waski ? 16 : 13.5,
     outline: 'none',
   } as const;
 }

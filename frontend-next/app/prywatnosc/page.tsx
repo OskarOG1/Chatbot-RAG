@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
-import { wczytajJezyk } from '@/lib/threads';
+import { jezykStartowy } from '@/lib/threads';
 import type { Lang } from '@/lib/chat';
 
 interface TrescPrywatnosci {
@@ -111,14 +111,23 @@ const TRESC: Record<Lang, TrescPrywatnosci> = {
   },
 };
 
+function subskrybujJezyk(zmiana: () => void): () => void {
+  window.addEventListener('storage', zmiana);
+  return () => window.removeEventListener('storage', zmiana);
+}
+
+function jezykSerwera(): Lang {
+  return 'pl';
+}
+
 export default function PrywatnoscPage() {
-  const [lang] = useState<Lang>(() => wczytajJezyk() ?? 'pl');
+  const lang = useSyncExternalStore(subskrybujJezyk, jezykStartowy, jezykSerwera);
 
   const t = TRESC[lang];
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '48px 24px' }}>
-      <Link href="/" style={{ fontSize: 13 }}>{t.back}</Link>
+      <Link href="/" style={{ display: 'inline-block', fontSize: 13, padding: '6px 0' }}>{t.back}</Link>
       <h1 style={{ fontSize: 22, marginTop: 24 }}>{t.title}</h1>
 
       <section style={{ marginTop: 24 }}>
@@ -133,7 +142,7 @@ export default function PrywatnoscPage() {
 
       <section style={{ marginTop: 24 }}>
         <h2 style={{ fontSize: 15 }}>{t.model}</h2>
-        <ul style={{ marginTop: 8, color: '#666', paddingLeft: 20 }}>
+        <ul style={{ marginTop: 8, color: '#666', paddingLeft: 20, listStyle: 'disc' }}>
           {t.modelText.map((linia) => (
             <li key={linia} style={{ marginTop: 6 }}>{linia}</li>
           ))}
@@ -152,7 +161,7 @@ export default function PrywatnoscPage() {
 
       <section style={{ marginTop: 24 }}>
         <h2 style={{ fontSize: 15 }}>{t.stored}</h2>
-        <ul style={{ marginTop: 8, color: '#666', paddingLeft: 20 }}>
+        <ul style={{ marginTop: 8, color: '#666', paddingLeft: 20, listStyle: 'disc' }}>
           {t.storedText.map((linia) => (
             <li key={linia} style={{ marginTop: 6 }}>{linia}</li>
           ))}
@@ -161,7 +170,7 @@ export default function PrywatnoscPage() {
 
       <section style={{ marginTop: 24 }}>
         <h2 style={{ fontSize: 15 }}>{t.notStored}</h2>
-        <ul style={{ marginTop: 8, color: '#666', paddingLeft: 20 }}>
+        <ul style={{ marginTop: 8, color: '#666', paddingLeft: 20, listStyle: 'disc' }}>
           {t.notStoredText.map((linia) => (
             <li key={linia} style={{ marginTop: 6 }}>{linia}</li>
           ))}
@@ -170,7 +179,7 @@ export default function PrywatnoscPage() {
 
       <section style={{ marginTop: 24 }}>
         <h2 style={{ fontSize: 15 }}>{t.limits}</h2>
-        <ul style={{ marginTop: 8, color: '#666', paddingLeft: 20 }}>
+        <ul style={{ marginTop: 8, color: '#666', paddingLeft: 20, listStyle: 'disc' }}>
           {t.limitsText.map((linia) => (
             <li key={linia} style={{ marginTop: 6 }}>{linia}</li>
           ))}
