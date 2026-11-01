@@ -10,6 +10,7 @@ Wynik (wersja do przerysowania ręcznego):
   zlaczka.pdf                  4 strony: rysunek, arkusz konstrukcyjny, kolejność rysowania,
                                izometria krok po kroku
   zlaczka.svg / .png           strona 1: rysunek z wymiarami
+  zlaczka_rysunek.pdf          sama strona 1, do wydruku w 100% i odrysowania
   zlaczka_konstrukcja.svg/.png strona 2: ten sam arkusz z niebieskimi wymiarami w mm do odmierzenia
                                na kartce (skala już przeliczona, wymiary pionowe od osi)
   zlaczka_kroki.svg/.png       strona 3: kolejność rysowania w 6 krokach
@@ -23,6 +24,7 @@ Użycie: python3 zlaczka.py [--autor "Imię Nazwisko"] [--data 28.10.2026] [--ou
 import argparse
 import math
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1046,6 +1048,7 @@ def main():
             pdfs.append(str(Path(tmp) / f"{i}.pdf"))
             cairosvg.svg2pdf(url=str(path), write_to=pdfs[-1])
         subprocess.run(["pdfunite", *pdfs, str(args.out / "zlaczka.pdf")], check=True)
+        shutil.copyfile(pdfs[0], args.out / "zlaczka_rysunek.pdf")   # sama strona 1 do druku i odrysowania
 
     print("Obszary rzutów (strona 1):")
     problems = check_geometry()
