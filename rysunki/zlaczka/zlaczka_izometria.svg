@@ -17,11 +17,12 @@
 <text x="232.325" y="121.975" font-size="3.429" fill="#1565c0" stroke="none">A</text>
 <text x="274.761" y="140.975" font-size="3.429" fill="#1565c0" stroke="none">B</text>
 </g>
-<text x="10.000" y="89.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Postaw A (230,8; 118) i B (273,3; 142,5),</text>
-<text x="10.000" y="93.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">połącz cienko. Środki stacji na AB: x = 15</text>
-<text x="10.000" y="96.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">(243,8; 125,5), x = 40 (265,5; 138),</text>
-<text x="10.000" y="100.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">x = 43 (268,1; 139,5), x = 46</text>
-<text x="10.000" y="104.020" font-size="3.018" text-anchor="start" fill="#000" stroke="none">(270,7; 141).</text>
+<text x="10.000" y="89.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">A: 230,8 mm od lewej krawędzi kartki i</text>
+<text x="10.000" y="93.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">118 mm od górnej. B: 273,3 mm od lewej i</text>
+<text x="10.000" y="96.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">142,5 mm od górnej. Połącz A z B. Stacje</text>
+<text x="10.000" y="100.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">na AB, mm od lewej / od górnej:</text>
+<text x="10.000" y="104.020" font-size="3.018" text-anchor="start" fill="#000" stroke="none">15: 243,8/125,5; 40: 265,5/138;</text>
+<text x="10.000" y="107.650" font-size="3.018" text-anchor="start" fill="#000" stroke="none">43: 268,1/139,5; 46: 270,7/141.</text>
 <text x="80.750" y="28.000" font-size="4.801" text-anchor="start" fill="#000" stroke="none">2. Walec gwintu</text>
 <rect x="80.750" y="31.000" width="64.750" height="54.000" fill="none" stroke="#d0d0d0" stroke-width="0.2"/>
 <g transform="translate(-131.177 -68.623) scale(0.9675)">
@@ -59,11 +60,12 @@
 <polyline points="238.480,104.717 251.470,112.217" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline points="223.171,131.233 236.161,138.733" fill="none" stroke="#000" stroke-width="0.25"/>
 </g>
-<text x="80.750" y="89.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Przez środki x = 0 i x = 15 narysuj krzyżyk</text>
-<text x="80.750" y="93.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">(poziomo i pionowo). Od każdego środka</text>
-<text x="80.750" y="96.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">odmierz 8 punktów r 12,5 z tabeli i połącz</text>
-<text x="80.750" y="100.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">je ręką. Elipsy połącz dwiema liniami</text>
-<text x="80.750" y="104.020" font-size="3.018" text-anchor="start" fill="#000" stroke="none">równoległymi do AB.</text>
+<text x="80.750" y="89.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Przez środki stacji 0 i 15 narysuj cienki</text>
+<text x="80.750" y="93.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">krzyżyk (poziomo i pionowo). Od każdego</text>
+<text x="80.750" y="96.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">środka odmierz 8 punktów z wiersza</text>
+<text x="80.750" y="100.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">„r 12,5 mm” tabeli i połącz je ręką. Elipsy</text>
+<text x="80.750" y="104.020" font-size="3.018" text-anchor="start" fill="#000" stroke="none">połącz dwiema liniami równoległymi do</text>
+<text x="80.750" y="107.650" font-size="3.018" text-anchor="start" fill="#000" stroke="none">AB.</text>
 <text x="151.500" y="28.000" font-size="4.801" text-anchor="start" fill="#000" stroke="none">3. Sześciokąt</text>
 <rect x="151.500" y="31.000" width="64.750" height="54.000" fill="none" stroke="#d0d0d0" stroke-width="0.2"/>
 <g transform="translate(-60.427 -68.623) scale(0.9675)">
@@ -125,10 +127,10 @@
 <polyline points="232.990,138.942 254.641,151.442" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline points="232.990,124.508 254.641,137.008" fill="none" stroke="#000" stroke-width="0.25"/>
 </g>
-<text x="151.500" y="89.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Na stacjach x = 15 i x = 40 odmierz 6</text>
-<text x="151.500" y="93.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">naroży z tabeli i połącz je linijką. Potem</text>
-<text x="151.500" y="96.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">połącz odpowiadające sobie naroża obu</text>
-<text x="151.500" y="100.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">stacji: 6 linii równoległych do AB.</text>
+<text x="151.500" y="89.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Na stacjach 15 i 40 odmierz 6 naroży z</text>
+<text x="151.500" y="93.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">wiersza „naroża” tabeli i połącz je linijką.</text>
+<text x="151.500" y="96.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Potem połącz odpowiadające sobie naroża</text>
+<text x="151.500" y="100.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">obu stacji: 6 linii równoległych do AB.</text>
 <text x="222.250" y="28.000" font-size="4.801" text-anchor="start" fill="#000" stroke="none">4. Szyjka, kołnierz, stopień</text>
 <rect x="222.250" y="31.000" width="64.750" height="54.000" fill="none" stroke="#d0d0d0" stroke-width="0.2"/>
 <g transform="translate(10.323 -68.623) scale(0.9675)">
@@ -258,13 +260,13 @@
 <polyline points="278.930,126.656 281.528,128.156" fill="none" stroke="#000" stroke-width="0.25"/>
 <polyline points="262.395,155.294 264.994,156.794" fill="none" stroke="#000" stroke-width="0.25"/>
 </g>
-<text x="222.250" y="89.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Elipsy z tabeli: r 14 na x = 40 i 43, r 15 na</text>
-<text x="222.250" y="93.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">x = 43 i 46, r 13,5 na x = 46 i 49. Każdą</text>
-<text x="222.250" y="96.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">parę połącz dwiema liniami równoległymi</text>
-<text x="222.250" y="100.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">do AB.</text>
-<text x="10.000" y="114.000" font-size="4.801" text-anchor="start" fill="#000" stroke="none">5. Czoło i gwint</text>
-<rect x="10.000" y="117.000" width="64.750" height="54.000" fill="none" stroke="#d0d0d0" stroke-width="0.2"/>
-<g transform="translate(-201.927 17.377) scale(0.9675)">
+<text x="222.250" y="89.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Elipsy z tabeli: r 14 mm na stacjach 40 i</text>
+<text x="222.250" y="93.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">43, r 15 mm na 43 i 46, r 13,5 mm na 46 i</text>
+<text x="222.250" y="96.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">49. Każdą parę połącz dwiema liniami</text>
+<text x="222.250" y="100.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">równoległymi do AB.</text>
+<text x="10.000" y="116.000" font-size="4.801" text-anchor="start" fill="#000" stroke="none">5. Czoło i gwint</text>
+<rect x="10.000" y="119.000" width="64.750" height="54.000" fill="none" stroke="#d0d0d0" stroke-width="0.2"/>
+<g transform="translate(-201.927 19.377) scale(0.9675)">
 <polyline points="230.825,117.975 273.261,142.475" fill="none" stroke="#d0d0d0" stroke-width="0.3"/>
 <circle cx="230.825" cy="117.975" r="0.5" fill="#d0d0d0" stroke="none"/>
 <circle cx="273.261" cy="142.475" r="0.5" fill="#d0d0d0" stroke="none"/>
@@ -416,13 +418,13 @@
 <polyline points="232.524,136.633 232.261,136.471 232.008,136.293 231.766,136.099 231.533,135.889 231.311,135.664 231.100,135.425 230.899,135.170 230.710,134.902 230.533,134.619 230.367,134.322 230.214,134.012 230.072,133.689 229.943,133.354 229.826,133.007 229.722,132.647 229.631,132.277 229.552,131.895 229.486,131.504 229.434,131.102 229.394,130.691 229.368,130.271 229.355,129.842 229.355,129.406 229.368,128.962 229.394,128.512 229.434,128.055 229.486,127.593 229.552,127.125 229.631,126.653 229.722,126.177 229.826,125.697 229.943,125.215 230.072,124.730 230.214,124.244 230.367,123.757 230.533,123.269 230.710,122.781 230.899,122.294 231.100,121.809 231.311,121.325 231.533,120.844 231.766,120.366 232.008,119.891 232.261,119.421 232.524,118.956 232.796,118.496 233.076,118.042 233.366,117.594 233.664,117.153 233.969,116.720 234.283,116.296 234.603,115.879 234.930,115.472 235.264,115.075 235.603,114.688 235.949,114.311 236.299,113.945 236.654,113.591 237.013,113.249 237.377,112.919 237.743,112.601 238.113,112.297 238.485,112.007 238.859,111.730 239.235,111.467 239.612,111.219 239.989,110.986 240.367,110.768 240.745,110.565 241.122,110.378 241.498,110.207 241.872,110.051 242.244,109.912 242.614,109.789 242.980,109.683 243.343,109.594 243.703,109.521 244.058,109.465 244.408,109.427 244.753,109.405 245.093,109.400 245.427,109.412 245.754,109.441 246.074,109.488 246.388,109.551 246.693,109.631 246.991,109.727 247.280,109.841 247.561,109.971 247.833,110.117" fill="none" stroke="#000" stroke-width="0.15"/>
 <polyline points="234.083,137.533 233.820,137.371 233.567,137.193 233.324,136.999 233.092,136.789 232.870,136.564 232.658,136.325 232.458,136.070 232.269,135.802 232.092,135.519 231.926,135.222 231.772,134.912 231.631,134.589 231.502,134.254 231.385,133.907 231.281,133.547 231.189,133.177 231.111,132.795 231.045,132.404 230.993,132.002 230.953,131.591 230.927,131.171 230.914,130.742 230.914,130.306 230.927,129.862 230.953,129.412 230.993,128.955 231.045,128.493 231.111,128.025 231.189,127.553 231.281,127.077 231.385,126.597 231.502,126.115 231.631,125.630 231.772,125.144 231.926,124.657 232.092,124.169 232.269,123.681 232.458,123.194 232.658,122.709 232.870,122.225 233.092,121.744 233.324,121.266 233.567,120.791 233.820,120.321 234.083,119.856 234.354,119.396 234.635,118.942 234.925,118.494 235.222,118.053 235.528,117.620 235.841,117.196 236.162,116.779 236.489,116.372 236.823,115.975 237.162,115.588 237.507,115.211 237.858,114.845 238.213,114.491 238.572,114.149 238.935,113.819 239.302,113.501 239.672,113.197 240.044,112.907 240.418,112.630 240.794,112.367 241.171,112.119 241.548,111.886 241.926,111.668 242.304,111.465 242.681,111.278 243.057,111.107 243.431,110.951 243.803,110.812 244.172,110.689 244.539,110.583 244.902,110.494 245.262,110.421 245.617,110.365 245.967,110.327 246.312,110.305 246.652,110.300 246.985,110.312 247.313,110.341 247.633,110.388 247.946,110.451 248.252,110.531 248.550,110.627 248.839,110.741 249.120,110.871 249.392,111.017" fill="none" stroke="#000" stroke-width="0.15"/>
 </g>
-<text x="10.000" y="175.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Na x = 49: otwór r 11 i cienka elipsa r 12.</text>
-<text x="10.000" y="179.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Gwint: 7 cienkich łuków jak tylny łuk</text>
-<text x="10.000" y="182.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">elipsy x = 0, każdy kolejny 1,6 mm w</text>
-<text x="10.000" y="186.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">prawo i 0,9 mm w dół.</text>
-<text x="80.750" y="114.000" font-size="4.801" text-anchor="start" fill="#000" stroke="none">6. Wykończenie</text>
-<rect x="80.750" y="117.000" width="64.750" height="54.000" fill="none" stroke="#d0d0d0" stroke-width="0.2"/>
-<g transform="translate(-131.177 17.377) scale(0.9675)">
+<text x="10.000" y="177.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Na stacji 49: otwór r 11 mm i cienka elipsa</text>
+<text x="10.000" y="181.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 12 mm. Gwint: 7 cienkich łuków jak tylny</text>
+<text x="10.000" y="184.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">łuk elipsy na stacji 0, każdy kolejny</text>
+<text x="10.000" y="188.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">1,6 mm w prawo i 0,9 mm w dół.</text>
+<text x="80.750" y="116.000" font-size="4.801" text-anchor="start" fill="#000" stroke="none">6. Wykończenie</text>
+<rect x="80.750" y="119.000" width="64.750" height="54.000" fill="none" stroke="#d0d0d0" stroke-width="0.2"/>
+<g transform="translate(-131.177 19.377) scale(0.9675)">
 <polyline points="230.825,117.975 273.261,142.475" fill="none" stroke="#d0d0d0" stroke-width="0.3"/>
 <circle cx="230.825" cy="117.975" r="0.5" fill="#d0d0d0" stroke="none"/>
 <circle cx="273.261" cy="142.475" r="0.5" fill="#d0d0d0" stroke="none"/>
@@ -593,155 +595,164 @@
 <polygon points="263.734,147.975 263.736,147.782 263.740,147.588 263.747,147.392 263.757,147.194 263.771,146.995 263.786,146.795 263.805,146.593 263.827,146.391 263.852,146.187 263.879,145.981 263.909,145.775 263.942,145.568 263.978,145.360 264.017,145.151 264.059,144.941 264.103,144.730 264.151,144.519 264.201,144.307 264.253,144.094 264.309,143.881 264.367,143.668 264.428,143.454 264.492,143.240 264.558,143.025 264.627,142.811 264.698,142.596 264.773,142.382 264.849,142.167 264.929,141.953 265.011,141.738 265.095,141.524 265.182,141.310 265.271,141.097 265.363,140.884 265.457,140.671 265.554,140.459 265.653,140.248 265.754,140.037 265.857,139.827 265.963,139.618 266.071,139.409 266.181,139.202 266.293,138.995 266.408,138.790 266.524,138.586 266.643,138.383 266.764,138.181 266.886,137.981 267.011,137.782 267.137,137.584 267.265,137.388 267.396,137.193 267.528,137.000 267.661,136.809 267.797,136.619 267.934,136.431 268.072,136.245 268.212,136.061 268.354,135.879 268.497,135.699 268.642,135.521 268.788,135.345 268.936,135.171 269.085,134.999 269.235,134.830 269.386,134.663 269.538,134.498 269.692,134.336 269.847,134.177 270.002,134.020 270.159,133.865 270.317,133.713 270.475,133.564 270.635,133.417 270.795,133.273 270.956,133.132 271.118,132.994 271.280,132.859 271.443,132.727 271.606,132.597 271.770,132.471 271.935,132.348 272.100,132.227 272.265,132.110 272.430,131.996 272.596,131.885 272.762,131.778 272.928,131.674 273.094,131.573 273.261,131.475 273.427,131.381 273.593,131.290 273.759,131.202 273.925,131.118 274.091,131.038 274.256,130.960 274.422,130.887 274.586,130.817 274.751,130.750 274.915,130.687 275.078,130.628 275.241,130.572 275.404,130.520 275.565,130.471 275.726,130.426 275.886,130.385 276.046,130.348 276.204,130.314 276.362,130.284 276.519,130.257 276.674,130.235 276.829,130.216 276.983,130.200 277.135,130.189 277.287,130.181 277.437,130.177 277.585,130.177 277.733,130.181 277.879,130.188 278.024,130.199 278.167,130.213 278.309,130.232 278.449,130.254 278.588,130.280 278.725,130.310 278.860,130.343 278.994,130.380 279.126,130.421 279.256,130.465 279.384,130.513 279.510,130.565 279.635,130.620 279.757,130.679 279.878,130.742 279.997,130.808 280.113,130.877 280.228,130.951 280.340,131.027 280.450,131.107 280.558,131.191 280.664,131.278 280.767,131.369 280.869,131.463 280.967,131.560 281.064,131.660 281.158,131.764 281.250,131.871 281.339,131.982 281.426,132.095 281.511,132.212 281.592,132.332 281.672,132.455 281.749,132.581 281.823,132.710 281.894,132.842 281.963,132.976 282.030,133.114 282.093,133.255 282.154,133.398 282.212,133.544 282.268,133.693 282.321,133.845 282.371,133.999 282.418,134.156 282.462,134.315 282.504,134.477 282.543,134.642 282.579,134.808 282.612,134.977 282.642,135.148 282.670,135.322 282.694,135.498 282.716,135.675 282.735,135.855 282.751,136.037 282.764,136.221 282.774,136.407 282.781,136.594 282.785,136.784 282.787,136.975 282.785,137.168 282.781,137.362 282.774,137.558 282.764,137.756 282.751,137.955 282.735,138.155 282.716,138.357 282.694,138.559 282.670,138.764 282.642,138.969 282.612,139.175 282.579,139.382 282.543,139.590 282.504,139.800 282.462,140.009 282.418,140.220 282.371,140.431 282.321,140.643 282.268,140.856 282.212,141.069 282.154,141.282 282.093,141.496 282.030,141.710 281.963,141.925 281.894,142.139 281.823,142.354 281.749,142.568 281.672,142.783 281.592,142.998 281.511,143.212 281.426,143.426 281.339,143.640 281.250,143.853 281.158,144.066 281.064,144.279 280.967,144.491 280.869,144.702 280.767,144.913 280.664,145.123 280.558,145.332 280.450,145.541 280.340,145.748 280.228,145.955 280.113,146.160 279.997,146.364 279.878,146.567 279.757,146.769 279.635,146.969 279.510,147.169 279.384,147.366 279.256,147.562 279.126,147.757 278.994,147.950 278.860,148.141 278.725,148.331 278.588,148.519 278.449,148.705 278.309,148.889 278.167,149.071 278.024,149.251 277.879,149.429 277.733,149.605 277.585,149.779 277.437,149.951 277.287,150.120 277.135,150.287 276.983,150.452 276.829,150.614 276.674,150.773 276.519,150.931 276.362,151.085 276.204,151.237 276.046,151.386 275.886,151.533 275.726,151.677 275.565,151.818 275.404,151.956 275.241,152.091 275.078,152.223 274.915,152.353 274.751,152.479 274.586,152.603 274.422,152.723 274.256,152.840 274.091,152.954 273.925,153.065 273.759,153.172 273.593,153.276 273.427,153.377 273.261,153.475 273.094,153.569 272.928,153.660 272.762,153.748 272.596,153.832 272.430,153.913 272.265,153.990 272.100,154.063 271.935,154.133 271.770,154.200 271.606,154.263 271.443,154.322 271.280,154.378 271.118,154.430 270.956,154.479 270.795,154.524 270.635,154.565 270.475,154.602 270.317,154.636 270.159,154.666 270.002,154.693 269.847,154.715 269.692,154.734 269.538,154.750 269.386,154.761 269.235,154.769 269.085,154.773 268.936,154.773 268.788,154.770 268.642,154.762 268.497,154.751 268.354,154.737 268.212,154.718 268.072,154.696 267.934,154.670 267.797,154.640 267.661,154.607 267.528,154.570 267.396,154.529 267.265,154.485 267.137,154.437 267.011,154.385 266.886,154.330 266.764,154.271 266.643,154.208 266.524,154.142 266.408,154.073 266.293,153.999 266.181,153.923 266.071,153.843 265.963,153.759 265.857,153.672 265.754,153.581 265.653,153.487 265.554,153.390 265.457,153.290 265.363,153.186 265.271,153.079 265.182,152.968 265.095,152.855 265.011,152.738 264.929,152.618 264.849,152.495 264.773,152.369 264.698,152.240 264.627,152.109 264.558,151.974 264.492,151.836 264.428,151.695 264.367,151.552 264.309,151.406 264.253,151.257 264.201,151.105 264.151,150.951 264.103,150.794 264.059,150.635 264.017,150.473 263.978,150.309 263.942,150.142 263.909,149.973 263.879,149.802 263.852,149.628 263.827,149.452 263.805,149.275 263.786,149.095 263.771,148.913 263.757,148.729 263.747,148.543 263.740,148.356 263.736,148.166" stroke-width="0.7"/>
 <polygon points="262.868,148.475 262.870,148.265 262.875,148.053 262.882,147.839 262.894,147.623 262.908,147.406 262.925,147.188 262.946,146.968 262.969,146.747 262.996,146.524 263.026,146.300 263.059,146.075 263.095,145.849 263.135,145.622 263.177,145.394 263.222,145.165 263.271,144.935 263.322,144.704 263.377,144.473 263.434,144.241 263.495,144.009 263.559,143.776 263.625,143.543 263.694,143.309 263.767,143.075 263.842,142.841 263.920,142.607 264.001,142.373 264.085,142.139 264.171,141.905 264.261,141.671 264.353,141.438 264.447,141.204 264.545,140.971 264.645,140.739 264.748,140.507 264.853,140.276 264.961,140.045 265.071,139.815 265.184,139.586 265.300,139.358 265.417,139.131 265.538,138.904 265.660,138.679 265.785,138.455 265.912,138.232 266.041,138.011 266.173,137.791 266.307,137.572 266.443,137.355 266.581,137.139 266.720,136.925 266.862,136.713 267.006,136.502 267.152,136.294 267.300,136.087 267.449,135.882 267.601,135.679 267.753,135.478 267.908,135.279 268.064,135.083 268.222,134.888 268.382,134.696 268.543,134.507 268.705,134.320 268.869,134.135 269.034,133.953 269.200,133.773 269.368,133.596 269.536,133.422 269.706,133.251 269.877,133.082 270.049,132.916 270.222,132.754 270.396,132.594 270.571,132.437 270.746,132.283 270.923,132.132 271.100,131.985 271.278,131.840 271.456,131.699 271.635,131.561 271.814,131.427 271.994,131.296 272.174,131.168 272.355,131.044 272.536,130.923 272.717,130.805 272.898,130.692 273.079,130.582 273.261,130.475 273.442,130.372 273.623,130.273 273.804,130.177 273.985,130.086 274.166,129.998 274.347,129.914 274.527,129.833 274.707,129.757 274.886,129.684 275.065,129.615 275.244,129.551 275.421,129.490 275.598,129.433 275.775,129.380 275.950,129.331 276.125,129.286 276.299,129.245 276.472,129.208 276.644,129.175 276.815,129.147 276.985,129.122 277.154,129.101 277.321,129.085 277.487,129.072 277.653,129.064 277.816,129.059 277.979,129.059 278.139,129.063 278.299,129.071 278.457,129.083 278.613,129.099 278.768,129.119 278.921,129.143 279.072,129.171 279.221,129.204 279.369,129.240 279.515,129.281 279.659,129.325 279.801,129.373 279.941,129.426 280.079,129.482 280.214,129.543 280.348,129.607 280.480,129.675 280.609,129.747 280.736,129.823 280.861,129.903 280.984,129.987 281.104,130.074 281.222,130.165 281.337,130.260 281.450,130.359 281.560,130.461 281.668,130.567 281.773,130.677 281.876,130.790 281.976,130.907 282.074,131.028 282.169,131.152 282.261,131.279 282.350,131.410 282.436,131.544 282.520,131.681 282.601,131.822 282.679,131.966 282.754,132.113 282.827,132.263 282.896,132.417 282.963,132.573 283.026,132.733 283.087,132.895 283.144,133.060 283.199,133.229 283.250,133.400 283.299,133.574 283.344,133.750 283.387,133.929 283.426,134.111 283.462,134.296 283.495,134.482 283.525,134.672 283.552,134.863 283.575,135.057 283.596,135.254 283.613,135.452 283.628,135.653 283.639,135.855 283.647,136.060 283.651,136.267 283.653,136.475 283.651,136.685 283.647,136.897 283.639,137.111 283.628,137.327 283.613,137.544 283.596,137.762 283.575,137.982 283.552,138.203 283.525,138.426 283.495,138.650 283.462,138.875 283.426,139.101 283.387,139.328 283.344,139.556 283.299,139.785 283.250,140.015 283.199,140.246 283.144,140.477 283.087,140.709 283.026,140.941 282.963,141.174 282.896,141.407 282.827,141.641 282.754,141.875 282.679,142.109 282.601,142.343 282.520,142.577 282.436,142.811 282.350,143.045 282.261,143.279 282.169,143.512 282.074,143.746 281.976,143.979 281.876,144.211 281.773,144.443 281.668,144.674 281.560,144.905 281.450,145.135 281.337,145.364 281.222,145.592 281.104,145.819 280.984,146.046 280.861,146.271 280.736,146.495 280.609,146.718 280.480,146.939 280.348,147.159 280.214,147.378 280.079,147.595 279.941,147.811 279.801,148.025 279.659,148.237 279.515,148.448 279.369,148.657 279.221,148.863 279.072,149.068 278.921,149.271 278.768,149.472 278.613,149.671 278.457,149.867 278.299,150.062 278.139,150.254 277.979,150.443 277.816,150.630 277.653,150.815 277.487,150.997 277.321,151.177 277.154,151.354 276.985,151.528 276.815,151.699 276.644,151.868 276.472,152.034 276.299,152.196 276.125,152.356 275.950,152.513 275.775,152.667 275.598,152.818 275.421,152.965 275.244,153.110 275.065,153.251 274.886,153.389 274.707,153.523 274.527,153.654 274.347,153.782 274.166,153.906 273.985,154.027 273.804,154.145 273.623,154.258 273.442,154.368 273.261,154.475 273.079,154.578 272.898,154.677 272.717,154.773 272.536,154.864 272.355,154.952 272.174,155.036 271.994,155.117 271.814,155.193 271.635,155.266 271.456,155.335 271.278,155.399 271.100,155.460 270.923,155.517 270.746,155.570 270.571,155.619 270.396,155.664 270.222,155.705 270.049,155.742 269.877,155.775 269.706,155.803 269.536,155.828 269.368,155.849 269.200,155.865 269.034,155.878 268.869,155.886 268.705,155.891 268.543,155.891 268.382,155.887 268.222,155.879 268.064,155.867 267.908,155.851 267.753,155.831 267.601,155.807 267.449,155.779 267.300,155.746 267.152,155.710 267.006,155.670 266.862,155.625 266.720,155.577 266.581,155.524 266.443,155.468 266.307,155.408 266.173,155.343 266.041,155.275 265.912,155.203 265.785,155.127 265.660,155.047 265.538,154.963 265.417,154.876 265.300,154.785 265.184,154.690 265.071,154.591 264.961,154.489 264.853,154.383 264.748,154.273 264.645,154.160 264.545,154.043 264.447,153.922 264.353,153.798 264.261,153.671 264.171,153.540 264.085,153.406 264.001,153.269 263.920,153.128 263.842,152.984 263.767,152.837 263.694,152.687 263.625,152.533 263.559,152.377 263.495,152.217 263.434,152.055 263.377,151.890 263.322,151.721 263.271,151.550 263.222,151.376 263.177,151.200 263.135,151.021 263.095,150.839 263.059,150.654 263.026,150.468 262.996,150.278 262.969,150.087 262.946,149.893 262.925,149.696 262.908,149.498 262.894,149.297 262.882,149.095 262.875,148.890 262.870,148.684" stroke-width="0.35"/></g>
 </g>
-<text x="80.750" y="175.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Idąc od tyłu (x = 0) do przodu, zetrzyj linie</text>
-<text x="80.750" y="179.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">zasłonięte przez bliższą część; porównuj</text>
-<text x="80.750" y="182.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">ze stroną 1. Widoczne krawędzie pogrub</text>
-<text x="80.750" y="186.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">(0,7), gwint i r 12 zostają cienkie.</text>
-<text x="151.500" y="114.000" font-size="4.801" text-anchor="start" fill="#000" stroke="none">Tabela: punkty od środka stacji (mm, 1:1)</text>
-<text x="196.531" y="121.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">1</text>
-<text x="208.594" y="121.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">2</text>
-<text x="220.656" y="121.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">3</text>
-<text x="232.719" y="121.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">4</text>
-<text x="244.781" y="121.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">5</text>
-<text x="256.844" y="121.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6</text>
-<text x="268.906" y="121.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7</text>
-<text x="280.969" y="121.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">8</text>
-<line x1="151.500" y1="122.200" x2="287.000" y2="122.200" stroke-width="0.2"/>
-<text x="151.500" y="125.200" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 12,5 (x = 0, 15)</text>
-<text x="188.000" y="125.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
-<text x="196.531" y="125.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−10,8</text>
-<text x="208.594" y="125.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7,7</text>
-<text x="220.656" y="125.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="232.719" y="125.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7,7</text>
-<text x="244.781" y="125.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">10,8</text>
-<text x="256.844" y="125.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7,7</text>
-<text x="268.906" y="125.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="280.969" y="125.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7,7</text>
-<text x="188.000" y="129.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
-<text x="196.531" y="129.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6,3</text>
-<text x="208.594" y="129.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−4,4</text>
-<text x="220.656" y="129.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−12,5</text>
-<text x="232.719" y="129.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−13,3</text>
-<text x="244.781" y="129.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−6,3</text>
-<text x="256.844" y="129.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">4,4</text>
-<text x="268.906" y="129.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">12,5</text>
-<text x="280.969" y="129.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">13,3</text>
-<line x1="151.500" y1="130.600" x2="287.000" y2="130.600" stroke-width="0.2"/>
-<text x="151.500" y="133.600" font-size="3.018" text-anchor="start" fill="#000" stroke="none">naroża (x = 15, 40)</text>
-<text x="188.000" y="133.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
-<text x="196.531" y="133.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="208.594" y="133.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">10,8</text>
-<text x="220.656" y="133.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">10,8</text>
-<text x="232.719" y="133.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="244.781" y="133.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−10,8</text>
-<text x="256.844" y="133.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−10,8</text>
-<text x="188.000" y="137.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
-<text x="196.531" y="137.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−14,4</text>
-<text x="208.594" y="137.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−13,5</text>
-<text x="220.656" y="137.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">1</text>
-<text x="232.719" y="137.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">14,4</text>
-<text x="244.781" y="137.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">13,5</text>
-<text x="256.844" y="137.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−1</text>
-<line x1="151.500" y1="139.000" x2="287.000" y2="139.000" stroke-width="0.2"/>
-<text x="151.500" y="142.000" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 14 (x = 40, 43)</text>
-<text x="188.000" y="142.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
-<text x="196.531" y="142.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−12,1</text>
-<text x="208.594" y="142.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−8,6</text>
-<text x="220.656" y="142.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="232.719" y="142.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">8,6</text>
-<text x="244.781" y="142.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">12,1</text>
-<text x="256.844" y="142.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">8,6</text>
-<text x="268.906" y="142.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="280.969" y="142.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−8,6</text>
-<text x="188.000" y="146.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
-<text x="196.531" y="146.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7</text>
-<text x="208.594" y="146.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−4,9</text>
-<text x="220.656" y="146.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−14</text>
-<text x="232.719" y="146.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−14,8</text>
-<text x="244.781" y="146.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7</text>
-<text x="256.844" y="146.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">4,9</text>
-<text x="268.906" y="146.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">14</text>
-<text x="280.969" y="146.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">14,8</text>
-<line x1="151.500" y1="147.400" x2="287.000" y2="147.400" stroke-width="0.2"/>
-<text x="151.500" y="150.400" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 15 (x = 43, 46)</text>
-<text x="188.000" y="150.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
-<text x="196.531" y="150.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−13</text>
-<text x="208.594" y="150.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−9,2</text>
-<text x="220.656" y="150.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="232.719" y="150.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">9,2</text>
-<text x="244.781" y="150.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">13</text>
-<text x="256.844" y="150.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">9,2</text>
-<text x="268.906" y="150.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="280.969" y="150.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−9,2</text>
-<text x="188.000" y="154.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
-<text x="196.531" y="154.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7,5</text>
-<text x="208.594" y="154.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−5,3</text>
-<text x="220.656" y="154.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−15</text>
-<text x="232.719" y="154.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−15,9</text>
-<text x="244.781" y="154.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7,5</text>
-<text x="256.844" y="154.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">5,3</text>
-<text x="268.906" y="154.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">15</text>
-<text x="280.969" y="154.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">15,9</text>
-<line x1="151.500" y1="155.800" x2="287.000" y2="155.800" stroke-width="0.2"/>
-<text x="151.500" y="158.800" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 13,5 (x = 46, 49)</text>
-<text x="188.000" y="158.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
-<text x="196.531" y="158.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−11,7</text>
-<text x="208.594" y="158.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−8,3</text>
-<text x="220.656" y="158.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="232.719" y="158.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">8,3</text>
-<text x="244.781" y="158.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">11,7</text>
-<text x="256.844" y="158.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">8,3</text>
-<text x="268.906" y="158.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="280.969" y="158.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−8,3</text>
-<text x="188.000" y="163.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
-<text x="196.531" y="163.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6,8</text>
-<text x="208.594" y="163.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−4,8</text>
-<text x="220.656" y="163.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−13,5</text>
-<text x="232.719" y="163.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−14,3</text>
-<text x="244.781" y="163.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−6,8</text>
-<text x="256.844" y="163.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">4,8</text>
-<text x="268.906" y="163.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">13,5</text>
-<text x="280.969" y="163.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">14,3</text>
-<line x1="151.500" y1="164.200" x2="287.000" y2="164.200" stroke-width="0.2"/>
-<text x="151.500" y="167.200" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 11 otwór (x = 49)</text>
-<text x="188.000" y="167.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
-<text x="196.531" y="167.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−9,5</text>
-<text x="208.594" y="167.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−6,7</text>
-<text x="220.656" y="167.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="232.719" y="167.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6,7</text>
-<text x="244.781" y="167.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">9,5</text>
-<text x="256.844" y="167.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6,7</text>
-<text x="268.906" y="167.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="280.969" y="167.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−6,7</text>
-<text x="188.000" y="171.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
-<text x="196.531" y="171.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">5,5</text>
-<text x="208.594" y="171.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−3,9</text>
-<text x="220.656" y="171.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−11</text>
-<text x="232.719" y="171.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−11,7</text>
-<text x="244.781" y="171.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−5,5</text>
-<text x="256.844" y="171.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">3,9</text>
-<text x="268.906" y="171.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">11</text>
-<text x="280.969" y="171.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">11,7</text>
-<line x1="151.500" y1="172.600" x2="287.000" y2="172.600" stroke-width="0.2"/>
-<text x="151.500" y="175.600" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 12 cienka (x = 49)</text>
-<text x="188.000" y="175.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
-<text x="196.531" y="175.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−10,4</text>
-<text x="208.594" y="175.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7,3</text>
-<text x="220.656" y="175.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="232.719" y="175.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7,3</text>
-<text x="244.781" y="175.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">10,4</text>
-<text x="256.844" y="175.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7,3</text>
-<text x="268.906" y="175.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
-<text x="280.969" y="175.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7,3</text>
-<text x="188.000" y="179.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
-<text x="196.531" y="179.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6</text>
-<text x="208.594" y="179.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−4,2</text>
-<text x="220.656" y="179.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−12</text>
-<text x="232.719" y="179.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−12,7</text>
-<text x="244.781" y="179.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−6</text>
-<text x="256.844" y="179.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">4,2</text>
-<text x="268.906" y="179.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">12</text>
-<text x="280.969" y="179.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">12,7</text>
-<text x="151.500" y="185.000" font-size="3.018" text-anchor="start" fill="#000" stroke="none">→ w prawo (minus: w lewo), ↓ w dół (minus: w górę). Łącz punkty po kolei 1→2→…→1.</text>
+<text x="80.750" y="177.500" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Od tyłu (stacja 0) do przodu zetrzyj linie</text>
+<text x="80.750" y="181.130" font-size="3.018" text-anchor="start" fill="#000" stroke="none">zasłonięte przez bliższą część; porównuj</text>
+<text x="80.750" y="184.760" font-size="3.018" text-anchor="start" fill="#000" stroke="none">ze stroną 1. Widoczne krawędzie pogrub</text>
+<text x="80.750" y="188.390" font-size="3.018" text-anchor="start" fill="#000" stroke="none">(0,7 mm), gwint i elipsę r 12 mm zostaw</text>
+<text x="80.750" y="192.020" font-size="3.018" text-anchor="start" fill="#000" stroke="none">cienko.</text>
+<text x="151.500" y="116.000" font-size="4.801" text-anchor="start" fill="#000" stroke="none">Tabela: ile mm odmierzyć od środka stacji</text>
+<text x="196.531" y="123.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">1</text>
+<text x="208.594" y="123.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">2</text>
+<text x="220.656" y="123.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">3</text>
+<text x="232.719" y="123.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">4</text>
+<text x="244.781" y="123.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">5</text>
+<text x="256.844" y="123.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6</text>
+<text x="268.906" y="123.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7</text>
+<text x="280.969" y="123.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">8</text>
+<line x1="151.500" y1="124.200" x2="287.000" y2="124.200" stroke-width="0.2"/>
+<text x="151.500" y="127.200" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 12,5 mm</text>
+<text x="188.000" y="127.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
+<text x="196.531" y="127.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−10,8</text>
+<text x="208.594" y="127.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7,7</text>
+<text x="220.656" y="127.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="232.719" y="127.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7,7</text>
+<text x="244.781" y="127.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">10,8</text>
+<text x="256.844" y="127.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7,7</text>
+<text x="268.906" y="127.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="280.969" y="127.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7,7</text>
+<text x="151.500" y="131.400" font-size="3.018" text-anchor="start" fill="#000" stroke="none">stacje 0 i 15</text>
+<text x="188.000" y="131.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
+<text x="196.531" y="131.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6,3</text>
+<text x="208.594" y="131.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−4,4</text>
+<text x="220.656" y="131.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−12,5</text>
+<text x="232.719" y="131.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−13,3</text>
+<text x="244.781" y="131.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−6,3</text>
+<text x="256.844" y="131.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">4,4</text>
+<text x="268.906" y="131.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">12,5</text>
+<text x="280.969" y="131.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">13,3</text>
+<line x1="151.500" y1="132.600" x2="287.000" y2="132.600" stroke-width="0.2"/>
+<text x="151.500" y="135.600" font-size="3.018" text-anchor="start" fill="#000" stroke="none">naroża sześciokąta</text>
+<text x="188.000" y="135.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
+<text x="196.531" y="135.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="208.594" y="135.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">10,8</text>
+<text x="220.656" y="135.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">10,8</text>
+<text x="232.719" y="135.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="244.781" y="135.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−10,8</text>
+<text x="256.844" y="135.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−10,8</text>
+<text x="151.500" y="139.800" font-size="3.018" text-anchor="start" fill="#000" stroke="none">stacje 15 i 40</text>
+<text x="188.000" y="139.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
+<text x="196.531" y="139.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−14,4</text>
+<text x="208.594" y="139.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−13,5</text>
+<text x="220.656" y="139.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">1</text>
+<text x="232.719" y="139.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">14,4</text>
+<text x="244.781" y="139.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">13,5</text>
+<text x="256.844" y="139.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−1</text>
+<line x1="151.500" y1="141.000" x2="287.000" y2="141.000" stroke-width="0.2"/>
+<text x="151.500" y="144.000" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 14 mm</text>
+<text x="188.000" y="144.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
+<text x="196.531" y="144.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−12,1</text>
+<text x="208.594" y="144.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−8,6</text>
+<text x="220.656" y="144.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="232.719" y="144.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">8,6</text>
+<text x="244.781" y="144.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">12,1</text>
+<text x="256.844" y="144.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">8,6</text>
+<text x="268.906" y="144.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="280.969" y="144.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−8,6</text>
+<text x="151.500" y="148.200" font-size="3.018" text-anchor="start" fill="#000" stroke="none">stacje 40 i 43</text>
+<text x="188.000" y="148.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
+<text x="196.531" y="148.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7</text>
+<text x="208.594" y="148.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−4,9</text>
+<text x="220.656" y="148.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−14</text>
+<text x="232.719" y="148.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−14,8</text>
+<text x="244.781" y="148.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7</text>
+<text x="256.844" y="148.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">4,9</text>
+<text x="268.906" y="148.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">14</text>
+<text x="280.969" y="148.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">14,8</text>
+<line x1="151.500" y1="149.400" x2="287.000" y2="149.400" stroke-width="0.2"/>
+<text x="151.500" y="152.400" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 15 mm</text>
+<text x="188.000" y="152.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
+<text x="196.531" y="152.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−13</text>
+<text x="208.594" y="152.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−9,2</text>
+<text x="220.656" y="152.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="232.719" y="152.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">9,2</text>
+<text x="244.781" y="152.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">13</text>
+<text x="256.844" y="152.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">9,2</text>
+<text x="268.906" y="152.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="280.969" y="152.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−9,2</text>
+<text x="151.500" y="156.600" font-size="3.018" text-anchor="start" fill="#000" stroke="none">stacje 43 i 46</text>
+<text x="188.000" y="156.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
+<text x="196.531" y="156.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7,5</text>
+<text x="208.594" y="156.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−5,3</text>
+<text x="220.656" y="156.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−15</text>
+<text x="232.719" y="156.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−15,9</text>
+<text x="244.781" y="156.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7,5</text>
+<text x="256.844" y="156.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">5,3</text>
+<text x="268.906" y="156.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">15</text>
+<text x="280.969" y="156.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">15,9</text>
+<line x1="151.500" y1="157.800" x2="287.000" y2="157.800" stroke-width="0.2"/>
+<text x="151.500" y="160.800" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 13,5 mm</text>
+<text x="188.000" y="160.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
+<text x="196.531" y="160.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−11,7</text>
+<text x="208.594" y="160.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−8,3</text>
+<text x="220.656" y="160.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="232.719" y="160.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">8,3</text>
+<text x="244.781" y="160.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">11,7</text>
+<text x="256.844" y="160.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">8,3</text>
+<text x="268.906" y="160.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="280.969" y="160.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−8,3</text>
+<text x="151.500" y="165.000" font-size="3.018" text-anchor="start" fill="#000" stroke="none">stacje 46 i 49</text>
+<text x="188.000" y="165.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
+<text x="196.531" y="165.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6,8</text>
+<text x="208.594" y="165.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−4,8</text>
+<text x="220.656" y="165.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−13,5</text>
+<text x="232.719" y="165.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−14,3</text>
+<text x="244.781" y="165.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−6,8</text>
+<text x="256.844" y="165.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">4,8</text>
+<text x="268.906" y="165.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">13,5</text>
+<text x="280.969" y="165.000" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">14,3</text>
+<line x1="151.500" y1="166.200" x2="287.000" y2="166.200" stroke-width="0.2"/>
+<text x="151.500" y="169.200" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 11 mm (otwór)</text>
+<text x="188.000" y="169.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
+<text x="196.531" y="169.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−9,5</text>
+<text x="208.594" y="169.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−6,7</text>
+<text x="220.656" y="169.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="232.719" y="169.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6,7</text>
+<text x="244.781" y="169.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">9,5</text>
+<text x="256.844" y="169.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6,7</text>
+<text x="268.906" y="169.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="280.969" y="169.200" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−6,7</text>
+<text x="151.500" y="173.400" font-size="3.018" text-anchor="start" fill="#000" stroke="none">stacja 49</text>
+<text x="188.000" y="173.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
+<text x="196.531" y="173.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">5,5</text>
+<text x="208.594" y="173.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−3,9</text>
+<text x="220.656" y="173.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−11</text>
+<text x="232.719" y="173.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−11,7</text>
+<text x="244.781" y="173.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−5,5</text>
+<text x="256.844" y="173.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">3,9</text>
+<text x="268.906" y="173.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">11</text>
+<text x="280.969" y="173.400" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">11,7</text>
+<line x1="151.500" y1="174.600" x2="287.000" y2="174.600" stroke-width="0.2"/>
+<text x="151.500" y="177.600" font-size="3.018" text-anchor="start" fill="#000" stroke="none">r 12 mm (cienka)</text>
+<text x="188.000" y="177.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">→</text>
+<text x="196.531" y="177.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−10,4</text>
+<text x="208.594" y="177.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7,3</text>
+<text x="220.656" y="177.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="232.719" y="177.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7,3</text>
+<text x="244.781" y="177.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">10,4</text>
+<text x="256.844" y="177.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">7,3</text>
+<text x="268.906" y="177.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">0</text>
+<text x="280.969" y="177.600" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−7,3</text>
+<text x="151.500" y="181.800" font-size="3.018" text-anchor="start" fill="#000" stroke="none">stacja 49</text>
+<text x="188.000" y="181.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">↓</text>
+<text x="196.531" y="181.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">6</text>
+<text x="208.594" y="181.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−4,2</text>
+<text x="220.656" y="181.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−12</text>
+<text x="232.719" y="181.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−12,7</text>
+<text x="244.781" y="181.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">−6</text>
+<text x="256.844" y="181.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">4,2</text>
+<text x="268.906" y="181.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">12</text>
+<text x="280.969" y="181.800" font-size="3.018" text-anchor="middle" fill="#000" stroke="none">12,7</text>
+<text x="151.500" y="187.000" font-size="3.018" text-anchor="start" fill="#000" stroke="none">Liczby w tabeli to mm: → ile mm w prawo (minus: w lewo), ↓ ile mm w dół (minus: w</text>
+<text x="151.500" y="190.520" font-size="3.018" text-anchor="start" fill="#000" stroke="none">górę). Stacja to miejsce na osi AB: 0 = A, 49 = B. Łącz punkty po kolei 1→2→…→1.</text>
 </g>
 </svg>

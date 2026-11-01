@@ -829,41 +829,42 @@ def iso_step_elements():
 
 
 def iso_points_table():
-    """Wiersze tabeli: (opis, [(w prawo, w dół), ...]) – punkty od środka stacji, 1:1."""
-    rows = [(f"r {fmt(R_THR)} (x = 0, {fmt(X_THR)})", R_THR)]
-    rows.append((f"naroża (x = {fmt(X_THR)}, {fmt(X_HEX)})", None))
-    rows += [(f"r {fmt(R_NECK)} (x = {fmt(X_HEX)}, {fmt(X_NECK)})", R_NECK),
-             (f"r {fmt(R_COLLAR)} (x = {fmt(X_NECK)}, {fmt(X_COLLAR)})", R_COLLAR),
-             (f"r {fmt(R_TOP)} (x = {fmt(X_COLLAR)}, {fmt(L)})", R_TOP),
-             (f"r {fmt(R_BORE2)} otwór (x = {fmt(L)})", R_BORE2),
-             (f"r {fmt(R_ITHR)} cienka (x = {fmt(L)})", R_ITHR)]
-    out = []
-    for label, r in rows:
-        pts = hex_ring(0) if r is None else ring(0, r, 8)
-        out.append((label, [iso_uv(*p) for p in pts]))
-    return out
+    """Wiersze tabeli: (opis, stacje, [(w prawo, w dół), ...]) – mm od środka stacji, 1:1."""
+    rows = [(f"r {fmt(R_THR)} mm", f"stacje 0 i {fmt(X_THR)}", R_THR),
+            ("naroża sześciokąta", f"stacje {fmt(X_THR)} i {fmt(X_HEX)}", None),
+            (f"r {fmt(R_NECK)} mm", f"stacje {fmt(X_HEX)} i {fmt(X_NECK)}", R_NECK),
+            (f"r {fmt(R_COLLAR)} mm", f"stacje {fmt(X_NECK)} i {fmt(X_COLLAR)}", R_COLLAR),
+            (f"r {fmt(R_TOP)} mm", f"stacje {fmt(X_COLLAR)} i {fmt(L)}", R_TOP),
+            (f"r {fmt(R_BORE2)} mm (otwór)", f"stacja {fmt(L)}", R_BORE2),
+            (f"r {fmt(R_ITHR)} mm (cienka)", f"stacja {fmt(L)}", R_ITHR)]
+    return [(label, where, [iso_uv(*p) for p in (hex_ring(0) if r is None else ring(0, r, 8))])
+            for label, where, r in rows]
 
 
 def iso_steps_text():
+    """Opisy kroków; każda liczba z jednostką, punkty słowami (od lewej / od górnej krawędzi)."""
     Q, _ = iso_map()
     st = {x: Q((x, 0, 0)) for x in (0.0, X_THR, X_HEX, X_NECK, X_COLLAR, L)}
-    xy = lambda p: f"({fmt(p[0], 1)}; {fmt(p[1], 1)})"
+    mm = lambda v: f"{fmt(v, 1)}\u00a0mm"
     du, dv = THREAD_PITCH_ISO * C30 * S_ISO, THREAD_PITCH_ISO * 0.5 * S_ISO
     return [
-        f"Postaw A {xy(st[0.0])} i B {xy(st[L])}, połącz cienko. Środki stacji na AB: "
-        + ", ".join(f"x = {fmt(x)} {xy(st[x])}" for x in (X_THR, X_HEX, X_NECK, X_COLLAR)) + ".",
-        f"Przez środki x = 0 i x = {fmt(X_THR)} narysuj krzyżyk (poziomo i pionowo). Od każdego środka "
-        f"odmierz 8 punktów r {fmt(R_THR)} z tabeli i połącz je ręką. Elipsy połącz dwiema liniami "
-        "równoległymi do AB.",
-        f"Na stacjach x = {fmt(X_THR)} i x = {fmt(X_HEX)} odmierz 6 naroży z tabeli i połącz je linijką. "
-        "Potem połącz odpowiadające sobie naroża obu stacji: 6 linii równoległych do AB.",
-        f"Elipsy z tabeli: r {fmt(R_NECK)} na x = {fmt(X_HEX)} i {fmt(X_NECK)}, r {fmt(R_COLLAR)} na "
-        f"x = {fmt(X_NECK)} i {fmt(X_COLLAR)}, r {fmt(R_TOP)} na x = {fmt(X_COLLAR)} i {fmt(L)}. "
-        "Każdą parę połącz dwiema liniami równoległymi do AB.",
-        f"Na x = {fmt(L)}: otwór r {fmt(R_BORE2)} i cienka elipsa r {fmt(R_ITHR)}. Gwint: 7 cienkich łuków "
-        f"jak tylny łuk elipsy x = 0, każdy kolejny {fmt(du, 1)} mm w prawo i {fmt(dv, 1)} mm w dół.",
-        "Idąc od tyłu (x = 0) do przodu, zetrzyj linie zasłonięte przez bliższą część; porównuj ze "
-        f"stroną 1. Widoczne krawędzie pogrub ({fmt(THICK)}), gwint i r {fmt(R_ITHR)} zostają cienkie.",
+        f"A: {mm(st[0.0][0])} od lewej krawędzi kartki i {mm(st[0.0][1])} od górnej. "
+        f"B: {mm(st[L][0])} od lewej i {mm(st[L][1])} od górnej. Połącz A z B. Stacje na AB, "
+        "mm od lewej / od górnej: "
+        + "; ".join(f"{fmt(x)}:\u00a0{fmt(st[x][0], 1)}/{fmt(st[x][1], 1)}" for x in (X_THR, X_HEX, X_NECK, X_COLLAR))
+        + ".",
+        f"Przez środki stacji 0 i {fmt(X_THR)} narysuj cienki krzyżyk (poziomo i pionowo). Od każdego "
+        f"środka odmierz 8 punktów z wiersza „r\u00a0{fmt(R_THR)}\u00a0mm” tabeli i połącz je ręką. Elipsy połącz "
+        "dwiema liniami równoległymi do AB.",
+        f"Na stacjach {fmt(X_THR)} i {fmt(X_HEX)} odmierz 6 naroży z wiersza „naroża” tabeli i połącz je "
+        "linijką. Potem połącz odpowiadające sobie naroża obu stacji: 6 linii równoległych do AB.",
+        f"Elipsy z tabeli: r {fmt(R_NECK)} mm na stacjach {fmt(X_HEX)} i {fmt(X_NECK)}, r {fmt(R_COLLAR)} mm "
+        f"na {fmt(X_NECK)} i {fmt(X_COLLAR)}, r {fmt(R_TOP)} mm na {fmt(X_COLLAR)} i {fmt(L)}. Każdą parę "
+        "połącz dwiema liniami równoległymi do AB.",
+        f"Na stacji {fmt(L)}: otwór r {fmt(R_BORE2)} mm i cienka elipsa r {fmt(R_ITHR)} mm. Gwint: 7 cienkich "
+        f"łuków jak tylny łuk elipsy na stacji 0, każdy kolejny {mm(du)} w prawo i {mm(dv)} w dół.",
+        "Od tyłu (stacja 0) do przodu zetrzyj linie zasłonięte przez bliższą część; porównuj ze stroną 1. "
+        f"Widoczne krawędzie pogrub ({fmt(THICK)}\u00a0mm), gwint i elipsę r {fmt(R_ITHR)} mm zostaw cienko.",
     ]
 
 
@@ -878,7 +879,7 @@ def iso_page():
     final = [el for _, el in tmp.els if not el.startswith("<text")]
     Q, y_bottom = iso_map()
     box = (ISO_BOX[0], ISO_BOX[1], ISO_BOX[0] + 65.0, y_bottom)
-    col_w, gap, row_h = 64.75, 6.0, 86.0
+    col_w, gap, row_h = 64.75, 6.0, 88.0
     s = min(col_w / (box[2] - box[0]), 52.0 / (box[3] - box[1]))
     for i, (title, body) in enumerate(zip([t for t, _ in ISO_STEPS], iso_steps_text())):
         k = i + 1
@@ -912,24 +913,24 @@ def iso_page():
     # tabela punktów w miejscu kroków 7 i 8
     tx, ry = 10 + 2 * (col_w + gap), 24 + row_h
     tw = 287 - tx
-    pg.text(tx, ry + 4, "Tabela: punkty od środka stacji (mm, 1:1)", 3.5, "start")
+    pg.text(tx, ry + 4, "Tabela: ile mm odmierzyć od środka stacji", 3.5, "start")
     lab_w, arr_w = 34.0, 5.0
     cw = (tw - lab_w - arr_w) / 8
     y = ry + 11
     for j in range(8):
         pg.text(tx + lab_w + arr_w + (j + 0.5) * cw, y, str(j + 1), H_SMALL)
     lead = 4.2
-    for label, pts in iso_points_table():
+    for label, where, pts in iso_points_table():
         pg.line((tx, y + 1.2), (tx + tw, y + 1.2), 0.2, "tabela")
         for row, (arrow_s, idx) in enumerate((("→", 0), ("↓", 1))):
             y += lead
-            if row == 0:
-                pg.text(tx, y, label, H_SMALL, "start")
+            pg.text(tx, y, (label, where)[row], H_SMALL, "start")
             pg.text(tx + lab_w + arr_w / 2, y, arrow_s, H_SMALL)
             for j, p in enumerate(pts):
                 pg.text(tx + lab_w + arr_w + (j + 0.5) * cw, y, fmt(p[idx], 1), H_SMALL)
     pg.text_block(tx, y + 5.2, [
-        "→ w prawo (minus: w lewo), ↓ w dół (minus: w górę). Łącz punkty po kolei 1→2→…→1."],
+        "Liczby w tabeli to mm: → ile mm w prawo (minus: w lewo), ↓ ile mm w dół (minus: w górę). "
+        "Stacja to miejsce na osi AB: 0 = A, 49 = B. Łącz punkty po kolei 1→2→…→1."],
         tw, H_SMALL, 1.6)
     return pg
 
