@@ -7,11 +7,13 @@ Rzut izometryczny w skali 1:1: w 2:1 ma ok. 130x108 mm i nie mieści się obok t
 Linie grupy 0,7 (gruba 0,7, cienka 0,35), pismo wymiarowe 5 mm, żeby łatwo było przerysować.
 
 Wynik (wersja do przerysowania ręcznego):
-  zlaczka.pdf                  3 strony: rysunek, arkusz konstrukcyjny, kolejność rysowania
+  zlaczka.pdf                  4 strony: rysunek, arkusz konstrukcyjny, kolejność rysowania,
+                               izometria krok po kroku
   zlaczka.svg / .png           strona 1: rysunek z wymiarami
   zlaczka_konstrukcja.svg/.png strona 2: ten sam arkusz z niebieskimi wymiarami w mm do odmierzenia
                                na kartce (skala już przeliczona, wymiary pionowe od osi)
   zlaczka_kroki.svg/.png       strona 3: kolejność rysowania w 6 krokach
+  zlaczka_izometria.svg/.png   strona 4: izometria krok po kroku z tabelą punktów (bez cyrkla)
 Strony SVG zamienia na PDF cairosvg, a łączy je pdfunite.
 Na końcu skrypt sprawdza wyrównanie rzutów, sumę długości, wyjście poza ramkę
 oraz kolizje tekstów z liniami i z innymi tekstami na każdej stronie.
@@ -94,7 +96,10 @@ def top(x, y):
 
 
 def fmt(v, nd=2):
-    return f"{round(v, nd) + 0.0:g}".replace(".", ",").replace("-", "−")   # + 0.0: bez „−0”
+    # zaokrąglenie od połowy w górę (6,25 -> 6,3 i -6,25 -> -6,3); + 0.0 usuwa „−0”
+    q = 10 ** nd
+    v = math.copysign(math.floor(abs(v) * q + 0.5 + 1e-9) / q, v) + 0.0
+    return f"{v:g}".replace(".", ",").replace("-", "−")
 
 
 class Sheet:
@@ -717,8 +722,8 @@ def steps_text(a):
          "Wartości przepisz ze strony 1."),
         ("Izometria i tabliczka",
          f"Oś AB od A ({fmt(a[0], 1)}; {fmt(a[1], 1)}), {fmt(L * S_ISO)} mm pod 30° w dół w prawo. Elipsy: "
-         "oś wielka 1,22·D, mała 0,71·D (strona 2). Rysuj od tyłu (gwint) do przodu, bez linii "
-         "zasłoniętych. Na koniec wypełnij tabliczkę."),
+         "oś wielka 1,22·D, mała 0,71·D. Krok po kroku i punkty elips: strona 4. "
+         "Na koniec wypełnij tabliczkę."),
     ]
 
 
@@ -742,6 +747,190 @@ def steps_page(sh_draw):
             [(cx, ty), (cx + thumb_w, ty), (cx + thumb_w, ty + thumb_h), (cx, ty + thumb_h)],
             [(cx + thumb_w, ty), (cx + thumb_w, ty + thumb_h), (cx, ty + thumb_h), (cx, ty)])))
         pg.text_block(cx, ty + thumb_h + 4.5, [body], col_w, H_SMALL, 1.7)
+    return pg
+
+
+# --- strona 4: izometria krok po kroku ------------------------------------------------
+ISO_STEPS = [
+    ("Oś AB i stacje", None),
+    ("Walec gwintu", None),
+    ("Sześciokąt", None),
+    ("Szyjka, kołnierz, stopień", None),
+    ("Czoło i gwint", None),
+    ("Wykończenie", None),
+]
+
+
+def iso_step_elements():
+    """Elementy konstrukcji izometrii: (krok, rola, svg z {C} w miejscu koloru).
+    Rola "k" to pomoce (oś AB, krzyżyki, punkty), "l" to linie rysunku rysowane cienko."""
+    Q, _ = iso_map()
+    els = []
+
+    def pl(step, role, pts, w=0.25, closed=False):
+        tag = "polygon" if closed else "polyline"
+        d = " ".join(f"{x:.3f},{y:.3f}" for x, y in pts)
+        els.append((step, role, f'<{tag} points="{d}" fill="none" stroke="{{C}}" stroke-width="{w}"/>'))
+
+    def dots(step, pts):
+        for x, y in pts:
+            els.append((step, "k", f'<circle cx="{x:.3f}" cy="{y:.3f}" r="0.5" fill="{{C}}" stroke="none"/>'))
+
+    def cross(step, x):                      # krzyżyk w środku stacji: kierunki „w prawo” i „w dół”
+        c = Q((x, 0, 0))
+        pl(step, "k", [(c[0] - 4, c[1]), (c[0] + 4, c[1])], 0.2)
+        pl(step, "k", [(c[0], c[1] - 4), (c[0], c[1] + 4)], 0.2)
+
+    def ellipse(step, x, r, w=0.25):
+        dots(step, [Q(p) for p in ring(x, r, 8)])
+        pl(step, "l", [Q(p) for p in ring(x, r)], w, closed=True)
+
+    def tangents(step, x0, x1, r):           # tworzące konturowe: kąty 135° i −45° na okręgu
+        for a in (135, -45):
+            p = (r * math.cos(math.radians(a)), r * math.sin(math.radians(a)))
+            pl(step, "l", [Q((x0, *p)), Q((x1, *p))])
+
+    a, b = Q((0, 0, 0)), Q((L, 0, 0))
+    pl(1, "k", [a, b], 0.3)
+    dots(1, [a, b])
+    for x in (X_THR, X_HEX, X_NECK, X_COLLAR):
+        c = Q((x, 0, 0))
+        pl(1, "k", [(c[0] - 0.9, c[1] + 1.56), (c[0] + 0.9, c[1] - 1.56)], 0.3)
+    for p, s_, dx, dy in ((a, "A", 1.5, 1.5 + H_NOTE), (b, "B", 1.5, -1.5)):
+        els.append((1, "k", f'<text x="{p[0] + dx:.3f}" y="{p[1] + dy:.3f}" font-size="{H_NOTE / CAP:.3f}" '
+                            f'fill="{{C}}" stroke="none">{s_}</text>'))
+
+    for x in (0.0, X_THR):
+        cross(2, x)
+        ellipse(2, x, R_THR)
+    tangents(2, 0.0, X_THR, R_THR)
+
+    for x in (X_THR, X_HEX):
+        cross(3, x)
+        pts = [Q(p) for p in hex_ring(x)]
+        dots(3, pts)
+        pl(3, "l", pts, closed=True)
+    for p0, p1 in zip(hex_ring(X_THR), hex_ring(X_HEX)):
+        pl(3, "l", [Q(p0), Q(p1)])
+
+    for x in (X_HEX, X_NECK, X_COLLAR, L):
+        cross(4, x)
+    for x0, x1, r in ((X_HEX, X_NECK, R_NECK), (X_NECK, X_COLLAR, R_COLLAR), (X_COLLAR, L, R_TOP)):
+        for x in (x0, x1):
+            ellipse(4, x, r)
+        tangents(4, x0, x1, r)
+
+    ellipse(5, L, R_BORE2)
+    ellipse(5, L, R_ITHR, 0.15)
+    for k in range(1, int((X_THR - 1) // THREAD_PITCH_ISO) + 1):
+        xk = k * THREAD_PITCH_ISO
+        pl(5, "l", [Q(p) for p in ring(xk, R_THR, 90, -45, 135) + ring(xk, R_THR, 1, 135, 136)], 0.15)
+    return els
+
+
+def iso_points_table():
+    """Wiersze tabeli: (opis, [(w prawo, w dół), ...]) – punkty od środka stacji, 1:1."""
+    rows = [(f"r {fmt(R_THR)} (x = 0, {fmt(X_THR)})", R_THR)]
+    rows.append((f"naroża (x = {fmt(X_THR)}, {fmt(X_HEX)})", None))
+    rows += [(f"r {fmt(R_NECK)} (x = {fmt(X_HEX)}, {fmt(X_NECK)})", R_NECK),
+             (f"r {fmt(R_COLLAR)} (x = {fmt(X_NECK)}, {fmt(X_COLLAR)})", R_COLLAR),
+             (f"r {fmt(R_TOP)} (x = {fmt(X_COLLAR)}, {fmt(L)})", R_TOP),
+             (f"r {fmt(R_BORE2)} otwór (x = {fmt(L)})", R_BORE2),
+             (f"r {fmt(R_ITHR)} cienka (x = {fmt(L)})", R_ITHR)]
+    out = []
+    for label, r in rows:
+        pts = hex_ring(0) if r is None else ring(0, r, 8)
+        out.append((label, [iso_uv(*p) for p in pts]))
+    return out
+
+
+def iso_steps_text():
+    Q, _ = iso_map()
+    st = {x: Q((x, 0, 0)) for x in (0.0, X_THR, X_HEX, X_NECK, X_COLLAR, L)}
+    xy = lambda p: f"({fmt(p[0], 1)}; {fmt(p[1], 1)})"
+    du, dv = THREAD_PITCH_ISO * C30 * S_ISO, THREAD_PITCH_ISO * 0.5 * S_ISO
+    return [
+        f"Postaw A {xy(st[0.0])} i B {xy(st[L])}, połącz cienko. Środki stacji na AB: "
+        + ", ".join(f"x = {fmt(x)} {xy(st[x])}" for x in (X_THR, X_HEX, X_NECK, X_COLLAR)) + ".",
+        f"Przez środki x = 0 i x = {fmt(X_THR)} narysuj krzyżyk (poziomo i pionowo). Od każdego środka "
+        f"odmierz 8 punktów r {fmt(R_THR)} z tabeli i połącz je ręką. Elipsy połącz dwiema liniami "
+        "równoległymi do AB.",
+        f"Na stacjach x = {fmt(X_THR)} i x = {fmt(X_HEX)} odmierz 6 naroży z tabeli i połącz je linijką. "
+        "Potem połącz odpowiadające sobie naroża obu stacji: 6 linii równoległych do AB.",
+        f"Elipsy z tabeli: r {fmt(R_NECK)} na x = {fmt(X_HEX)} i {fmt(X_NECK)}, r {fmt(R_COLLAR)} na "
+        f"x = {fmt(X_NECK)} i {fmt(X_COLLAR)}, r {fmt(R_TOP)} na x = {fmt(X_COLLAR)} i {fmt(L)}. "
+        "Każdą parę połącz dwiema liniami równoległymi do AB.",
+        f"Na x = {fmt(L)}: otwór r {fmt(R_BORE2)} i cienka elipsa r {fmt(R_ITHR)}. Gwint: 7 cienkich łuków "
+        f"jak tylny łuk elipsy x = 0, każdy kolejny {fmt(du, 1)} mm w prawo i {fmt(dv, 1)} mm w dół.",
+        "Idąc od tyłu (x = 0) do przodu, zetrzyj linie zasłonięte przez bliższą część; porównuj ze "
+        f"stroną 1. Widoczne krawędzie pogrub ({fmt(THICK)}), gwint i r {fmt(R_ITHR)} zostają cienkie.",
+    ]
+
+
+def iso_page():
+    pg = Sheet()
+    pg.view = "izometria krok po kroku"
+    pg.text(10, 17, "Izometria krok po kroku – bez cyrkla, tylko linijka", 4.0, "start")
+    pg.text(287, 17, "niebieskie – pomoce, czarne – ten krok, szare – wcześniej", H_NOTE, "end")
+    els = iso_step_elements()
+    tmp = Sheet()
+    iso_view(tmp)
+    final = [el for _, el in tmp.els if not el.startswith("<text")]
+    Q, y_bottom = iso_map()
+    box = (ISO_BOX[0], ISO_BOX[1], ISO_BOX[0] + 65.0, y_bottom)
+    col_w, gap, row_h = 64.75, 6.0, 86.0
+    s = min(col_w / (box[2] - box[0]), 52.0 / (box[3] - box[1]))
+    for i, (title, body) in enumerate(zip([t for t, _ in ISO_STEPS], iso_steps_text())):
+        k = i + 1
+        cx = 10 + (i % 4) * (col_w + gap)
+        ry = 24 + (i // 4) * row_h
+        pg.text(cx, ry + 4, f"{k}. {title}", 3.5, "start")
+        ty = ry + 7
+        dw, dh = (box[2] - box[0]) * s, (box[3] - box[1]) * s
+        out = [f'<rect x="{cx:.3f}" y="{ty:.3f}" width="{col_w:.3f}" height="{dh + 2:.3f}" '
+               f'fill="none" stroke="#d0d0d0" stroke-width="0.2"/>',
+               f'<g transform="translate({cx + (col_w - dw) / 2 - box[0] * s:.3f} {ty + 1 - box[1] * s:.3f}) '
+               f'scale({s:.4f})">']
+        for step, role, svg in els:
+            if step > k:
+                continue
+            if k == 6:
+                col = "#d0d0d0"
+            elif step < k:
+                col = "#d0d0d0" if role == "k" else "#9e9e9e"
+            else:
+                col = BLUE if role == "k" else "#000"
+            out.append(svg.replace("{C}", col))
+        if k == 6:
+            out.append('<g stroke="#000">' + "\n".join(final) + "</g>")
+        out.append("</g>")
+        pg.raw("\n".join(out))
+        corners = [(cx, ty), (cx + col_w, ty), (cx + col_w, ty + dh + 2), (cx, ty + dh + 2)]
+        pg.segs.extend((p, q, "rysunek", pg.view, 0) for p, q in zip(corners, corners[1:] + corners[:1]))
+        pg.text_block(cx, ty + dh + 2 + 4.5, [body], col_w, H_SMALL, 1.65)
+
+    # tabela punktów w miejscu kroków 7 i 8
+    tx, ry = 10 + 2 * (col_w + gap), 24 + row_h
+    tw = 287 - tx
+    pg.text(tx, ry + 4, "Tabela: punkty od środka stacji (mm, 1:1)", 3.5, "start")
+    lab_w, arr_w = 34.0, 5.0
+    cw = (tw - lab_w - arr_w) / 8
+    y = ry + 11
+    for j in range(8):
+        pg.text(tx + lab_w + arr_w + (j + 0.5) * cw, y, str(j + 1), H_SMALL)
+    lead = 4.2
+    for label, pts in iso_points_table():
+        pg.line((tx, y + 1.2), (tx + tw, y + 1.2), 0.2, "tabela")
+        for row, (arrow_s, idx) in enumerate((("→", 0), ("↓", 1))):
+            y += lead
+            if row == 0:
+                pg.text(tx, y, label, H_SMALL, "start")
+            pg.text(tx + lab_w + arr_w / 2, y, arrow_s, H_SMALL)
+            for j, p in enumerate(pts):
+                pg.text(tx + lab_w + arr_w + (j + 0.5) * cw, y, fmt(p[idx], 1), H_SMALL)
+    pg.text_block(tx, y + 5.2, [
+        "→ w prawo (minus: w lewo), ↓ w dół (minus: w górę). Łącz punkty po kolei 1→2→…→1."],
+        tw, H_SMALL, 1.6)
     return pg
 
 
@@ -840,12 +1029,14 @@ def main():
     title_block(sh, args.autor, args.data)
     construction(sh)
     pg = steps_page(sh)
+    pg4 = iso_page()
 
     drawing = lambda step: step != "K"
     construct = lambda step: step != 5
     pages = [(sh.svg(drawing), args.out / "zlaczka.svg"),
              (sh.svg(construct), args.out / "zlaczka_konstrukcja.svg"),
-             (pg.svg(lambda step: True), args.out / "zlaczka_kroki.svg")]
+             (pg.svg(lambda step: True), args.out / "zlaczka_kroki.svg"),
+             (pg4.svg(lambda step: True), args.out / "zlaczka_izometria.svg")]
     args.out.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         pdfs = []
@@ -860,12 +1051,13 @@ def main():
     problems += check_page(sh, drawing, "strona 1", views=True)
     problems += check_page(sh, construct, "strona 2")
     problems += check_page(pg, lambda step: True, "strona 3", area=(8.0, 8.0, 289.0, 202.0))
+    problems += check_page(pg4, lambda step: True, "strona 4", area=(8.0, 8.0, 289.0, 202.0))
     if problems:
         print("KONTROLA: problemy:")
         for p in problems:
             print("  -", p)
         sys.exit(1)
-    print("KONTROLA: OK (wyrównanie, suma 15+25+3+3+3 = 49, ramka, kolizje tekstów na 3 stronach)")
+    print("KONTROLA: OK (wyrównanie, suma 15+25+3+3+3 = 49, ramka, kolizje tekstów na 4 stronach)")
 
 
 if __name__ == "__main__":
