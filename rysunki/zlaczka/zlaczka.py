@@ -9,7 +9,8 @@ Linie grupy 0,7 (gruba 0,7, cienka 0,35), pismo wymiarowe 5 mm, żeby łatwo by�
 Wynik (wersja do przerysowania ręcznego):
   zlaczka.pdf                  3 strony: rysunek, arkusz konstrukcyjny, kolejność rysowania
   zlaczka.svg / .png           strona 1: rysunek z wymiarami
-  zlaczka_konstrukcja.svg/.png strona 2: ten sam arkusz bez wymiarów, z niebieskimi współrzędnymi
+  zlaczka_konstrukcja.svg/.png strona 2: ten sam arkusz z niebieskimi wymiarami w mm do odmierzenia
+                               na kartce (skala już przeliczona, wymiary pionowe od osi)
   zlaczka_kroki.svg/.png       strona 3: kolejność rysowania w 6 krokach
 Strony SVG zamienia na PDF cairosvg, a łączy je pdfunite.
 Na końcu skrypt sprawdza wyrównanie rzutów, sumę długości, wyjście poza ramkę
@@ -36,6 +37,7 @@ S_ISO = 1.0                              # skala izometrii
 THICK, THIN, FRAME_W = 0.7, 0.35, 0.7    # grupa linii 0,7 (ISO 128-20)
 H_DIM, H_LABEL, H_VALUE, H_NAME = 5.0, 2.5, 5.0, 6.0   # wysokość pisma (ISO 3098)
 H_NOTE, H_SMALL = 2.5, 2.2               # pismo pomocnicze na stronach 2 i 3
+H_K = 3.5                                # wymiary do odmierzenia na stronie 2
 ARROW_L, ARROW_W = 2.5, 1.0              # strzałka zamknięta: długość i szerokość podstawy
 EXT_OVER = 2.0                           # wysunięcie linii pomocniczej za linię wymiarową
 TEXT_GAP = 1.0                           # odstęp liczby od linii wymiarowej
@@ -177,7 +179,8 @@ class Sheet:
         px, py = -uy * ARROW_W / 2, ux * ARROW_W / 2
         pts = [tip, (bx + px, by + py), (bx - px, by - py)]
         d = " ".join(f"{x:.3f},{y:.3f}" for x, y in pts)
-        self._add(f'<polygon points="{d}" fill="#000" stroke="none"/>', pts, "grot", closed=True)
+        fill = BLUE if self.overlay else "#000"
+        self._add(f'<polygon points="{d}" fill="{fill}" stroke="none"/>', pts, "grot", closed=True)
 
     def text_len(self, s, h=H_DIM):
         return self.font.getlength(s) / 1000 * h / CAP
@@ -270,14 +273,14 @@ class Sheet:
 
 
 # --- wymiarowanie -----------------------------------------------------------------
-def dim_h(sh, xa, xb, y, value, ext=(), text_x=None, gap=TEXT_GAP):
+def dim_h(sh, xa, xb, y, value, ext=(), text_x=None, gap=TEXT_GAP, h=H_DIM):
     """Wymiar poziomy na wysokości y; ext: punkty (x, y), od których idą linie pomocnicze."""
     for x, y_from in ext:
         sh.line((x, y_from), (x, y + math.copysign(EXT_OVER, y - y_from)), THIN, "pomocnicza")
     sh.line((xa, y), (xb, y), THIN, "wymiarowa")
     sh.arrow((xa, y), (-1, 0))
     sh.arrow((xb, y), (1, 0))
-    sh.text((xa + xb) / 2 if text_x is None else text_x, y - gap, value, kind="wymiar")
+    sh.text((xa + xb) / 2 if text_x is None else text_x, y - gap, value, h, kind="wymiar")
 
 
 def dim_v(sh, x, ya, yb, value, ext_from=None, text_y=None):
@@ -563,51 +566,81 @@ def iso_facts():
     return a, b, corners
 
 
+def axis_dim(sh, x, y_axis, y_edge, value, h, text_y=None, line_end=None, ext_from=None):
+    """Wymiar od osi do krawędzi; grot na osi i grot na krawędzi. Gdy liczba nie mieści się
+    między krawędziami, stoi za obrysem na przedłużeniu linii (line_end)."""
+    sgn = math.copysign(1, y_edge - y_axis)
+    if ext_from is not None:
+        sh.line((ext_from, y_edge), (x + EXT_OVER, y_edge), THIN, "pomocnicza")
+    sh.line((x, y_axis), (x, y_edge if line_end is None else line_end), THIN, "wymiarowa")
+    sh.arrow((x, y_axis), (0, -sgn))
+    sh.arrow((x, y_edge), (0, sgn))
+    # większy odstęp: przecinek w „28,87” schodzi pod linię bazową, czyli w stronę linii wymiarowej
+    sh.text(x - TEXT_GAP - 0.6, (y_axis + y_edge) / 2 if text_y is None else text_y, value, h,
+            rot=-90, kind="wymiar")
+
+
 def construction(sh):
-    """Niebieskie współrzędne w mm od lewej (x) i górnej (y) krawędzi kartki."""
+    """Strona 2: niebieskie wymiary w mm do odmierzenia linijką na kartce (skala już uwzględniona).
+    Wymiary pionowe biegną od osi: w skali 2:1 odległość od osi jest równa średnicy rzeczywistej."""
     sh.overlay = True
-    W = 0.25
+    h = H_K
+    W = 0.25                                             # linie konstrukcyjne izometrii
     sh.view = "opis"
-    sh.text_block(24, 15, [
-        "Strona konstrukcyjna. Niebieskie liczby pionowe: x od lewej krawędzi kartki; „y = …”: "
-        "odległość od górnej krawędzi (mm). Liczba przy krawędzi: jej odległość od osi w mm arkusza "
-        f"(w skali {S:g}:1 równa średnicy rzeczywistej)."],
-        120, H_NOTE, 1.55)
+    sh.text_block(24, 188, [
+        f"Niebieskie wymiary: mm do odmierzenia linijką na kartce (skala {S:g}:1 już przeliczona). "
+        "Wymiary pionowe mierzysz od osi."], 120, H_NOTE, 1.55)
 
-    def x_tick(px, y_from, y_to):
-        sh.line((px, y_from), (px, y_to), W, "konstr")
-        up = y_to < y_from
-        sh.text(px + H_NOTE / 2, y_to + (-0.8 if up else 0.8), fmt(px), H_NOTE,
-                "start" if up else "end", rot=-90)
+    def beyond(x, y_edge, y_clear, value, sgn):
+        """Liczba za obrysem: zaczyna się 3 mm za y_clear (najdalszym obrysem w tej kolumnie)."""
+        t0 = y_clear + sgn * 3
+        t1 = t0 + sgn * sh.text_len(value, h)
+        return dict(text_y=(t0 + t1) / 2, line_end=t1 + sgn * 1)
 
-    # widok z przodu
+    # widok z przodu: długości w tych samych miejscach co na stronie 1
     sh.view = "przód"
-    y_t = YF - S * R_COLLAR - 3
+    P = front
+    x_end = P(L, 0)[0]
+    y1 = YF - S * R_COLLAR - DIM_ROW
+    y2 = y1 - DIM_ROW
     for x in STEPS_X:
-        px, py = front(x, REACH_Z[x])
-        x_tick(px, py - 0.6, y_t)
+        y_end = (y2 if x in (0, L) else y1) - EXT_OVER
+        sh.line(P(x, REACH_Z[x]), (P(x, 0)[0], y_end), THIN, "pomocnicza")
+    for x0, x1, _ in PROFILE_Z:
+        dim_h(sh, P(x0, 0)[0], P(x1, 0)[0], y1, fmt(S * (x1 - x0)), gap=EXT_OVER + 0.6, h=h)
+    dim_h(sh, X0, x_end, y2, fmt(S * L), h=h)
+    dim_h(sh, P(X_ITHR, 0)[0], x_end, P(0, 6.5)[1], fmt(S * (L - X_ITHR)),
+          ext=[(P(X_ITHR, 0)[0], P(0, R_BORE2)[1])], h=h)
     sh.text(X0 - AXIS_OVER - 1, YF - 1, f"y = {fmt(YF)}", H_NOTE, "end")
-    for x0, x1, r in PROFILE_Z:                          # dolny obrys
-        sh.text(front((x0 + x1) / 2, 0)[0], front(0, -r)[1] + 0.8 + H_NOTE, fmt(S * r), H_NOTE)
-    sh.text(front((X_THR + X_HEX) / 2, 0)[0], front(0, -R_HEX / 2)[1] - 0.8, fmt(S * R_HEX / 2), H_NOTE)
-    sh.text(front(X_THR / 2, 0)[0], front(0, -R_THR_CORE)[1] - 0.8, fmt(S * R_THR_CORE), H_NOTE)
-    sh.text(front(X_THR / 2, 0)[0], front(0, R_BORE1)[1] + 0.8 + H_NOTE, fmt(S * R_BORE1), H_NOTE)
-    sh.text(front((X_THR + X_HEX) / 2, 0)[0], front(0, R_BORE2)[1] + 0.8 + H_NOTE, fmt(S * R_BORE2), H_NOTE)
-    px, py = front(L, R_ITHR)
-    sh.line((px + 0.6, py), (px + 3, py), W, "konstr")
-    sh.text(px + 3.6, py + H_NOTE / 2, f"{fmt(S * R_ITHR)} dno gwintu", H_NOTE, "start")
 
-    # widok z góry
+    # od osi w dół (widok): gwint, rdzeń, naroża i krawędź sześciokąta
+    axis_dim(sh, P(4, 0)[0], YF, P(0, -R_THR)[1], fmt(S * R_THR), h)
+    axis_dim(sh, P(10, 0)[0], YF, P(0, -R_THR_CORE)[1], fmt(S * R_THR_CORE), h)
+    axis_dim(sh, P(20, 0)[0], YF, P(0, -R_HEX)[1], fmt(S * R_HEX), h,
+             text_y=(P(0, -R_HEX / 2)[1] + P(0, -R_HEX)[1]) / 2)          # liczba pod krawędzią 14,43
+    axis_dim(sh, P(30, 0)[0], YF, P(0, -R_HEX / 2)[1], fmt(S * R_HEX / 2), h)
+    s28 = fmt(S * R_NECK)
+    x28 = P((X_HEX + X_NECK) / 2, 0)[0]
+    axis_dim(sh, x28, YF, P(0, -R_NECK)[1], s28, h, **beyond(x28, P(0, -R_NECK)[1], P(0, -R_HEX)[1], s28, 1))
+    # od osi w górę (przekrój): otwory
+    axis_dim(sh, P(7.5, 0)[0], YF, P(0, R_BORE1)[1], fmt(S * R_BORE1), h)
+    axis_dim(sh, P(25, 0)[0], YF, P(0, R_BORE2)[1], fmt(S * R_BORE2), h)
+    # z prawej, na przedłużeniu osi: dno gwintu wewnętrznego, stopień, kołnierz
+    sh.line((x_end + AXIS_OVER, YF), (x_end + 16, YF), THIN, "pomocnicza")
+    axis_dim(sh, x_end + 10, YF, P(0, R_ITHR)[1], fmt(S * R_ITHR), h, ext_from=x_end)
+    axis_dim(sh, x_end + 6, YF, P(0, -R_TOP)[1], fmt(S * R_TOP), h, ext_from=x_end)
+    axis_dim(sh, x_end + 14, YF, P(0, -R_COLLAR)[1], fmt(S * R_COLLAR), h, ext_from=P(X_COLLAR, 0)[0])
+
+    # widok z góry: od osi w górę; z prawej w dół, bo nad osią jest tabelka izometrii
     sh.view = "góra"
-    y_b = YT + S * R_COLLAR + 3
-    for x in STEPS_X:
-        px, py = top(x, -REACH_Y[x])
-        x_tick(px, py + 0.6, y_b)
+    P = top
     sh.text(X0 - AXIS_OVER - 1, YT - 1, f"y = {fmt(YT)}", H_NOTE, "end")
-    sh.text(top(X_HEX / 2, 0)[0], top(0, S_HEX / 2)[1] - 0.8, fmt(S_HEX), H_NOTE)
-    for x0, x1, r in PROFILE_Y[2:]:
-        sh.text(top((x0 + x1) / 2, 0)[0], top(0, r)[1] - 0.8, fmt(S * r), H_NOTE)
-    sh.text(top(X_THR / 2, 0)[0], top(0, R_THR_CORE)[1] + 0.8 + H_NOTE, fmt(S * R_THR_CORE), H_NOTE)
+    axis_dim(sh, P(7.5, 0)[0], YT, P(0, R_THR_CORE)[1], fmt(S * R_THR_CORE), h)
+    axis_dim(sh, P(27.5, 0)[0], YT, P(0, S_HEX / 2)[1], fmt(S * S_HEX / 2), h)   # gwint i ściany sześciokąta
+    axis_dim(sh, x28, YT, P(0, R_NECK)[1], s28, h, **beyond(x28, P(0, R_NECK)[1], P(0, R_NECK)[1], s28, -1))
+    sh.line((x_end + AXIS_OVER, YT), (x_end + 16, YT), THIN, "pomocnicza")
+    axis_dim(sh, x_end + 6, YT, P(0, -R_TOP)[1], fmt(S * R_TOP), h, ext_from=x_end)
+    axis_dim(sh, x_end + 14, YT, P(0, -R_COLLAR)[1], fmt(S * R_COLLAR), h, ext_from=P(X_COLLAR, 0)[0])
 
     # widok z lewej
     sh.view = "lewy"
@@ -639,13 +672,13 @@ def construction(sh):
     ell = "; ".join(f"Ø{fmt(d)}\u00a0{fmt(d * math.sqrt(1.5) * S_ISO, 1)}×{fmt(d * math.sqrt(0.5) * S_ISO, 1)}"
                     for d in (22, 24, 25, 27, 28, 30)) + "."
     sh.text_block(146, 107, [
-        f"Izometria {S_ISO:g}:1. A – środek czoła x = 0: ({fmt(a[0], 1)};\u00a0{fmt(a[1], 1)}), "
-        f"B – środek czoła x = {fmt(L)}: ({fmt(b[0], 1)};\u00a0{fmt(b[1], 1)}).",
+        f"Izometria {S_ISO:g}:1. Środki czół: A (x = 0) ({fmt(a[0], 1)};\u00a0{fmt(a[1], 1)}), "
+        f"B (x = {fmt(L)}) ({fmt(b[0], 1)};\u00a0{fmt(b[1], 1)}).",
         f"Oś AB: {fmt(L * S_ISO)} mm pod 30° w dół w prawo; stacje od A: "
         f"{', '.join(fmt(x * S_ISO) for x in (X_THR, X_HEX, X_NECK, X_COLLAR))} mm.",
-        "Elipsa okręgu ØD: oś wielka 1,22·D prostopadle do AB (60° do poziomu), oś mała 0,71·D wzdłuż AB:",
+        "Elipsa okręgu ØD: oś wielka 1,22·D pod 60°, oś mała 0,71·D wzdłuż AB:",
         ell,
-        "Naroża sześciokąta od środka stacji (w prawo; w dół): "
+        "Naroża sześciokąta od środka (w prawo; w dół): "
         + " ".join(f"({fmt(u, 1)};\u00a0{fmt(v, 1)})" for u, v in corners)],
         70, H_SMALL)
 
